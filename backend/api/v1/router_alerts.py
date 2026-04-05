@@ -1,0 +1,40 @@
+from fastapi import APIRouter, HTTPException
+from typing import List
+import uuid
+from datetime import datetime
+
+from core.database import supabase
+from schemas.models import FusionAlertCreate
+
+router = APIRouter(tags=["Alerts"])
+
+@router.get("/alerts", response_model=List[dict])
+def get_fusion_alerts(limit: int = 50):
+    """Fetch all history of alerts."""
+    response = supabase.table("fusion_alerts").select("*").order("triggered_at", desc=True).limit(limit).execute()
+    return response.data
+
+@router.get("/alerts/active", response_model=List[dict])
+def get_active_alerts():
+    """Fetch only unresolved active alerts."""
+    response = supabase.table("fusion_alerts").select("*").eq("is_resolved", False).order("triggered_at", desc=True).execute()
+    return response.data
+
+@router.post("/alerts")
+def create_fusion_alert(alert: FusionAlertCreate):
+    """Create a new fusion alert."""
+    data = alert.model_dump()
+    data["id"] = str(uuid.uuid4())
+    data["device_id"] = str(data["device_id"])
+    data["triggered_at"] = datetime.utcnow().isoformat()
+    
+    response = supabase.table("fusion_alerts").insert(data).execute()
+    return {"message": "Alert created successfully", "data": response.data}
+
+@router.put("/alerts/{alert_id}/resolve")
+def resolve_alert(alert_id: str):
+    """Mark an active alert as resolved."""
+    response = supabase.table("fusion_alerts").update({"is_resolved": True}).eq("id", alert_id).execute()
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Alert not found or already resolved")
+    return {"message": "Alert resolved successfully", "data": response.data}

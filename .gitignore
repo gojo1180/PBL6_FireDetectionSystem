@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.*
+.yarn/
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+venv/
+env/
+ENV/
+
+# Next.js
+.next/
+out/
+
+# Production / Build
+build/
+dist/
+
+# Miscellaneous
+.DS_Store
+*.pem
+*.log
+*.tsbuildinfo
+next-env.d.ts
+
+# Python-specific
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.ipynb_checkpoints
+.pytest_cache/
+.coverage
+.mypy_cache/
+.tox/
+.nox/
+.cache/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env*
+
+# IDEs
+.vscode/
+.idea/
+
+# Vercel
+.vercel
+
+# Models / Weights
+backend/ml_models/*.pt
+backend/ml_models/*.pkl
+*.pt
+*.pkl

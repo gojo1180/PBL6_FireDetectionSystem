@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+pydantic
+pydantic-settings
+supabase
+paho-mqtt
+python-dotenv
+ultralytics
+scikit-learn
+joblib
+opencv-python
+python-multipart
+requests

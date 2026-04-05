@@ -1,0 +1,86 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+/* ============================================
+   Catppuccin Latte — Industrial IoT Theme
+   ============================================ */
+
+@theme {
+  --color-ctp-rosewater: #dc8a78;
+  --color-ctp-flamingo:  #dd7878;
+  --color-ctp-pink:      #ea76cb;
+  --color-ctp-mauve:     #8839ef;
+  --color-ctp-red:       #d20f39;
+  --color-ctp-maroon:    #e64553;
+  --color-ctp-peach:     #fe640b;
+  --color-ctp-yellow:    #df8e1d;
+  --color-ctp-green:     #40a02b;
+  --color-ctp-teal:      #179299;
+  --color-ctp-sky:       #04a5e5;
+  --color-ctp-sapphire:  #209fb5;
+  --color-ctp-blue:      #1e66f5;
+  --color-ctp-lavender:  #7287fd;
+  --color-ctp-text:      #4c4f69;
+  --color-ctp-subtext1:  #5c5f77;
+  --color-ctp-subtext0:  #6c6f85;
+  --color-ctp-overlay2:  #7c7f93;
+  --color-ctp-overlay1:  #8c8fa1;
+  --color-ctp-overlay0:  #9ca0b0;
+  --color-ctp-surface2:  #acb0be;
+  --color-ctp-surface1:  #bcc0cc;
+  --color-ctp-surface0:  #ccd0da;
+  --color-ctp-base:      #eff1f5;
+  --color-ctp-mantle:    #e6e9ef;
+  --color-ctp-crust:     #dce0e8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: var(--color-ctp-base);
+  color: var(--color-ctp-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-ctp-surface1); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-ctp-surface2); }
+
+/* Card base */
+.card {
+  background: var(--color-ctp-mantle);
+  border: 1px solid var(--color-ctp-crust);
+  border-radius: 16px;
+}
+
+/* Status glow animations */
+@keyframes glow-red {
+  0%, 100% { box-shadow: 0 0 8px rgba(210, 15, 57, 0.15); }
+  50%      { box-shadow: 0 0 24px rgba(210, 15, 57, 0.4); }
+}
+@keyframes glow-yellow {
+  0%, 100% { box-shadow: 0 0 8px rgba(223, 142, 29, 0.15); }
+  50%      { box-shadow: 0 0 20px rgba(223, 142, 29, 0.35); }
+}
+
+@utility animate-glow-red {
+  animation: glow-red 2s ease-in-out infinite;
+}
+@utility animate-glow-yellow {
+  animation: glow-yellow 2.5s ease-in-out infinite;
+}
+
+/* Blink for DANGER text */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+@utility animate-blink {
+  animation: blink 1s step-end infinite;
+}
