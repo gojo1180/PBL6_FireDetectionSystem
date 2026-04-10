@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Link from "next/link";
+import { LayoutDashboard, Cctv, Server, History, Settings } from "lucide-react";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -29,24 +31,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* Nav Links */}
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
             <span className="px-3 text-[10px] uppercase tracking-widest font-semibold text-ctp-overlay0 mb-2 block">Monitoring</span>
-            <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-ctp-blue/10 text-ctp-blue font-semibold text-sm transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <Link href="/" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-ctp-subtext0 hover:bg-ctp-surface0/60 hover:text-ctp-text font-medium text-sm transition-colors">
+              <LayoutDashboard size={18} />
               Dashboard
-            </a>
-            <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-ctp-subtext0 hover:bg-ctp-surface0/60 hover:text-ctp-text font-medium text-sm transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+            </Link>
+            <Link href="/cctv" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-ctp-subtext0 hover:bg-ctp-surface0/60 hover:text-ctp-text font-medium text-sm transition-colors">
+              <Cctv size={18} />
+              Live CCTV
+            </Link>
+            <Link href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-ctp-subtext0 hover:bg-ctp-surface0/60 hover:text-ctp-text font-medium text-sm transition-colors">
+              <Server size={18} />
               Devices
-            </a>
-            <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-ctp-subtext0 hover:bg-ctp-surface0/60 hover:text-ctp-text font-medium text-sm transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </Link>
+            <Link href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-ctp-subtext0 hover:bg-ctp-surface0/60 hover:text-ctp-text font-medium text-sm transition-colors">
+              <History size={18} />
               History
-            </a>
+            </Link>
 
             <span className="px-3 pt-6 text-[10px] uppercase tracking-widest font-semibold text-ctp-overlay0 mb-2 block">System</span>
-            <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-ctp-subtext0 hover:bg-ctp-surface0/60 hover:text-ctp-text font-medium text-sm transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            <Link href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-ctp-subtext0 hover:bg-ctp-surface0/60 hover:text-ctp-text font-medium text-sm transition-colors">
+              <Settings size={18} />
               Settings
-            </a>
+            </Link>
           </nav>
 
           {/* Footer */}

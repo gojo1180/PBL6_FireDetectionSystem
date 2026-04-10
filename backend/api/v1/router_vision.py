@@ -1,13 +1,33 @@
 from fastapi import APIRouter, File, UploadFile, HTTPException, Form
+from fastapi.responses import StreamingResponse
 from typing import List, Optional
 import uuid
+import time
 from datetime import datetime
 
 from services.fusion_engine import fusion_service
+from services.vision_service import get_latest_frame_jpg
 from core.database import supabase
 from schemas.models import VisionLogCreate
 
 router = APIRouter(tags=["Vision"])
+
+import asyncio
+
+async def mjpeg_generator():
+    while True:
+        frame_bytes = get_latest_frame_jpg()
+        if frame_bytes:
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        # Rate limit to ~20 FPS using asyncio sleep to free up the event loop!
+        await asyncio.sleep(0.05)
+
+@router.get("/vision/stream")
+async def stream_cctv():
+    """Stream the latest CCTV frame as MJPEG."""
+    return StreamingResponse(mjpeg_generator(), media_type="multipart/x-mixed-replace; boundary=frame")
+
 
 @router.get("/vision", response_model=List[dict])
 def get_vision_logs(limit: int = 50):

@@ -90,10 +90,11 @@ class LateFusionService:
                 # Assume it's an RGB numpy array from OpenCV
                 image = image_input
             
-            # Predict using YOLOv8 with adjusted inference parameters
-            results = self.yolo_model(image, conf=0.25, imgsz=640)
+            # Predict using YOLOv8 with adjusted inference parameters (conf=0.45 to reduce False Positives)
+            results = self.yolo_model(image, conf=0.45, imgsz=640, verbose=False)
             
             detected_items = []
+            boxes_data = []
             
             for r in results:
                 boxes = r.boxes
@@ -102,6 +103,13 @@ class LateFusionService:
                     conf = float(box.conf[0])
                     class_name = self.yolo_model.names[cls_id].lower()
                     
+                    xyxy = box.xyxy[0].tolist()
+                    boxes_data.append({
+                        "class": class_name,
+                        "conf": conf,
+                        "xyxy": xyxy
+                    })
+                    
                     detected_items.append(f"{class_name}: {conf:.3f}")
                     
                     if "fire" in class_name and conf > result_scores["fire_confidence"]:
@@ -109,8 +117,10 @@ class LateFusionService:
                     elif "smoke" in class_name and conf > result_scores["smoke_confidence"]:
                         result_scores["smoke_confidence"] = conf
                         
-            print(f"YOLOv8 Detected: {detected_items}")
+            if detected_items:
+                print(f"YOLOv8 Detected: {detected_items}")
                         
+            result_scores["bounding_boxes"] = boxes_data
             return result_scores
         except Exception as e:
             print(f"Error processing vision data: {e}")
