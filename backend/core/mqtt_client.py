@@ -18,20 +18,26 @@ def on_connect(client, userdata, flags, rc):
         print(f"❌ Failed to connect, return code {rc}")
 
 def on_message(client, userdata, msg):
+    from core.database import supabase
+    import uuid
+    from datetime import datetime
+    
     try:
-        # Proses di background secara silent tanpa log terminal
+        # Parse the incoming JSON payload
         payload = msg.payload.decode()
         sensor_data = json.loads(payload)
         
-        # Masukkan ke Model Isolation Forest
+        # Pass the data to the fusion_engine to get the is_anomaly result
         is_anomaly = fusion_service.process_sensor_data(sensor_data)
         
-        # 1. Save sensor data to Supabase
-        from core.database import supabase
-        import uuid
-        from datetime import datetime
-        
-        device_id = sensor_data.get("device_id", "00000000-0000-0000-0000-000000000000")
+        raw_device_id = sensor_data.get("device_id", "00000000-0000-0000-0000-000000000000")
+        try:
+            # First, check if it is already a valid UUID
+            uuid.UUID(str(raw_device_id))
+            device_id = str(raw_device_id)
+        except ValueError:
+            # If not a valid UUID (e.g. "esp32-node-1"), create a deterministic UUID
+            device_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, str(raw_device_id)))
         
         log_data = {
             "id": str(uuid.uuid4()),
@@ -43,33 +49,32 @@ def on_message(client, userdata, msg):
             "smoke_detected": bool(sensor_data.get("smoke_detected", sensor_data.get("smoke", False))),
             "recorded_at": datetime.utcnow().isoformat()
         }
+        
+    except Exception as e:
+        print(f"❌ MESSAGE PARSING ERROR: {e}")
+        return
+
+    # Wrap the database inserts in a try...except block
+    try:
+        # Attempt to insert the raw sensor data into the sensor_logs table
         supabase.table("sensor_logs").insert(log_data).execute()
         
-        # 2. Evaluate late fusion and generate alert if needed
-        # Fetch the latest vision log to check recent fire confidence
-        vision_res = supabase.table("vision_logs").select("fire_confidence").order("recorded_at", desc=True).limit(1).execute()
-        fire_conf = 0.0
-        if vision_res.data:
-            fire_conf = vision_res.data[0].get("fire_confidence", 0.0)
-            
-        risk_level = fusion_service.evaluate_late_fusion(is_anomaly, fire_conf)
-        
-        if risk_level != 'SAFE':
+        # If is_anomaly is True, also insert an alert into the fusion_alerts table
+        if is_anomaly:
             alert_data = {
                 "id": str(uuid.uuid4()),
                 "device_id": device_id,
-                "risk_level": risk_level,
-                "fusion_score": float(fire_conf) if fire_conf > 0 else (1.0 if is_anomaly else 0.0),
-                "alert_message": f"System Alert: {risk_level} detected. Sensor Anomaly: {is_anomaly}. Vision Confidence: {fire_conf}",
+                "risk_level": "DANGER",
+                "fusion_score": 1.0,
+                "alert_message": "System Alert: Sensor Anomaly Detected (DANGER)",
                 "is_resolved": False,
                 "triggered_at": datetime.utcnow().isoformat()
             }
             supabase.table("fusion_alerts").insert(alert_data).execute()
-            print(f"⚠️ Fusion Alert Triggered: {risk_level}")
+            print("⚠️ Fusion Alert Triggered: DANGER")
             
     except Exception as e:
-        # Abaikan error parsing sesaat, namun bisa di-print jika mode debug
-        pass
+        print(f"❌ SUPABASE INSERT ERROR: {e}")
 
 client = mqtt.Client()
 client.on_connect = on_connect

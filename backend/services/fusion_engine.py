@@ -72,10 +72,10 @@ class LateFusionService:
             print(f"Error processing sensor data: {e}")
             return False
 
-    def process_vision_data(self, image_bytes: bytes) -> dict:
+    def process_vision_data(self, image_input) -> dict:
         """
-        Read the image bytes using PIL, pass to YOLOv8, 
-        and extract the maximum confidence score for 'fire' and 'smoke'.
+        Read the image bytes using PIL or accept RGB numpy array directly, 
+        pass to YOLOv8, and extract the maximum confidence score for 'fire' and 'smoke'.
         """
         result_scores = {"fire_confidence": 0.0, "smoke_confidence": 0.0}
         
@@ -83,11 +83,17 @@ class LateFusionService:
             return result_scores
             
         try:
-            # Convert bytes to PIL Image (best for YOLOv8 model predictability)
-            image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+            if isinstance(image_input, bytes):
+                # Convert bytes to PIL Image
+                image = Image.open(io.BytesIO(image_input)).convert("RGB")
+            else:
+                # Assume it's an RGB numpy array from OpenCV
+                image = image_input
             
-            # Predict using YOLOv8
-            results = self.yolo_model(image)
+            # Predict using YOLOv8 with adjusted inference parameters
+            results = self.yolo_model(image, conf=0.25, imgsz=640)
+            
+            detected_items = []
             
             for r in results:
                 boxes = r.boxes
@@ -96,10 +102,14 @@ class LateFusionService:
                     conf = float(box.conf[0])
                     class_name = self.yolo_model.names[cls_id].lower()
                     
+                    detected_items.append(f"{class_name}: {conf:.3f}")
+                    
                     if "fire" in class_name and conf > result_scores["fire_confidence"]:
                         result_scores["fire_confidence"] = conf
                     elif "smoke" in class_name and conf > result_scores["smoke_confidence"]:
                         result_scores["smoke_confidence"] = conf
+                        
+            print(f"YOLOv8 Detected: {detected_items}")
                         
             return result_scores
         except Exception as e:

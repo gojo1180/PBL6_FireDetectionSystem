@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from typing import Optional
 
 class Settings(BaseSettings):
     SUPABASE_URL: str
@@ -7,6 +8,7 @@ class Settings(BaseSettings):
     HIVEMQ_PORT: int = 8883
     HIVEMQ_USERNAME: str
     HIVEMQ_PASSWORD: str
+    CCTV_RTSP_URL: Optional[str] = None
 
     class Config:
         env_file = ".env"

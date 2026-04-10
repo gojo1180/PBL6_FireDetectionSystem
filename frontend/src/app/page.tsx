@@ -74,16 +74,16 @@ export default function Dashboard() {
   /* Derived */
   const riskLevel = latestAlert?.is_resolved === false ? latestAlert.risk_level : "SAFE";
   const bannerMap: Record<string, { bg: string; text: string; icon: React.ReactNode; label: string; glow: string; blink: string }> = {
-    DANGER:  { bg: "bg-ctp-red",    text: "text-white",    icon: <AlertTriangle size={22} />, label: "DANGER — Immediate Action Required", glow: "animate-glow-red",    blink: "animate-blink" },
-    WARNING: { bg: "bg-ctp-yellow",  text: "text-ctp-text", icon: <Zap size={22} />,           label: "WARNING — Anomaly Detected",          glow: "animate-glow-yellow", blink: "" },
-    SAFE:    { bg: "bg-ctp-green",   text: "text-white",    icon: <ShieldCheck size={22} />,   label: "ALL SYSTEMS NORMAL",                  glow: "",                    blink: "" },
+    DANGER: { bg: "bg-ctp-red", text: "text-white", icon: <AlertTriangle size={22} />, label: "DANGER — Immediate Action Required", glow: "animate-glow-red", blink: "animate-blink" },
+    WARNING: { bg: "bg-ctp-yellow", text: "text-ctp-text", icon: <Zap size={22} />, label: "WARNING — Anomaly Detected", glow: "animate-glow-yellow", blink: "" },
+    SAFE: { bg: "bg-ctp-green", text: "text-white", icon: <ShieldCheck size={22} />, label: "ALL SYSTEMS NORMAL", glow: "", blink: "" },
   };
   const banner = bannerMap[riskLevel] ?? bannerMap.SAFE;
 
   const chartData = sensorHistory.map((s) => ({
     time: mounted ? fmtTime(s.recorded_at) : "",
     CNG: Number(s.cng_level.toFixed(2)),
-    CO:  Number(s.co_level.toFixed(2)),
+    CO: Number(s.co_level.toFixed(2)),
     LPG: Number(s.lpg_level.toFixed(2)),
   }));
 
@@ -136,9 +136,9 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Sensor Cards - 2x2 grid */}
           <div className="lg:col-span-2 grid grid-cols-2 gap-4">
-            <MetricCard label="CNG"  value={latestSensor?.cng_level} unit="ppm" icon={<Gauge size={20} className="text-ctp-blue" />}    accent="ctp-blue"  warn={latestSensor ? latestSensor.cng_level > 8 : false} />
-            <MetricCard label="CO"   value={latestSensor?.co_level}  unit="ppm" icon={<Wind size={20} className="text-ctp-peach" />}     accent="ctp-peach" warn={latestSensor ? latestSensor.co_level > 15 : false} />
-            <MetricCard label="LPG"  value={latestSensor?.lpg_level} unit="ppm" icon={<Droplets size={20} className="text-ctp-teal" />}  accent="ctp-teal"  warn={latestSensor ? latestSensor.lpg_level > 10 : false} />
+            <MetricCard label="CNG" value={latestSensor?.cng_level} unit="ppm" icon={<Gauge size={20} className="text-ctp-blue" />} accent="ctp-blue" warn={latestSensor ? latestSensor.cng_level > 8 : false} />
+            <MetricCard label="CO" value={latestSensor?.co_level} unit="ppm" icon={<Wind size={20} className="text-ctp-peach" />} accent="ctp-peach" warn={latestSensor ? latestSensor.co_level > 15 : false} />
+            <MetricCard label="LPG" value={latestSensor?.lpg_level} unit="ppm" icon={<Droplets size={20} className="text-ctp-teal" />} accent="ctp-teal" warn={latestSensor ? latestSensor.lpg_level > 10 : false} />
             {/* Binary */}
             <div className="card p-5 flex flex-col justify-between min-h-[140px]">
               <div className="flex items-center gap-2 mb-3">
@@ -171,9 +171,8 @@ export default function Dashboard() {
                 LIVE
               </div>
             </div>
-            <div className={`relative aspect-video flex items-center justify-center transition-colors duration-300 ${
-              latestVision && latestVision.fire_confidence > 0 ? "bg-red-50" : "bg-ctp-crust"
-            }`}>
+            <div className={`relative aspect-video flex items-center justify-center transition-colors duration-300 ${latestVision && latestVision.fire_confidence > 0 ? "bg-red-50" : "bg-ctp-crust"
+              }`}>
               {latestVision && latestVision.fire_confidence > 0 ? (
                 <>
                   <div className="absolute inset-0 border-4 border-ctp-red animate-pulse pointer-events-none z-10" />
@@ -185,7 +184,7 @@ export default function Dashboard() {
               <span className="absolute top-2 left-2 bg-black/50 text-white text-[10px] font-mono px-2 py-0.5 rounded">CAM-01</span>
             </div>
             <div className="p-5 space-y-4 flex-1">
-              <ConfidenceBar label="Fire"  value={latestVision?.fire_confidence ?? 0}  color="#d20f39" threshold={0.6} />
+              <ConfidenceBar label="Fire" value={latestVision?.fire_confidence ?? 0} color="#d20f39" threshold={0.6} />
               <ConfidenceBar label="Smoke" value={latestVision?.smoke_confidence ?? 0} color="#fe640b" threshold={0.4} />
               <p className="text-[10px] text-ctp-overlay0 font-mono tabular-nums pt-1">
                 Last detection: {latestVision ? fmtTime(latestVision.recorded_at) : "No events"}
@@ -214,7 +213,7 @@ export default function Dashboard() {
                   <Tooltip contentStyle={{ background: "#e6e9ef", border: "1px solid #dce0e8", borderRadius: "12px", fontSize: "12px", color: "#4c4f69" }} />
                   <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "12px", color: "#6c6f85" }} />
                   <Line type="monotone" dataKey="CNG" stroke="#1e66f5" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="CO"  stroke="#fe640b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="CO" stroke="#fe640b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
                   <Line type="monotone" dataKey="LPG" stroke="#179299" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -242,15 +241,13 @@ export default function Dashboard() {
                 </div>
               ) : (
                 alertsList.map((a) => (
-                  <div key={a.id} className={`p-3 rounded-xl border transition-colors ${
-                    a.risk_level === "DANGER" ? "border-ctp-red/30 bg-ctp-red/5"
+                  <div key={a.id} className={`p-3 rounded-xl border transition-colors ${a.risk_level === "DANGER" ? "border-ctp-red/30 bg-ctp-red/5"
                     : a.risk_level === "WARNING" ? "border-ctp-yellow/30 bg-ctp-yellow/5"
-                    : "border-ctp-crust bg-ctp-base"
-                  }`}>
+                      : "border-ctp-crust bg-ctp-base"
+                    }`}>
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                        a.risk_level === "DANGER" ? "bg-ctp-red text-white" : "bg-ctp-yellow/20 text-ctp-yellow"
-                      }`}>{a.risk_level}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${a.risk_level === "DANGER" ? "bg-ctp-red text-white" : "bg-ctp-yellow/20 text-ctp-yellow"
+                        }`}>{a.risk_level}</span>
                       <span className="text-[10px] font-mono text-ctp-overlay0">{fmtTime(a.triggered_at)}</span>
                     </div>
                     <p className="text-xs text-ctp-subtext1 leading-relaxed line-clamp-2">{a.alert_message}</p>

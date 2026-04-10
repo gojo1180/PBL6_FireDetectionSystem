@@ -8,14 +8,30 @@ from api.v1 import router_sensors, router_vision, router_alerts
 # Import MQTT client initialization controls
 from core.mqtt_client import start_mqtt, stop_mqtt
 
+# Import CCTV Background Service
+from services.vision_service import start_cctv_service, stop_cctv_service
+
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # --- Startup ---
     print("🚀 SYSTEM: Memulai Koneksi MQTT...")
     start_mqtt()
+    
+    # Start CCTV Service
+    print("🚀 SYSTEM: Memulai Service CCTV...")
+    start_cctv_service()
+    
     yield
+    
     # --- Shutdown ---
+    print("🛑 SYSTEM: Menghentikan Service CCTV...")
+    stop_cctv_service()
+    
+    print("🛑 SYSTEM: Menghentikan Koneksi MQTT...")
     stop_mqtt()
+
 
 # Strict initialization with the async lifespan context manager
 app = FastAPI(lifespan=lifespan)
