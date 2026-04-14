@@ -67,7 +67,7 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Top Bar */}
-      <header className="h-14 border-b border-ctp-crust bg-ctp-mantle flex items-center justify-between px-6 shrink-0 sticky top-0 z-20">
+      <header className="h-14 border-b border-ctp-crust bg-ctp-mantle flex items-center justify-between pl-16 lg:pl-6 pr-6 shrink-0 sticky top-0 z-20">
         <div className="flex items-center gap-2 text-sm">
           <Activity size={16} className="text-ctp-blue" />
           <span className="font-semibold text-ctp-text">Control Center</span>

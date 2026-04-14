@@ -28,13 +28,12 @@ def _reconnect_camera():
             
         print(f"📷 Attempting to connect to RTSP: {url}")
         
-        # FIX: Gunakan UDP untuk mencegah penumpukan antrian TCP yang membuat delay berlipat ganda
         import os
-        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp|fflags;nobuffer|flags;low_delay"
+        # TCP lebih aman untuk gambar agar tidak pecah/glitch. Lag akan diatasi oleh Grab()
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
         
         cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
         if cap.isOpened():
-            # Optimize buffer for real-time RTSP
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             print("✅ Successfully connected to CCTV RTSP stream.")
             return cap
@@ -51,6 +50,7 @@ def frame_reading_loop():
         return
 
     cap = _reconnect_camera()
+    last_retrieve_time = 0
 
     while not cctv_stop_event.is_set():
         if cap is None or not cap.isOpened():
@@ -59,7 +59,8 @@ def frame_reading_loop():
             if cap is None or cctv_stop_event.is_set():
                 break
 
-        ret, frame = cap.read()
+        # SOLUSI ANTI-LAG: grab() membuang antrean frame dengan kecepatan super tinggi tanpa beban CPU
+        ret = cap.grab()
         if not ret:
             print("⚠️ Failed to grab frame from CCTV. Reconnecting...")
             cap.release()
@@ -67,8 +68,14 @@ def frame_reading_loop():
             time.sleep(1)
             continue
 
-        with frame_lock:
-            latest_frame = frame  # Removed .copy() untuk optimasi kecepatan maksimum
+        # Hanya decode (retrieve) frame maksimal 10 FPS untuk Dashboard & YOLO
+        current_time = time.time()
+        if current_time - last_retrieve_time > 0.1:
+            ret, frame = cap.retrieve()
+            if ret:
+                with frame_lock:
+                    latest_frame = frame
+            last_retrieve_time = current_time
 
     if cap and cap.isOpened():
         cap.release()
@@ -78,6 +85,8 @@ latest_boxes = []
 
 def cctv_inference_loop():
     global latest_boxes
+    last_db_alert_time = 0  # Timer untuk Cooldown Supabase
+    
     while not cctv_stop_event.is_set():
         frame_to_process = None
         
@@ -86,10 +95,10 @@ def cctv_inference_loop():
                 frame_to_process = latest_frame.copy()
                 
         if frame_to_process is not None:
-            # Convert frame from BGR to RGB (CRITICAL FIX for YOLOv8)
+            # Convert frame from BGR to RGB (Wajib untuk YOLOv8)
             frame_rgb = cv2.cvtColor(frame_to_process, cv2.COLOR_BGR2RGB)
             
-            # Process frames through late fusion model directly using the RGB numpy array
+            # Process frames
             vision_results = fusion_service.process_vision_data(frame_rgb)
                 
             fire_conf = vision_results.get("fire_confidence", 0.0)
@@ -98,10 +107,12 @@ def cctv_inference_loop():
             with frame_lock:
                 latest_boxes = vision_results.get("bounding_boxes", [])
             
-            if fire_conf > 0.0 or smoke_conf > 0.0:
+            current_time = time.time()
+            
+            # Tambahkan COOLDOWN 5 DETIK agar database tidak terspam dan CPU tidak hang!
+            if (fire_conf > 0.0 or smoke_conf > 0.0) and (current_time - last_db_alert_time > 5.0):
                 print(f"🔥 Threat detected via CCTV! Fire: {fire_conf:.2f}, Smoke: {smoke_conf:.2f}")
                 
-                # Insert into vision_logs
                 log_data = {
                     "id": str(uuid.uuid4()),
                     "device_id": CCTV_DEVICE_ID,
@@ -112,7 +123,6 @@ def cctv_inference_loop():
                 }
                 
                 risk_level = "DANGER" if fire_conf > 0.5 else "WARNING"
-                # Create Alert
                 alert_data = {
                     "id": str(uuid.uuid4()),
                     "device_id": CCTV_DEVICE_ID,
@@ -126,11 +136,12 @@ def cctv_inference_loop():
                 try:
                     supabase.table("vision_logs").insert(log_data).execute()
                     supabase.table("fusion_alerts").insert(alert_data).execute()
-                    print("✅ Saved CCTV threat detection to Supabase (vision_logs & fusion_alerts).")
+                    print("✅ Saved CCTV threat detection to Supabase.")
+                    last_db_alert_time = current_time # Reset timer
                 except Exception as e:
                     print(f"❌ Error saving CCTV alert to DB: {e}")
                     
-        cctv_stop_event.wait(1.5)
+        cctv_stop_event.wait(0.5) # Jalankan YOLO 2 kali per detik
     print("🛑 CCTV inference loop shut down.")
 
 def get_latest_frame_jpg():
@@ -156,7 +167,6 @@ def get_latest_frame_jpg():
 def start_cctv_service():
     global frame_reader_thread, inference_thread
     if not settings.CCTV_RTSP_URL:
-        print("⚠️ CCTV_RTSP_URL not present in config, skipping CCTV background service.")
         return
         
     print("🚀 Starting CCTV Background Services...")
@@ -175,4 +185,3 @@ def stop_cctv_service():
         frame_reader_thread.join(timeout=3.0)
     if inference_thread and inference_thread.is_alive():
         inference_thread.join(timeout=3.0)
-

@@ -65,7 +65,6 @@ class LateFusionService:
 
             prediction = self.if_model.predict(X)
             
-            # -1 indicates anomaly, 1 indicates normal
             is_anomaly = True if prediction[0] == -1 else False
             return is_anomaly
         except Exception as e:
@@ -74,7 +73,7 @@ class LateFusionService:
 
     def process_vision_data(self, image_input) -> dict:
         """
-        Read the image bytes using PIL or accept RGB numpy array directly, 
+        Read the image bytes using PIL or accept numpy array directly, 
         pass to YOLOv8, and extract the maximum confidence score for 'fire' and 'smoke'.
         """
         result_scores = {"fire_confidence": 0.0, "smoke_confidence": 0.0}
@@ -84,14 +83,18 @@ class LateFusionService:
             
         try:
             if isinstance(image_input, bytes):
-                # Convert bytes to PIL Image
-                image = Image.open(io.BytesIO(image_input)).convert("RGB")
+                # Dari API /vision/upload-frame/
+                image = Image.open(io.BytesIO(image_input))
             else:
-                # Assume it's an RGB numpy array from OpenCV
-                image = image_input
+                # Dari CCTV Background Service (Numpy Array)
+                # 1. FIX WARNA: Kembalikan RGB ke BGR karena Ultralytics butuh BGR
+                image = cv2.cvtColor(image_input, cv2.COLOR_RGB2BGR)
+                
+                # 2. FIX RESOLUSI: Paksa resize agar stabil seperti di test_webcam.py
+                image = cv2.resize(image, (640, 480))
             
-            # Predict using YOLOv8 with adjusted inference parameters (conf=0.45 to reduce False Positives)
-            results = self.yolo_model(image, conf=0.45, imgsz=640, verbose=False)
+            # 3. FIX SENSITIVITAS & FUNGSI: Gunakan .predict() dan conf=0.55
+            results = self.yolo_model.predict(source=image, conf=0.55, imgsz=640, verbose=False)
             
             detected_items = []
             boxes_data = []
@@ -112,6 +115,7 @@ class LateFusionService:
                     
                     detected_items.append(f"{class_name}: {conf:.3f}")
                     
+                    # Simpan score tertinggi
                     if "fire" in class_name and conf > result_scores["fire_confidence"]:
                         result_scores["fire_confidence"] = conf
                     elif "smoke" in class_name and conf > result_scores["smoke_confidence"]:

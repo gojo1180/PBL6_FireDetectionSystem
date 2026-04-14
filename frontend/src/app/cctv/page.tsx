@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Activity, Camera, ShieldAlert, Cpu, Network, Frame } from "lucide-react";
+import { Activity, Camera, ShieldAlert, Cpu, Network, Frame, VideoOff } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function CCTVPage() {
   const [mounted, setMounted] = useState(false);
   const [currentTime, setCurrentTime] = useState("");
   const [streamUrl, setStreamUrl] = useState("");
-  
+  const [isOffline, setIsOffline] = useState(false);
+
   // Real DB data state
   const [deviceInfo, setDeviceInfo] = useState({
     name: "Loading Device...",
@@ -19,7 +20,7 @@ export default function CCTVPage() {
 
   useEffect(() => {
     setMounted(true);
-    
+
     // Anti-cache trick to prevent stream freezing when switching pages!
     setStreamUrl(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/v1/vision/stream?t=${Date.now()}`);
 
@@ -30,7 +31,7 @@ export default function CCTVPage() {
         .select("name, location")
         .eq("id", CCTV_DEVICE_ID)
         .single();
-        
+
       if (data && !error) {
         setDeviceInfo({
           name: data.name,
@@ -69,7 +70,7 @@ export default function CCTVPage() {
   return (
     <div className="flex flex-col min-h-screen bg-ctp-base">
       {/* Top Bar for SOC Layout */}
-      <header className="h-14 border-b border-ctp-crust bg-ctp-mantle flex items-center justify-between px-6 shrink-0 sticky top-0 z-20">
+      <header className="h-14 border-b border-ctp-crust bg-ctp-mantle flex items-center justify-between pl-16 lg:pl-6 pr-6 shrink-0 sticky top-0 z-20">
         <div className="flex items-center gap-2 text-sm">
           <Activity size={16} className="text-ctp-blue" />
           <span className="font-semibold text-ctp-text">Security Operations Center</span>
@@ -78,17 +79,19 @@ export default function CCTVPage() {
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 bg-ctp-green rounded-full border border-ctp-green animate-pulse" />
-            <span className="text-xs font-bold text-ctp-green tracking-widest uppercase">System Online</span>
+            <span className={`w-2.5 h-2.5 rounded-full border animate-pulse ${isOffline ? 'bg-ctp-red border-ctp-red' : 'bg-ctp-green border-ctp-green'}`} />
+            <span className={`text-xs font-bold tracking-widest uppercase ${isOffline ? 'text-ctp-red' : 'text-ctp-green'}`}>
+              {isOffline ? 'System Offline' : 'System Online'}
+            </span>
           </div>
         </div>
       </header>
 
       {/* Main Content grid */}
       <main className="flex-1 p-6 lg:p-8 space-y-6">
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          
+
           {/* Main Video Stream Container (takes up 3 cols on large screens) */}
           <div className="lg:col-span-3 card flex flex-col overflow-hidden relative border border-ctp-crust bg-ctp-mantle rounded-2xl shadow-lg">
             {/* Header for Panel */}
@@ -99,7 +102,7 @@ export default function CCTVPage() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-ctp-overlay0 font-mono tracking-widest">
-                  FPS: 20
+                  FPS: {isOffline ? '0' : '20'}
                 </span>
               </div>
             </div>
@@ -108,40 +111,68 @@ export default function CCTVPage() {
             <div className="relative p-4 flex-1 flex flex-col justify-center items-center bg-ctp-crust">
               <div className="relative w-full max-w-5xl group">
                 {/* The actual stream */}
-                {streamUrl && (
+                {streamUrl && !isOffline && (
                   <img
                     src={streamUrl}
                     alt="Live CCTV Stream"
                     className="w-full max-h-[70vh] object-contain bg-black rounded-lg border border-ctp-crust shadow-2xl"
                     onError={(e) => {
-                      // Fallback visual if stream is down
-                      (e.target as HTMLImageElement).src = "/stream-fallback.png"; // Doesn't exist, but won't loop if unhandled
+                      setIsOffline(true);
                     }}
                   />
                 )}
 
+                {/* Offline State Canvas */}
+                {isOffline && (
+                  <div className="w-full min-h-[50vh] md:min-h-[70vh] flex flex-col items-center justify-center bg-black rounded-lg border border-ctp-red/30 shadow-[0_0_15px_rgba(243,139,168,0.1)] relative overflow-hidden">
+                    <div className="absolute inset-0 opacity-[0.05] bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,#fff_2px,#fff_4px)] mix-blend-overlay"></div>
+                    <div className="relative z-10 flex flex-col items-center">
+                      <VideoOff size={56} className="text-ctp-red mb-4 opacity-80" />
+                      <span className="text-2xl font-bold text-ctp-red tracking-widest uppercase flex items-center gap-3">
+                        <span className="w-3 h-3 bg-ctp-red rounded-full animate-ping" />
+                        SIGNAL LOST
+                        <span className="w-3 h-3 bg-ctp-red rounded-full animate-ping" />
+                      </span>
+                      <span className="text-sm text-ctp-overlay0 mt-3 font-mono">CONNECTION TO CAMERA FAILED</span>
+                      <button
+                        onClick={() => {
+                          setIsOffline(false);
+                          setStreamUrl(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/v1/vision/stream?t=${Date.now()}`);
+                        }}
+                        className="mt-6 px-4 py-2 bg-ctp-red/10 border border-ctp-red/50 text-ctp-red font-mono text-xs uppercase tracking-widest rounded hover:bg-ctp-red/20 transition-colors"
+                      >
+                        Retry Connection
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Overlays on the video */}
                 <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded border border-white/10 shadow-lg">
-                  <div className="w-2.5 h-2.5 bg-ctp-green rounded-full animate-pulse shadow-[0_0_8px_rgba(166,227,161,0.8)]" />
-                  <span className="text-[10px] font-bold text-white tracking-widest uppercase">LIVE</span>
+                  <div className={`w-2.5 h-2.5 rounded-full ${isOffline ? 'bg-ctp-red' : 'bg-ctp-green animate-pulse shadow-[0_0_8px_rgba(166,227,161,0.8)]'}`} />
+                  <span className={`text-[10px] font-bold tracking-widest uppercase ${isOffline ? 'text-ctp-red' : 'text-white'}`}>
+                    {isOffline ? 'OFFLINE' : 'LIVE'}
+                  </span>
                 </div>
 
                 <div className="absolute bottom-4 left-4 z-10 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded border border-white/10 shadow-lg">
-                  <span className="text-xs font-mono text-white/90 shadow-sm">{currentTime}</span>
+                  <span className={`text-xs font-mono shadow-sm ${isOffline ? 'text-ctp-red/80' : 'text-white/90'}`}>{currentTime}</span>
                 </div>
 
                 <div className="absolute top-4 right-4 z-10 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded border border-white/10 shadow-lg">
-                   <div className="flex items-center gap-1.5">
-                     <ShieldAlert size={12} className="text-ctp-yellow" />
-                     <span className="text-[10px] font-bold text-white tracking-widest uppercase">AI ACTIVE</span>
-                   </div>
+                  <div className="flex items-center gap-1.5">
+                    <ShieldAlert size={12} className={isOffline ? 'text-ctp-surface1' : 'text-ctp-yellow'} />
+                    <span className={`text-[10px] font-bold tracking-widest uppercase ${isOffline ? 'text-ctp-surface1' : 'text-white'}`}>
+                      {isOffline ? 'AI DISABLED' : 'AI ACTIVE'}
+                    </span>
+                  </div>
                 </div>
-                
+
                 {/* Crosshair / Center decoration just for SOC aesthetic */}
                 <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-30 transition-opacity duration-700">
-                  <div className="absolute top-1/2 left-0 w-full h-[1px] bg-ctp-blue/50" />
-                  <div className="absolute left-1/2 top-0 w-[1px] h-full bg-ctp-blue/50" />
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 border border-ctp-blue rounded-full" />
+                  <div className={`absolute top-1/2 left-0 w-full h-[1px] ${isOffline ? 'bg-ctp-red/50' : 'bg-ctp-blue/50'}`} />
+                  <div className={`absolute left-1/2 top-0 w-[1px] h-full ${isOffline ? 'bg-ctp-red/50' : 'bg-ctp-blue/50'}`} />
+                  <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 border rounded-full ${isOffline ? 'border-ctp-red' : 'border-ctp-blue'}`} />
                 </div>
               </div>
             </div>
@@ -149,23 +180,25 @@ export default function CCTVPage() {
 
           {/* Camera Info Panel (Aside) */}
           <div className="lg:col-span-1 space-y-6">
-            
+
             <div className="card p-5 border border-ctp-crust bg-ctp-mantle rounded-2xl shadow-lg">
               <h3 className="text-xs font-bold uppercase tracking-widest text-ctp-subtext0 mb-4 flex items-center gap-2">
                 <Activity size={14} className="text-ctp-mauve" />
                 Tech Specs
               </h3>
-              
+
               <div className="space-y-4">
-                
+
                 <div className="flex justify-between items-center p-3 rounded-xl bg-ctp-crust/50 border border-ctp-crust">
                   <div className="flex items-center gap-2">
-                    <Network size={14} className="text-ctp-blue" />
+                    <Network size={14} className={isOffline ? "text-ctp-red" : "text-ctp-blue"} />
                     <span className="text-xs font-semibold text-ctp-text">Status</span>
                   </div>
-                  <span className="text-xs font-mono text-ctp-green">Connected</span>
+                  <span className={`text-xs font-mono ${isOffline ? 'text-ctp-red' : 'text-ctp-green'}`}>
+                    {isOffline ? 'Disconnected' : 'Connected'}
+                  </span>
                 </div>
-                
+
                 <div className="flex justify-between items-center p-3 rounded-xl bg-ctp-crust/50 border border-ctp-crust">
                   <div className="flex items-center gap-2">
                     <Activity size={14} className="text-ctp-teal" />
@@ -173,7 +206,7 @@ export default function CCTVPage() {
                   </div>
                   <span className="text-xs font-mono text-ctp-subtext1">MJPEG over TCP</span>
                 </div>
-                
+
                 <div className="flex justify-between items-center p-3 rounded-xl bg-ctp-crust/50 border border-ctp-crust">
                   <div className="flex items-center gap-2">
                     <Frame size={14} className="text-ctp-lavender" />
@@ -184,39 +217,15 @@ export default function CCTVPage() {
 
                 <div className="flex justify-between items-center p-3 rounded-xl bg-ctp-crust/50 border border-ctp-crust">
                   <div className="flex items-center gap-2">
-                    <Cpu size={14} className="text-ctp-peach" />
+                    <Cpu size={14} className={isOffline ? "text-ctp-surface1" : "text-ctp-peach"} />
                     <span className="text-xs font-semibold text-ctp-text">AI Model</span>
                   </div>
-                  <span className="text-xs font-mono text-ctp-peach font-bold drop-shadow-[0_0_8px_rgba(250,179,135,0.4)]">YOLOv8 Active</span>
+                  <span className={`text-xs font-mono font-bold ${isOffline ? 'text-ctp-surface1' : 'text-ctp-peach drop-shadow-[0_0_8px_rgba(250,179,135,0.4)]'}`}>
+                    {isOffline ? 'Offline' : 'YOLOv8 Active'}
+                  </span>
                 </div>
               </div>
             </div>
-
-            <div className="card p-5 border border-ctp-crust bg-ctp-mantle rounded-2xl shadow-lg relative overflow-hidden">
-               {/* Background pattern */}
-               <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#cdd6f4_1px,transparent_1px)] [background-size:16px_16px]" />
-               
-               <h3 className="text-xs font-bold uppercase tracking-widest text-ctp-subtext0 mb-4 relative flex items-center gap-2">
-                 <ShieldAlert size={14} className="text-ctp-red" />
-                 Active Protections
-               </h3>
-
-               <div className="space-y-3 relative">
-                 <div className="flex items-center justify-between text-sm">
-                   <span className="text-ctp-text font-medium">Late Fusion Inference</span>
-                   <span className="text-xs font-mono text-ctp-green bg-ctp-green/10 px-2 py-0.5 rounded">OK</span>
-                 </div>
-                 <div className="flex items-center justify-between text-sm">
-                   <span className="text-ctp-text font-medium">Fire Profile Match</span>
-                   <span className="text-xs font-mono text-ctp-green bg-ctp-green/10 px-2 py-0.5 rounded">OK</span>
-                 </div>
-                 <div className="flex items-center justify-between text-sm">
-                   <span className="text-ctp-text font-medium">Smoke Dispersion</span>
-                   <span className="text-xs font-mono text-ctp-green bg-ctp-green/10 px-2 py-0.5 rounded">OK</span>
-                 </div>
-               </div>
-            </div>
-
           </div>
         </div>
       </main>
