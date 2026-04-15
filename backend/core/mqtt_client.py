@@ -39,14 +39,31 @@ def on_message(client, userdata, msg):
             # If not a valid UUID (e.g. "esp32-node-1"), create a deterministic UUID
             device_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, str(raw_device_id)))
         
+        def parse_bool_to_float(val):
+            if isinstance(val, str):
+                val_lower = val.lower().strip()
+                if val_lower == "true":
+                    return 1.0
+                if val_lower == "false":
+                    return 0.0
+            if isinstance(val, bool):
+                return 1.0 if val else 0.0
+            try:
+                return float(val)
+            except (TypeError, ValueError):
+                return 0.0
+
+        flame_val = sensor_data.get("flame_detected", sensor_data.get("flame", False))
+        smoke_val = sensor_data.get("smoke_detected", sensor_data.get("smoke", False))
+
         log_data = {
             "id": str(uuid.uuid4()),
             "device_id": device_id,
             "cng_level": float(sensor_data.get("cng_level", 0.0)),
             "co_level": float(sensor_data.get("co_level", 0.0)),
             "lpg_level": float(sensor_data.get("lpg_level", 0.0)),
-            "flame_detected": bool(sensor_data.get("flame_detected", sensor_data.get("flame", False))),
-            "smoke_detected": bool(sensor_data.get("smoke_detected", sensor_data.get("smoke", False))),
+            "flame_detected": parse_bool_to_float(flame_val),
+            "smoke_detected": parse_bool_to_float(smoke_val),
             "recorded_at": datetime.utcnow().isoformat()
         }
         

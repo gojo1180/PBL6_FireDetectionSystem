@@ -1,6 +1,6 @@
 export interface SensorLog {
   id: string; device_id: string; cng_level: number; co_level: number;
-  lpg_level: number; flame_detected: boolean; smoke_detected: boolean; recorded_at: string;
+  lpg_level: number; flame_detected: number; smoke_detected: number; recorded_at: string;
 }
 
 export interface VisionLog {

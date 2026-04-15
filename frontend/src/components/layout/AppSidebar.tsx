@@ -1,15 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LayoutDashboard, Cctv, Server, History, Settings, Menu, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { LayoutDashboard, Cctv, Server, Settings, Menu, X, LogOut } from "lucide-react";
+import { getUser, removeToken } from "@/lib/auth";
 
 export function AppSidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+
+  const [userName, setUserName] = useState("User");
+  const [userEmail, setUserEmail] = useState("");
+
+  useEffect(() => {
+    const user = getUser();
+    if (user) {
+      setUserName(user.full_name || user.email.split("@")[0]);
+      setUserEmail(user.email);
+    }
+  }, []);
 
   const closeSidebar = () => setIsOpen(false);
+
+  const handleLogout = () => {
+    removeToken();
+    router.push("/");
+  };
+
+  const navItems = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/cctv", label: "Live CCTV", icon: Cctv },
+    { href: "/settings", label: "Devices", icon: Server },
+  ];
+
+  const initials = userName
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   return (
     <>
@@ -55,57 +86,47 @@ export function AppSidebar() {
         {/* Nav Links */}
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
           <span className="px-3 text-[10px] uppercase tracking-widest font-semibold text-ctp-overlay0 mb-2 block">Monitoring</span>
-          
-          <Link
-            href="/"
-            onClick={closeSidebar}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-colors ${
-              pathname === "/" ? "bg-ctp-blue/10 text-ctp-blue" : "text-ctp-subtext0 hover:bg-ctp-surface0/60 hover:text-ctp-text"
-            }`}
-          >
-            <LayoutDashboard size={18} />
-            Dashboard
-          </Link>
-          
-          <Link
-            href="/cctv"
-            onClick={closeSidebar}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-colors ${
-              pathname === "/cctv" ? "bg-ctp-blue/10 text-ctp-blue" : "text-ctp-subtext0 hover:bg-ctp-surface0/60 hover:text-ctp-text"
-            }`}
-          >
-            <Cctv size={18} />
-            Live CCTV
-          </Link>
 
-          <Link
-            href="#"
-            onClick={closeSidebar}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-ctp-subtext0 hover:bg-ctp-surface0/60 hover:text-ctp-text font-medium text-sm transition-colors"
-          >
-            <Server size={18} />
-            Devices
-          </Link>
-
-          <Link
-            href="#"
-            onClick={closeSidebar}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-ctp-subtext0 hover:bg-ctp-surface0/60 hover:text-ctp-text font-medium text-sm transition-colors"
-          >
-            <History size={18} />
-            History
-          </Link>
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={closeSidebar}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-colors ${
+                  isActive
+                    ? "bg-ctp-blue/10 text-ctp-blue"
+                    : "text-ctp-subtext0 hover:bg-ctp-surface0/60 hover:text-ctp-text"
+                }`}
+              >
+                <Icon size={18} />
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-ctp-crust shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-ctp-lavender text-white flex items-center justify-center text-xs font-bold">AD</div>
+        {/* Footer — User + Logout */}
+        <div className="px-4 py-4 border-t border-ctp-crust shrink-0 space-y-3">
+          <div className="flex items-center gap-3 px-2">
+            <div className="w-8 h-8 rounded-full bg-ctp-lavender text-white flex items-center justify-center text-xs font-bold shrink-0">
+              {initials}
+            </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-ctp-text truncate">Admin</p>
-              <p className="text-xs text-ctp-subtext0 truncate">Fire Station #1</p>
+              <p className="text-sm font-semibold text-ctp-text truncate">{userName}</p>
+              <p className="text-[11px] text-ctp-subtext0 truncate">{userEmail}</p>
             </div>
           </div>
+          <button
+            id="logout-btn"
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-ctp-red text-sm font-medium hover:bg-ctp-red/10 transition-colors"
+          >
+            <LogOut size={16} />
+            Sign Out
+          </button>
         </div>
       </aside>
     </>

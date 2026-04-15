@@ -48,8 +48,8 @@ class SensorLogBase(BaseModel):
     cng_level: float
     co_level: float
     lpg_level: float
-    flame_detected: bool
-    smoke_detected: bool
+    smoke_detected: float 
+    flame_detected: float  
 
 class SensorLogCreate(SensorLogBase):
     pass

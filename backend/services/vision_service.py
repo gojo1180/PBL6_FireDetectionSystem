@@ -4,7 +4,6 @@ import uuid
 import time
 from datetime import datetime
 
-from core.config import settings
 from core.database import supabase
 from services.fusion_engine import fusion_service
 
@@ -12,58 +11,88 @@ from services.fusion_engine import fusion_service
 cctv_stop_event = threading.Event()
 frame_reader_thread = None
 inference_thread = None
+config_poll_thread = None
 
-# We use a default Device ID for the CCTV device
-CCTV_DEVICE_ID = "c00c732b-ef0b-4eac-b06c-663417b87ad2"
+# Dynamic config from DB
+current_rtsp_url = None
+current_device_id = None
+cap_reconnect_flag = False
 
 latest_frame = None
 frame_lock = threading.Lock()
+latest_boxes = []
 
-def _reconnect_camera():
+def config_polling_loop():
+    global current_rtsp_url, current_device_id, cap_reconnect_flag
     while not cctv_stop_event.is_set():
-        url = settings.CCTV_RTSP_URL
-        if not url:
-            print("CCTV_RTSP_URL is not set. CCTV loop will exit.")
-            break
+        try:
+            res = supabase.table("devices").select("id, rtsp_url").eq("device_type", "CCTV").execute()
+            if res.data and len(res.data) > 0:
+                db_url = res.data[0].get("rtsp_url")
+                db_id = res.data[0].get("id")
+                
+                with frame_lock:
+                    if db_url != current_rtsp_url:
+                        print(f"🔄 RTSP URL changed to {db_url}. Reconnecting stream...")
+                        current_rtsp_url = db_url
+                        current_device_id = db_id
+                        cap_reconnect_flag = True
+        except Exception as e:
+            print(f"❌ Error polling CCTV config from DB: {e}")
             
-        print(f"📷 Attempting to connect to RTSP: {url}")
-        
-        import os
-        # TCP lebih aman untuk gambar agar tidak pecah/glitch. Lag akan diatasi oleh Grab()
-        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
-        
-        cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
-        if cap.isOpened():
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            print("✅ Successfully connected to CCTV RTSP stream.")
-            return cap
-            
-        print("❌ Failed to connect to RTSP stream. Retrying in 5 seconds...")
-        cctv_stop_event.wait(5.0)
-
-    return None
+        for _ in range(20): # 10 seconds total, check stop event frequently
+            if cctv_stop_event.is_set(): break
+            time.sleep(0.5)
 
 def frame_reading_loop():
-    global latest_frame
-    url = settings.CCTV_RTSP_URL
-    if not url:
-        return
-
-    cap = _reconnect_camera()
+    global latest_frame, cap_reconnect_flag
+    
+    cap = None
     last_retrieve_time = 0
 
     while not cctv_stop_event.is_set():
-        if cap is None or not cap.isOpened():
-            if cap is not None: cap.release()
-            cap = _reconnect_camera()
-            if cap is None or cctv_stop_event.is_set():
-                break
+        with frame_lock:
+            need_reconnect = cap_reconnect_flag
+            url_to_use = current_rtsp_url
 
+        if need_reconnect or (cap is None and url_to_use):
+            if cap: 
+                cap.release()
+                cap = None
+            
+            if not url_to_use:
+                time.sleep(1)
+                continue
+                
+            import os
+            # TCP lebih aman untuk gambar agar tidak pecah/glitch.
+            os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
+            print(f"📷 Attempting to connect to RTSP: {url_to_use}")
+            
+            cap = cv2.VideoCapture(url_to_use, cv2.CAP_FFMPEG)
+            if cap.isOpened():
+                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                print("✅ Successfully connected to CCTV RTSP stream.")
+                with frame_lock:
+                    if url_to_use == current_rtsp_url:
+                        cap_reconnect_flag = False
+            else:
+                print("❌ Failed to connect to RTSP stream. Retrying in 5s...")
+                cap = None
+                for _ in range(10):
+                    if cctv_stop_event.is_set() or cap_reconnect_flag: break
+                    time.sleep(0.5)
+                continue
+
+        if not cap or not cap.isOpened():
+            time.sleep(1)
+            continue
+            
         # SOLUSI ANTI-LAG: grab() membuang antrean frame dengan kecepatan super tinggi tanpa beban CPU
         ret = cap.grab()
         if not ret:
             print("⚠️ Failed to grab frame from CCTV. Reconnecting...")
-            cap.release()
+            if cap: cap.release()
             cap = None
             time.sleep(1)
             continue
@@ -81,20 +110,20 @@ def frame_reading_loop():
         cap.release()
     print("🛑 CCTV frame reading loop shut down.")
 
-latest_boxes = []
-
 def cctv_inference_loop():
     global latest_boxes
-    last_db_alert_time = 0  # Timer untuk Cooldown Supabase
+    last_db_alert_time = 0
     
     while not cctv_stop_event.is_set():
         frame_to_process = None
+        current_dev = None
         
         with frame_lock:
             if latest_frame is not None:
                 frame_to_process = latest_frame.copy()
+            current_dev = current_device_id
                 
-        if frame_to_process is not None:
+        if frame_to_process is not None and current_dev is not None:
             # Convert frame from BGR to RGB (Wajib untuk YOLOv8)
             frame_rgb = cv2.cvtColor(frame_to_process, cv2.COLOR_BGR2RGB)
             
@@ -113,19 +142,37 @@ def cctv_inference_loop():
             if (fire_conf > 0.0 or smoke_conf > 0.0) and (current_time - last_db_alert_time > 5.0):
                 print(f"🔥 Threat detected via CCTV! Fire: {fire_conf:.2f}, Smoke: {smoke_conf:.2f}")
                 
+                public_image_url = None
+                
+                # Encode frame and upload to Supabase Storage
+                ret, buffer = cv2.imencode('.jpg', frame_to_process)
+                if ret:
+                    image_bytes = buffer.tobytes()
+                    file_name = f"alert_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}.jpg"
+                    
+                    try:
+                        supabase.storage.from_("vision-logs-bucket").upload(
+                            file_name, 
+                            image_bytes, 
+                            {"content-type": "image/jpeg"}
+                        )
+                        public_image_url = supabase.storage.from_("vision-logs-bucket").get_public_url(file_name)
+                    except Exception as e:
+                        print(f"❌ Error uploading alert image to Supabase Storage: {e}")
+                
                 log_data = {
                     "id": str(uuid.uuid4()),
-                    "device_id": CCTV_DEVICE_ID,
+                    "device_id": current_dev,
                     "fire_confidence": float(fire_conf),
                     "smoke_confidence": float(smoke_conf),
-                    "image_url": None, 
+                    "image_url": public_image_url, 
                     "recorded_at": datetime.utcnow().isoformat()
                 }
                 
                 risk_level = "DANGER" if fire_conf > 0.5 else "WARNING"
                 alert_data = {
                     "id": str(uuid.uuid4()),
-                    "device_id": CCTV_DEVICE_ID,
+                    "device_id": current_dev,
                     "risk_level": risk_level,
                     "fusion_score": max(float(fire_conf), float(smoke_conf)),
                     "alert_message": "Fire/Smoke detected by CCTV camera via RTSP stream.",
@@ -165,12 +212,12 @@ def get_latest_frame_jpg():
     return buffer.tobytes()
 
 def start_cctv_service():
-    global frame_reader_thread, inference_thread
-    if not settings.CCTV_RTSP_URL:
-        return
-        
+    global frame_reader_thread, inference_thread, config_poll_thread
     print("🚀 Starting CCTV Background Services...")
     cctv_stop_event.clear()
+    
+    config_poll_thread = threading.Thread(target=config_polling_loop, daemon=True)
+    config_poll_thread.start()
     
     frame_reader_thread = threading.Thread(target=frame_reading_loop, daemon=True)
     frame_reader_thread.start()
@@ -181,6 +228,8 @@ def start_cctv_service():
 def stop_cctv_service():
     print("🛑 Stopping CCTV Background Services...")
     cctv_stop_event.set()
+    if config_poll_thread and config_poll_thread.is_alive():
+        config_poll_thread.join(timeout=3.0)
     if frame_reader_thread and frame_reader_thread.is_alive():
         frame_reader_thread.join(timeout=3.0)
     if inference_thread and inference_thread.is_alive():
