@@ -19,8 +19,8 @@ current_device_id = None
 cap_reconnect_flag = False
 
 latest_frame = None
+latest_annotated_frame = None
 frame_lock = threading.Lock()
-latest_boxes = []
 
 def config_polling_loop():
     global current_rtsp_url, current_device_id, cap_reconnect_flag
@@ -97,9 +97,9 @@ def frame_reading_loop():
             time.sleep(1)
             continue
 
-        # Hanya decode (retrieve) frame maksimal 10 FPS untuk Dashboard & YOLO
+        # Decode (retrieve) frame pada ~30 FPS untuk Dashboard & YOLO
         current_time = time.time()
-        if current_time - last_retrieve_time > 0.1:
+        if current_time - last_retrieve_time > 0.033:
             ret, frame = cap.retrieve()
             if ret:
                 with frame_lock:
@@ -111,8 +111,10 @@ def frame_reading_loop():
     print("🛑 CCTV frame reading loop shut down.")
 
 def cctv_inference_loop():
-    global latest_boxes
+    global latest_annotated_frame
     last_db_alert_time = 0
+    fire_streak = 0
+    smoke_streak = 0
     
     while not cctv_stop_event.is_set():
         frame_to_process = None
@@ -124,28 +126,43 @@ def cctv_inference_loop():
             current_dev = current_device_id
                 
         if frame_to_process is not None and current_dev is not None:
-            # Convert frame from BGR to RGB (Wajib untuk YOLOv8)
-            frame_rgb = cv2.cvtColor(frame_to_process, cv2.COLOR_BGR2RGB)
-            
-            # Process frames
-            vision_results = fusion_service.process_vision_data(frame_rgb)
+            # Process frames (fusion_engine handles BGR input directly)
+            vision_results = fusion_service.process_vision_data(frame_to_process)
                 
             fire_conf = vision_results.get("fire_confidence", 0.0)
             smoke_conf = vision_results.get("smoke_confidence", 0.0)
             
+            # Get annotated frame from results[0].plot(), fallback to raw frame
+            annotated_img = vision_results.get("annotated_frame")
+            if annotated_img is None:
+                annotated_img = frame_to_process
+
+            # Streak Counter Logic for False Positive Mitigation
+            if fire_conf > 0.6:
+                fire_streak += 1
+            else:
+                fire_streak = 0
+            
+            if smoke_conf > 0.68:
+                smoke_streak += 1
+            else:
+                smoke_streak = 0
+            
+            # Update the global annotated frame for the MJPEG live feed
             with frame_lock:
-                latest_boxes = vision_results.get("bounding_boxes", [])
+                latest_annotated_frame = annotated_img
             
             current_time = time.time()
             
-            # Tambahkan COOLDOWN 5 DETIK agar database tidak terspam dan CPU tidak hang!
-            if (fire_conf > 0.0 or smoke_conf > 0.0) and (current_time - last_db_alert_time > 5.0):
-                print(f"🔥 Threat detected via CCTV! Fire: {fire_conf:.2f}, Smoke: {smoke_conf:.2f}")
+            # TRIGGER: ONLY IF streak >= 3 and cooldown fulfilled
+            if (fire_streak >= 3 or smoke_streak >= 3) and (current_time - last_db_alert_time > 5.0):
+                print(f"🔥 Threat CONFIRMED via CCTV Stability Check! Fire Streak: {fire_streak}, Smoke Streak: {smoke_streak}")
+                print(f"Confidence - Fire: {fire_conf:.2f}, Smoke: {smoke_conf:.2f}")
                 
                 public_image_url = None
                 
-                # Encode frame and upload to Supabase Storage
-                ret, buffer = cv2.imencode('.jpg', frame_to_process)
+                # Encode the ANNOTATED frame (with bounding boxes) and upload
+                ret, buffer = cv2.imencode('.jpg', annotated_img, [int(cv2.IMWRITE_JPEG_QUALITY), 65])
                 if ret:
                     image_bytes = buffer.tobytes()
                     file_name = f"alert_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}.jpg"
@@ -184,29 +201,28 @@ def cctv_inference_loop():
                     supabase.table("vision_logs").insert(log_data).execute()
                     supabase.table("fusion_alerts").insert(alert_data).execute()
                     print("✅ Saved CCTV threat detection to Supabase.")
-                    last_db_alert_time = current_time # Reset timer
+                    
+                    # Reset streaks and timer after successful trigger to prevent spam
+                    fire_streak = 0
+                    smoke_streak = 0
+                    last_db_alert_time = current_time 
                 except Exception as e:
                     print(f"❌ Error saving CCTV alert to DB: {e}")
                     
-        cctv_stop_event.wait(0.5) # Jalankan YOLO 2 kali per detik
+        cctv_stop_event.wait(0.05) # Jalankan YOLO ~20 kali per detik untuk stream smooth
     print("🛑 CCTV inference loop shut down.")
 
 def get_latest_frame_jpg():
     with frame_lock:
-        if latest_frame is None:
+        # Prefer the annotated frame (with YOLO bounding boxes from results[0].plot())
+        if latest_annotated_frame is not None:
+            frame_to_encode = latest_annotated_frame.copy()
+        elif latest_frame is not None:
+            frame_to_encode = latest_frame.copy()
+        else:
             return None
-        frame_to_encode = latest_frame.copy()
-        current_boxes = list(latest_boxes)
-        
-    for box in current_boxes:
-        x1, y1, x2, y2 = map(int, box["xyxy"])
-        label = f"{box['class']} {box['conf']:.2f}"
-        color = (0, 0, 255) if "fire" in box["class"].lower() else (128, 128, 128)
-        
-        cv2.rectangle(frame_to_encode, (x1, y1), (x2, y2), color, 2)
-        cv2.putText(frame_to_encode, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-    ret, buffer = cv2.imencode('.jpg', frame_to_encode)
+    ret, buffer = cv2.imencode('.jpg', frame_to_encode, [int(cv2.IMWRITE_JPEG_QUALITY), 65])
     if not ret:
         return None
     return buffer.tobytes()

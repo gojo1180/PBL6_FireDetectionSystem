@@ -85,8 +85,9 @@ class LateFusionService:
         """
         Read the image bytes using PIL or accept numpy array directly, 
         pass to YOLOv8, and extract the maximum confidence score for 'fire' and 'smoke'.
+        Returns annotated_frame via results[0].plot() for direct use.
         """
-        result_scores = {"fire_confidence": 0.0, "smoke_confidence": 0.0}
+        result_scores = {"fire_confidence": 0.0, "smoke_confidence": 0.0, "annotated_frame": None}
         
         if not self.yolo_model:
             return result_scores
@@ -97,17 +98,21 @@ class LateFusionService:
                 image = Image.open(io.BytesIO(image_input))
             else:
                 # Dari CCTV Background Service (Numpy Array)
-                # 1. FIX WARNA: Kembalikan RGB ke BGR karena Ultralytics butuh BGR
-                image = cv2.cvtColor(image_input, cv2.COLOR_RGB2BGR)
+                # Keep raw BGR array
+                image = image_input
                 
-                # 2. FIX RESOLUSI: Paksa resize agar stabil seperti di test_webcam.py
+                # FIX RESOLUSI: Paksa resize agar stabil seperti di test_webcam.py
                 image = cv2.resize(image, (640, 480))
             
-            # 3. FIX SENSITIVITAS & FUNGSI: Gunakan .predict() dan conf=0.55
+            # FIX SENSITIVITAS & FUNGSI: Gunakan .predict() dan conf=0.55
             results = self.yolo_model.predict(source=image, conf=0.55, imgsz=640, verbose=False)
             
+            # Use results[0].plot() to generate annotated frame with bounding boxes
+            # This matches the exact output of the local test_webcam.py script
+            annotated_frame = results[0].plot()
+            result_scores["annotated_frame"] = annotated_frame
+            
             detected_items = []
-            boxes_data = []
             
             for r in results:
                 boxes = r.boxes
@@ -115,13 +120,6 @@ class LateFusionService:
                     cls_id = int(box.cls[0])
                     conf = float(box.conf[0])
                     class_name = self.yolo_model.names[cls_id].lower()
-                    
-                    xyxy = box.xyxy[0].tolist()
-                    boxes_data.append({
-                        "class": class_name,
-                        "conf": conf,
-                        "xyxy": xyxy
-                    })
                     
                     detected_items.append(f"{class_name}: {conf:.3f}")
                     
@@ -134,7 +132,6 @@ class LateFusionService:
             if detected_items:
                 print(f"YOLOv8 Detected: {detected_items}")
                         
-            result_scores["bounding_boxes"] = boxes_data
             return result_scores
         except Exception as e:
             print(f"Error processing vision data: {e}")
