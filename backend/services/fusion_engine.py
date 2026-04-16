@@ -132,6 +132,10 @@ class LateFusionService:
             if detected_items:
                 print(f"YOLOv8 Detected: {detected_items}")
                         
+            # Memory Optimization: Explicitly clear inference images and large arrays
+            del image
+            del results
+            
             return result_scores
         except Exception as e:
             print(f"Error processing vision data: {e}")
@@ -143,9 +147,9 @@ class LateFusionService:
         If vision > 0.6 OR sensor anomaly == True -> Risk: 'WARNING'
         Else -> Risk: 'SAFE'
         """
-        if vision_fire_conf > 0.6 and sensor_anomaly == True:
+        if vision_fire_conf > 0.6 and sensor_anomaly:
             return 'DANGER'
-        elif vision_fire_conf > 0.6 or sensor_anomaly == True:
+        elif vision_fire_conf > 0.6 or sensor_anomaly:
             return 'WARNING'
         else:
             return 'SAFE'

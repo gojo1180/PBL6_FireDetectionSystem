@@ -1,3 +1,5 @@
+import os
+import gc
 import cv2
 import threading
 import uuid
@@ -21,6 +23,8 @@ cap_reconnect_flag = False
 latest_frame = None
 latest_annotated_frame = None
 frame_lock = threading.Lock()
+
+_last_gc_time = 0
 
 def config_polling_loop():
     global current_rtsp_url, current_device_id, cap_reconnect_flag
@@ -64,7 +68,6 @@ def frame_reading_loop():
                 time.sleep(1)
                 continue
                 
-            import os
             # TCP lebih aman untuk gambar agar tidak pecah/glitch.
             os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
             print(f"📷 Attempting to connect to RTSP: {url_to_use}")
@@ -209,6 +212,28 @@ def cctv_inference_loop():
                 except Exception as e:
                     print(f"❌ Error saving CCTV alert to DB: {e}")
                     
+            # Memory Optimization: Explicitly release large OpenCV/numpy objects
+            del frame_to_process
+            del vision_results
+            del annotated_img
+            
+            # Clean up alert-path temporaries if they were created this iteration
+            try:
+                del buffer
+            except NameError:
+                pass
+            try:
+                del image_bytes
+            except NameError:
+                pass
+            
+            # Throttled GC: run at most once every 10 seconds to avoid pausing threads
+            global _last_gc_time
+            _now = time.time()
+            if _now - _last_gc_time > 10.0:
+                gc.collect()
+                _last_gc_time = _now
+            
         cctv_stop_event.wait(0.05) # Jalankan YOLO ~20 kali per detik untuk stream smooth
     print("🛑 CCTV inference loop shut down.")
 
@@ -223,9 +248,16 @@ def get_latest_frame_jpg():
             return None
 
     ret, buffer = cv2.imencode('.jpg', frame_to_encode, [int(cv2.IMWRITE_JPEG_QUALITY), 65])
+    
+    # Memory Optimization: immediately clear explicitly copied frame data
+    del frame_to_encode
+    
     if not ret:
         return None
-    return buffer.tobytes()
+        
+    result_bytes = buffer.tobytes()
+    del buffer
+    return result_bytes
 
 def start_cctv_service():
     global frame_reader_thread, inference_thread, config_poll_thread

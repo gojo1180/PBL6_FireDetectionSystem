@@ -1,4 +1,4 @@
-import { getToken } from "./auth";
+import { getToken, removeToken } from "./auth";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -30,6 +30,16 @@ export async function apiFetch<T = unknown>(
     headers,
     body: body ? JSON.stringify(body) : undefined,
   });
+
+  // Handle 401 Unauthorized — clear token and redirect to login
+  if (res.status === 401) {
+    console.log("[apiFetch] 401 Unauthorized — redirecting to /login");
+    removeToken();
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+    throw new Error("Unauthorized");
+  }
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: "Request failed" }));

@@ -1,18 +1,17 @@
-from fastapi import APIRouter, File, UploadFile, HTTPException, Form
+from fastapi import APIRouter, File, UploadFile, Form, Depends
 from fastapi.responses import StreamingResponse
 from typing import List, Optional
 import uuid
-import time
+import asyncio
 from datetime import datetime
 
 from services.fusion_engine import fusion_service
 from services.vision_service import get_latest_frame_jpg
 from core.database import supabase
+from core.security import get_current_user
 from schemas.models import VisionLogCreate
 
 router = APIRouter(tags=["Vision"])
-
-import asyncio
 
 async def mjpeg_generator():
     while True:
@@ -20,6 +19,10 @@ async def mjpeg_generator():
         if frame_bytes:
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+            
+            # Memory Optimization: explicitly destroy JPEG byte chunk from RAM
+            del frame_bytes
+            
         # Rate limit to ~20 FPS using asyncio sleep to free up the event loop!
         await asyncio.sleep(0.05)
 
@@ -30,13 +33,13 @@ async def stream_cctv():
 
 
 @router.get("/vision", response_model=List[dict])
-def get_vision_logs(limit: int = 50):
+def get_vision_logs(limit: int = 50, current_user: dict = Depends(get_current_user)):
     """Fetch the latest vision logs from Supabase."""
     response = supabase.table("vision_logs").select("*").order("recorded_at", desc=True).limit(limit).execute()
     return response.data
 
 @router.get("/vision/latest", response_model=Optional[dict])
-def get_latest_vision_log():
+def get_latest_vision_log(current_user: dict = Depends(get_current_user)):
     """Fetch the single most recent vision log."""
     response = supabase.table("vision_logs").select("*").order("recorded_at", desc=True).limit(1).execute()
     data = response.data
@@ -66,6 +69,9 @@ async def upload_frame(
     
     # Pass it to our late fusion engine to process the computer vision side
     vision_results = fusion_service.process_vision_data(image_bytes)
+    
+    # Memory Optimization: explicitly clear raw uploaded bytes to free HTTP payload
+    del image_bytes
     
     # Print the result to the console for testing purposes
     print(f"Vision Processing Result: {vision_results}")

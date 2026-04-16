@@ -116,7 +116,7 @@ export default function CCTVPage() {
                     src={streamUrl}
                     alt="Live CCTV Stream"
                     className="w-full max-h-[70vh] object-contain bg-black rounded-lg border border-ctp-crust shadow-2xl"
-                    onError={(e) => {
+                    onError={() => {
                       setIsOffline(true);
                     }}
                   />

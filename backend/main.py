@@ -36,11 +36,11 @@ async def lifespan(app: FastAPI):
 # Strict initialization with the async lifespan context manager
 app = FastAPI(lifespan=lifespan)
 
-# Allow CORS so Next.js frontend can interact later seamlessly
+# Allow CORS so Next.js frontend can interact seamlessly
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

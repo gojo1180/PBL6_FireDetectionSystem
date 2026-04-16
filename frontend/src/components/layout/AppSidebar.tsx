@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Cctv, Server, Settings, Menu, X, LogOut } from "lucide-react";
+import { LayoutDashboard, Cctv, Server, Menu, X, LogOut } from "lucide-react";
 import { getUser, removeToken } from "@/lib/auth";
 
 export function AppSidebar() {

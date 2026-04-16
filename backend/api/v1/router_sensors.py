@@ -1,23 +1,40 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends
 from typing import List, Optional
 import uuid
 from datetime import datetime
 
 from core.database import supabase
-from schemas.models import SensorLogCreate, SensorLogResponse
+from core.security import get_current_user
+from schemas.models import SensorLogCreate
 
 router = APIRouter(tags=["Sensors"])
 
 @router.get("/sensors", response_model=List[dict])
-def get_sensor_data(limit: int = 50):
+def get_sensor_data(limit: int = 50, current_user: dict = Depends(get_current_user)):
     """Fetch the latest sensor logs ordered by time."""
     response = supabase.table("sensor_logs").select("*").order("recorded_at", desc=True).limit(limit).execute()
     return response.data
 
 @router.get("/sensors/latest", response_model=Optional[dict])
-def get_latest_sensor_data():
+def get_latest_sensor_data(current_user: dict = Depends(get_current_user)):
     """Fetch only the single latest sensor log."""
     response = supabase.table("sensor_logs").select("*").order("recorded_at", desc=True).limit(1).execute()
+    data = response.data
+    if data:
+        return data[0]
+    return None
+
+@router.get("/sensors/latest/{device_id}", response_model=Optional[dict])
+def get_latest_sensor_by_device(device_id: str, current_user: dict = Depends(get_current_user)):
+    """Fetch only the single most recent sensor log for a specific device."""
+    response = (
+        supabase.table("sensor_logs")
+        .select("*")
+        .eq("device_id", device_id)
+        .order("recorded_at", desc=True)
+        .limit(1)
+        .execute()
+    )
     data = response.data
     if data:
         return data[0]

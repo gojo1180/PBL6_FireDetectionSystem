@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { memo } from 'react';
 import { Activity } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -14,7 +14,7 @@ export interface ChartPoint {
   LPG: number;
 }
 
-export function GasTrendChart({ chartData }: { chartData: ChartPoint[] }) {
+export const GasTrendChart = memo(function GasTrendChart({ chartData }: { chartData: ChartPoint[] }) {
   return (
     <div className="lg:col-span-2 card p-6">
       <div className="flex items-center justify-between mb-6">
@@ -42,4 +42,4 @@ export function GasTrendChart({ chartData }: { chartData: ChartPoint[] }) {
       )}
     </div>
   );
-}
+});

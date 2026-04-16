@@ -67,7 +67,7 @@ def update_device(device_id: str, update_data: DeviceUpdate):
 @router.delete("/{device_id}", response_model=dict)
 def delete_device(device_id: str):
     try:
-        res = supabase.table("devices").delete().eq("id", device_id).execute()
+        supabase.table("devices").delete().eq("id", device_id).execute()
         return {"message": "Device deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

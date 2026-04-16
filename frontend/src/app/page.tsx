@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Flame, Shield, Eye, Cpu, Zap, Bell, ArrowRight, Activity, Globe, MessageCircle } from "lucide-react";
+import { Flame, Eye, Cpu, Zap, Bell, ArrowRight, Activity, Globe, MessageCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isAuthenticated } from "@/lib/auth";
 

@@ -1,9 +1,10 @@
 import paho.mqtt.client as mqtt
 import json
 import ssl
+import uuid
+from datetime import datetime
 from .config import settings
 
-# Import the fusion engine instance we created earlier
 from services.fusion_engine import fusion_service
 
 MQTT_TOPIC = "iot/sensor/data" 
@@ -19,8 +20,6 @@ def on_connect(client, userdata, flags, rc):
 
 def on_message(client, userdata, msg):
     from core.database import supabase
-    import uuid
-    from datetime import datetime
     
     try:
         # Parse the incoming JSON payload

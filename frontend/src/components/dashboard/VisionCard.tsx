@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import Image from 'next/image';
 import { Camera, Flame, Eye, ImageOff } from 'lucide-react';
 import { VisionLog } from '@/types';
 import { ConfidenceBar } from '@/components/ui/ConfidenceBar';
 import { fmtTime } from '@/lib/utils';
 
-export function VisionCard({ latestVision }: { latestVision: VisionLog | null }) {
+export const VisionCard = memo(function VisionCard({ latestVision }: { latestVision: VisionLog | null }) {
   const [imgError, setImgError] = useState(false);
   
   // Reset error state when image URL changes
@@ -69,4 +69,4 @@ export function VisionCard({ latestVision }: { latestVision: VisionLog | null })
       </div>
     </div>
   );
-}
+});
