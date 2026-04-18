@@ -47,23 +47,19 @@ class LateFusionService:
             return False
             
         try:
-            # Model StandardScaler rupanya mengharapkan 5 kolom spesifik bawaan fiturnya: (cng, co, lpg, flame, smoke)
             cng_raw = float(sensor_data.get("cng_level", 0.0))
             co_raw = float(sensor_data.get("co_level", 0.0))
             lpg_raw = float(sensor_data.get("lpg_level", 0.0))
             smoke_raw = float(sensor_data.get("smoke_detected", 0.0))
             flame_raw = float(sensor_data.get("flame_detected", 0.0))
 
-            cng_scaled = cng_raw / 32.0 if cng_raw > 0 else 0.0
-            co_scaled = co_raw / 28.0 if co_raw > 0 else 0.0
-            lpg_scaled = lpg_raw / 36.0 if lpg_raw > 0 else 0.0
-
+            # URUTAN WAJIB SCALER: ['cng', 'co', 'flame', 'lpg', 'smoke']
             features = [
-                cng_scaled,
-                co_scaled,
-                lpg_scaled,
-                1.0 if flame_raw > 0.5 else 0.0,
-                1.0 if smoke_raw > 35.0 else 0.0 
+                cng_raw,
+                co_raw,
+                flame_raw,
+                lpg_raw,
+                smoke_raw
             ]
             X = np.array(features).reshape(1, -1)
             
