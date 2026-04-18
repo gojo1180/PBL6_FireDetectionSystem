@@ -211,6 +211,13 @@ def cctv_inference_loop():
                     last_db_alert_time = current_time 
                 except Exception as e:
                     print(f"❌ Error saving CCTV alert to DB: {e}")
+            else:
+                # AUTO-RESOLVE: Jika CCTV tidak mendeteksi ancaman, tutup semua peringatan CCTV yang masih aktif
+                if fire_streak == 0 and smoke_streak == 0 and current_dev:
+                    try:
+                        supabase.table("fusion_alerts").update({"is_resolved": True}).eq("is_resolved", False).eq("device_id", current_dev).like("alert_message", "%CCTV%").execute()
+                    except Exception as e:
+                        print(f"❌ Error auto-resolving CCTV alerts: {e}")
                     
             # Memory Optimization: Explicitly release large OpenCV/numpy objects
             del frame_to_process

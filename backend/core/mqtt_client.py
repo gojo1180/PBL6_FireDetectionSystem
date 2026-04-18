@@ -88,6 +88,9 @@ def on_message(client, userdata, msg):
             }
             supabase.table("fusion_alerts").insert(alert_data).execute()
             print("⚠️ Fusion Alert Triggered: DANGER")
+        else:
+            # AUTO-RESOLVE: Jika model menyatakan aman, tutup semua peringatan dari sensor yang masih aktif
+            supabase.table("fusion_alerts").update({"is_resolved": True}).eq("is_resolved", False).eq("device_id", device_id).like("alert_message", "%Sensor%").execute()
             
     except Exception as e:
         print(f"❌ SUPABASE INSERT ERROR: {e}")
