@@ -10,9 +10,12 @@ from schemas.models import SensorLogCreate
 router = APIRouter(tags=["Sensors"])
 
 @router.get("/sensors", response_model=List[dict])
-def get_sensor_data(limit: int = 50, current_user: dict = Depends(get_current_user)):
-    """Fetch the latest sensor logs ordered by time."""
-    response = supabase.table("sensor_logs").select("*").order("recorded_at", desc=True).limit(limit).execute()
+def get_sensor_data(limit: int = 50, device_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Fetch the latest sensor logs ordered by time. Optionally filter by device_id."""
+    query = supabase.table("sensor_logs").select("*")
+    if device_id:
+        query = query.eq("device_id", device_id)
+    response = query.order("recorded_at", desc=True).limit(limit).execute()
     return response.data
 
 @router.get("/sensors/latest", response_model=Optional[dict])

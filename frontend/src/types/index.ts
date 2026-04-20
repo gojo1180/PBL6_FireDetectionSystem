@@ -1,3 +1,12 @@
+export interface Device {
+  id: string;
+  device_name: string;
+  device_type: string;
+  location: string;
+  status: string;
+  rtsp_url?: string | null;
+}
+
 export interface SensorLog {
   id: string; device_id: string; cng_level: number; co_level: number;
   lpg_level: number; flame_detected: number; smoke_detected: number; recorded_at: string;
