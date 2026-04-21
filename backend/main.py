@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 # Import API Routers
-from api.v1 import router_sensors, router_vision, router_alerts, router_auth, router_devices
+from api.v1 import router_sensors, router_vision, router_alerts, router_auth, router_devices, router_stream
 
 # Import MQTT client initialization controls
 from core.mqtt_client import start_mqtt, stop_mqtt
@@ -51,6 +51,7 @@ app.include_router(router_vision.router, prefix="/api/v1")
 app.include_router(router_alerts.router, prefix="/api/v1")
 app.include_router(router_auth.router, prefix="/api/v1")
 app.include_router(router_devices.router, prefix="/api/v1")
+app.include_router(router_stream.router, prefix="/api/v1")
 
 # The root endpoint mapping you requested
 @app.get("/")
