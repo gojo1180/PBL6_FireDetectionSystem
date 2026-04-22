@@ -4,12 +4,13 @@ import React from 'react';
 import { Bell, ShieldCheck } from 'lucide-react';
 import { FusionAlert } from '@/types';
 import { fmtTime } from '@/lib/utils';
+import { apiFetch } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function IncidentLog({ alertsList, onClearAlert }: { alertsList: FusionAlert[], onClearAlert?: () => void }) {
   const handleClear = async (id: string) => {
     try {
-      await fetch(`/api/v1/alerts/${id}/resolve`, { method: "PATCH" });
+      await apiFetch(`/api/v1/alerts/${id}/resolve`, { method: "PATCH" });
       if (onClearAlert) onClearAlert();
     } catch (e) {
       console.error("Failed to clear alert", e);
@@ -48,29 +49,27 @@ export function IncidentLog({ alertsList, onClearAlert }: { alertsList: FusionAl
                 whileInView={{ scale: 1, opacity: 1, x: 0 }}
                 viewport={{ once: true, margin: "10px" }}
                 exit={{ scale: 0.8, opacity: 0, x: -20, transition: { duration: 0.2 } }}
-                transition={{ 
-                  type: "spring", 
-                  stiffness: 350, 
+                transition={{
+                  type: "spring",
+                  stiffness: 350,
                   damping: 25
                 }}
-                className={`p-3 rounded-xl border transition-colors ${
-                  a.risk_level === "FIRE_DANGER" || a.risk_level === "DANGER" ? "border-ctp-red/30 bg-ctp-red/5"
+                className={`p-3 rounded-xl border transition-colors ${a.risk_level === "FIRE_DANGER" || a.risk_level === "DANGER" ? "border-ctp-red/30 bg-ctp-red/5"
                     : a.risk_level === "CCTV_ALERT" || a.risk_level === "WARNING" ? "border-ctp-peach/30 bg-ctp-peach/5"
                       : a.risk_level === "SENSOR_ALERT" ? "border-ctp-yellow/30 bg-ctp-yellow/5"
-                      : "border-ctp-crust bg-ctp-base"
+                        : "border-ctp-crust bg-ctp-base"
                   }`}
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                      a.risk_level === "FIRE_DANGER" || a.risk_level === "DANGER" ? "bg-ctp-red text-white" 
-                      : a.risk_level === "CCTV_ALERT" || a.risk_level === "WARNING" ? "bg-ctp-peach text-white"
-                      : "bg-ctp-yellow/20 text-ctp-yellow"
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${a.risk_level === "FIRE_DANGER" || a.risk_level === "DANGER" ? "bg-ctp-red text-white"
+                        : a.risk_level === "CCTV_ALERT" || a.risk_level === "WARNING" ? "bg-ctp-peach text-white"
+                          : "bg-ctp-yellow/20 text-ctp-yellow"
                       }`}>{a.risk_level}</span>
                     <span className="text-[10px] font-mono text-ctp-overlay0">{fmtTime(a.triggered_at)}</span>
                   </div>
                   {!a.is_resolved && (
-                    <button 
+                    <button
                       onClick={() => handleClear(a.id)}
                       className="text-[10px] text-ctp-subtext0 hover:text-ctp-text bg-ctp-surface0 hover:bg-ctp-surface1 px-2 py-0.5 rounded transition-colors"
                     >

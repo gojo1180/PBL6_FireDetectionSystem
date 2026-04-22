@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle, Zap, ShieldCheck, MapPin } from 'lucide-react';
 import { FusionAlert, Device } from '@/types';
 import { fmtTime } from '@/lib/utils';
+import { apiFetch } from '@/lib/api';
 
 interface StatusBannerProps {
   latestAlert: FusionAlert | null;
@@ -15,7 +16,7 @@ export function StatusBanner({ latestAlert, devices, onClearAlert }: StatusBanne
   const handleClear = async () => {
     if (!latestAlert) return;
     try {
-      await fetch(`/api/v1/alerts/${latestAlert.id}/resolve`, { method: "PATCH" });
+      await apiFetch(`/api/v1/alerts/${latestAlert.id}/resolve`, { method: "PATCH" });
       if (onClearAlert) onClearAlert();
     } catch (e) {
       console.error("Failed to clear alert", e);
