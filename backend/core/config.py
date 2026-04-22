@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     HIVEMQ_USERNAME: str
     HIVEMQ_PASSWORD: str
     CCTV_RTSP_URL: Optional[str] = None
+    NEWSDATA_API_KEY: Optional[str] = None
 
     class Config:
         env_file = ".env"

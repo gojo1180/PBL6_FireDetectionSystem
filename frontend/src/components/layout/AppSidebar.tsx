@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Cctv, Server, Menu, X, LogOut } from "lucide-react";
+import { LayoutDashboard, Cctv, Server, Menu, X, LogOut, Newspaper } from "lucide-react";
 import { getUser, removeToken } from "@/lib/auth";
 
 export function AppSidebar() {
@@ -88,6 +88,28 @@ export function AppSidebar() {
           <span className="px-3 text-[10px] uppercase tracking-widest font-semibold text-ctp-overlay0 mb-2 block">Monitoring</span>
 
           {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={closeSidebar}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-colors ${
+                  isActive
+                    ? "bg-ctp-blue/10 text-ctp-blue"
+                    : "text-ctp-subtext0 hover:bg-ctp-surface0/60 hover:text-ctp-text"
+                }`}
+              >
+                <Icon size={18} />
+                {item.label}
+              </Link>
+            );
+          })}
+
+          {/* Intelligence Section */}
+          <span className="px-3 pt-5 text-[10px] uppercase tracking-widest font-semibold text-ctp-overlay0 mb-2 block">Intelligence</span>
+          {[{ href: "/news", label: "Fire News", icon: Newspaper }].map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
             return (
