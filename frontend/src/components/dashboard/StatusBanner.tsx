@@ -6,10 +6,21 @@ import { fmtTime } from '@/lib/utils';
 interface StatusBannerProps {
   latestAlert: FusionAlert | null;
   devices: Device[];
+  onClearAlert?: () => void;
 }
 
-export function StatusBanner({ latestAlert, devices }: StatusBannerProps) {
+export function StatusBanner({ latestAlert, devices, onClearAlert }: StatusBannerProps) {
   const riskLevel = latestAlert?.is_resolved === false ? latestAlert.risk_level : "SAFE";
+  
+  const handleClear = async () => {
+    if (!latestAlert) return;
+    try {
+      await fetch(`/api/v1/alerts/${latestAlert.id}/resolve`, { method: "PATCH" });
+      if (onClearAlert) onClearAlert();
+    } catch (e) {
+      console.error("Failed to clear alert", e);
+    }
+  };
 
   // Resolve the device name for the alerting device
   const alertDevice = latestAlert && !latestAlert.is_resolved
@@ -21,6 +32,30 @@ export function StatusBanner({ latestAlert, devices }: StatusBannerProps) {
     : null;
 
   const bannerMap: Record<string, { bg: string; text: string; icon: React.ReactNode; label: string; glow: string; blink: string }> = {
+    FIRE_DANGER: {
+      bg: "bg-ctp-red",
+      text: "text-white",
+      icon: <AlertTriangle size={22} />,
+      label: deviceLabel ? `FIRE DANGER — Anomaly at ${deviceLabel}` : "FIRE DANGER — Immediate Action Required",
+      glow: "animate-glow-red",
+      blink: "animate-blink",
+    },
+    CCTV_ALERT: {
+      bg: "bg-ctp-peach",
+      text: "text-white",
+      icon: <Zap size={22} />,
+      label: deviceLabel ? `CCTV ALERT — Threat detected at ${deviceLabel}` : "CCTV ALERT — Threat detected",
+      glow: "animate-glow-yellow",
+      blink: "",
+    },
+    SENSOR_ALERT: {
+      bg: "bg-ctp-yellow",
+      text: "text-ctp-crust",
+      icon: <AlertTriangle size={22} />,
+      label: deviceLabel ? `SENSOR ALERT — Anomaly at ${deviceLabel}` : "SENSOR ALERT — Anomaly Detected",
+      glow: "animate-glow-yellow",
+      blink: "",
+    },
     DANGER: {
       bg: "bg-ctp-red",
       text: "text-white",
@@ -30,8 +65,8 @@ export function StatusBanner({ latestAlert, devices }: StatusBannerProps) {
       blink: "animate-blink",
     },
     WARNING: {
-      bg: "bg-ctp-yellow",
-      text: "text-ctp-text",
+      bg: "bg-ctp-peach",
+      text: "text-white",
       icon: <Zap size={22} />,
       label: deviceLabel ? `WARNING — Anomaly at ${deviceLabel}` : "WARNING — Anomaly Detected",
       glow: "animate-glow-yellow",
@@ -68,9 +103,19 @@ export function StatusBanner({ latestAlert, devices }: StatusBannerProps) {
           )}
         </div>
       </div>
-      <div className="text-right text-xs opacity-70 hidden sm:block">
-        <p>Last check</p>
-        <p className="font-mono">{latestAlert ? fmtTime(latestAlert.triggered_at) : "—"}</p>
+      <div className="flex items-center gap-4 text-xs opacity-90 hidden sm:flex">
+        {latestAlert && !latestAlert.is_resolved && (
+          <button 
+            onClick={handleClear}
+            className="px-3 py-1.5 bg-black/20 hover:bg-black/30 backdrop-blur-sm rounded-lg border border-white/20 transition-all font-semibold uppercase tracking-wider"
+          >
+            Clear Alert
+          </button>
+        )}
+        <div className="text-right opacity-70">
+          <p>Last check</p>
+          <p className="font-mono">{latestAlert ? fmtTime(latestAlert.triggered_at) : "—"}</p>
+        </div>
       </div>
     </div>
   );

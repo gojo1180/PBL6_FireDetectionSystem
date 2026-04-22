@@ -33,8 +33,9 @@ def create_fusion_alert(alert: FusionAlertCreate):
     return {"message": "Alert created successfully", "data": response.data}
 
 @router.put("/alerts/{alert_id}/resolve")
+@router.patch("/alerts/{alert_id}/resolve")
 def resolve_alert(alert_id: str, current_user: dict = Depends(get_current_user)):
-    """Mark an active alert as resolved."""
+    """Mark an active alert as resolved manually."""
     response = supabase.table("fusion_alerts").update({"is_resolved": True}).eq("id", alert_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Alert not found or already resolved")

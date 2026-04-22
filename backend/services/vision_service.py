@@ -157,8 +157,16 @@ def cctv_inference_loop():
             
             current_time = time.time()
             
+            # Trigger: Update fusion state
+            max_conf = max(fire_conf, smoke_conf)
+            # Threshold vision kita set berdasarkan streak 
+            is_vision_threat = (fire_streak >= 3 or smoke_streak >= 3)
+            
+            # Update fusion engine
+            alert_level = fusion_service.update_vision(max_conf if is_vision_threat else 0.0)
+            
             # TRIGGER: ONLY IF streak >= 3 and cooldown fulfilled
-            if (fire_streak >= 3 or smoke_streak >= 3) and (current_time - last_db_alert_time > 5.0):
+            if is_vision_threat and (current_time - last_db_alert_time > 5.0):
                 print(f"🔥 Threat CONFIRMED via CCTV Stability Check! Fire Streak: {fire_streak}, Smoke Streak: {smoke_streak}")
                 print(f"Confidence - Fire: {fire_conf:.2f}, Smoke: {smoke_conf:.2f}")
                 
@@ -189,21 +197,29 @@ def cctv_inference_loop():
                     "recorded_at": datetime.utcnow().isoformat()
                 }
                 
-                risk_level = "DANGER" if fire_conf > 0.5 else "WARNING"
-                alert_data = {
-                    "id": str(uuid.uuid4()),
-                    "device_id": current_dev,
-                    "risk_level": risk_level,
-                    "fusion_score": max(float(fire_conf), float(smoke_conf)),
-                    "alert_message": "Fire/Smoke detected by CCTV camera via RTSP stream.",
-                    "is_resolved": False,
-                    "triggered_at": datetime.utcnow().isoformat()
-                }
-                
                 try:
                     supabase.table("vision_logs").insert(log_data).execute()
-                    supabase.table("fusion_alerts").insert(alert_data).execute()
-                    print("✅ Saved CCTV threat detection to Supabase.")
+                    
+                    if alert_level in ['CCTV_ALERT', 'FIRE_DANGER']:
+                        active_alerts = supabase.table("fusion_alerts").select("id").eq("is_resolved", False).eq("device_id", current_dev).execute()
+                        
+                        alert_data = {
+                            "risk_level": "DANGER" if alert_level == "FIRE_DANGER" else "WARNING",
+                            "fusion_score": max(float(fire_conf), float(smoke_conf)),
+                            "alert_message": f"System Alert: {alert_level.replace('_', ' ')}",
+                        }
+                        
+                        if active_alerts.data and len(active_alerts.data) > 0:
+                            alert_id = active_alerts.data[0]["id"]
+                            supabase.table("fusion_alerts").update(alert_data).eq("id", alert_id).execute()
+                            print(f"⚠️ Fusion Alert Updated via CCTV: {alert_level}")
+                        else:
+                            alert_data["id"] = str(uuid.uuid4())
+                            alert_data["device_id"] = current_dev
+                            alert_data["is_resolved"] = False
+                            alert_data["triggered_at"] = datetime.utcnow().isoformat()
+                            supabase.table("fusion_alerts").insert(alert_data).execute()
+                            print(f"⚠️ Fusion Alert Triggered via CCTV: {alert_level}")
                     
                     # Reset streaks and timer after successful trigger to prevent spam
                     fire_streak = 0
@@ -212,12 +228,16 @@ def cctv_inference_loop():
                 except Exception as e:
                     print(f"❌ Error saving CCTV alert to DB: {e}")
             else:
-                # AUTO-RESOLVE: Jika CCTV tidak mendeteksi ancaman, tutup semua peringatan CCTV yang masih aktif
-                if fire_streak == 0 and smoke_streak == 0 and current_dev:
-                    try:
-                        supabase.table("fusion_alerts").update({"is_resolved": True}).eq("is_resolved", False).eq("device_id", current_dev).like("alert_message", "%CCTV%").execute()
-                    except Exception as e:
-                        print(f"❌ Error auto-resolving CCTV alerts: {e}")
+                # SAFE or cooldown not met
+                pass
+                
+            # AUTO-RESET CHECK
+            if fusion_service.check_auto_reset():
+                print("🔄 Auto-Reset Triggered: 5 minutes without anomalies. Resolving all active alerts.")
+                try:
+                    supabase.table("fusion_alerts").update({"is_resolved": True}).eq("is_resolved", False).execute()
+                except Exception as e:
+                    print(f"❌ Error auto-resolving alerts: {e}")
                     
             # Memory Optimization: Explicitly release large OpenCV/numpy objects
             del frame_to_process

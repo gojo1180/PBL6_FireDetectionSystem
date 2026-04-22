@@ -29,6 +29,9 @@ def on_message(client, userdata, msg):
         # Pass the data to the fusion_engine to get the is_anomaly result
         is_anomaly = fusion_service.process_sensor_data(sensor_data)
         
+        # Update stateful fusion engine and get current alert level
+        alert_level = fusion_service.update_sensor(is_anomaly)
+        
         raw_device_id = sensor_data.get("device_id", "00000000-0000-0000-0000-000000000000")
         try:
             # First, check if it is already a valid UUID
@@ -75,22 +78,33 @@ def on_message(client, userdata, msg):
         # Attempt to insert the raw sensor data into the sensor_logs table
         supabase.table("sensor_logs").insert(log_data).execute()
         
-        # If is_anomaly is True, also insert an alert into the fusion_alerts table
-        if is_anomaly:
+        # Insert or update alert if risk is elevated
+        if alert_level in ['SENSOR_ALERT', 'FIRE_DANGER']:
+            # Cek apakah sudah ada alert aktif untuk device ini
+            active_alerts = supabase.table("fusion_alerts").select("id").eq("is_resolved", False).eq("device_id", device_id).execute()
+            
             alert_data = {
-                "id": str(uuid.uuid4()),
-                "device_id": device_id,
-                "risk_level": "DANGER",
-                "fusion_score": 1.0,
-                "alert_message": "System Alert: Sensor Anomaly Detected (DANGER)",
-                "is_resolved": False,
-                "triggered_at": datetime.utcnow().isoformat()
+                "risk_level": "DANGER" if alert_level == "FIRE_DANGER" else "WARNING",
+                "fusion_score": 1.0, # Dummy score for sensor
+                "alert_message": f"System Alert: {alert_level.replace('_', ' ')}",
             }
-            supabase.table("fusion_alerts").insert(alert_data).execute()
-            print("⚠️ Fusion Alert Triggered: DANGER")
-        else:
-            # AUTO-RESOLVE: Jika model menyatakan aman, tutup semua peringatan dari sensor yang masih aktif
-            supabase.table("fusion_alerts").update({"is_resolved": True}).eq("is_resolved", False).eq("device_id", device_id).like("alert_message", "%Sensor%").execute()
+            
+            if active_alerts.data and len(active_alerts.data) > 0:
+                # Update existing alert
+                alert_id = active_alerts.data[0]["id"]
+                supabase.table("fusion_alerts").update(alert_data).eq("id", alert_id).execute()
+                print(f"⚠️ Fusion Alert Updated: {alert_level}")
+            else:
+                # Insert new alert
+                alert_data["id"] = str(uuid.uuid4())
+                alert_data["device_id"] = device_id
+                alert_data["is_resolved"] = False
+                alert_data["triggered_at"] = datetime.utcnow().isoformat()
+                supabase.table("fusion_alerts").insert(alert_data).execute()
+                print(f"⚠️ Fusion Alert Triggered: {alert_level}")
+        elif alert_level == 'SAFE':
+            # Jika SAFE dan tidak ada deteksi api dari vision, tidak perlu buat alert baru
+            pass
             
     except Exception as e:
         print(f"❌ SUPABASE INSERT ERROR: {e}")

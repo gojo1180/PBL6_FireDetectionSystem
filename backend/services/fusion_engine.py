@@ -12,6 +12,16 @@ warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
 class LateFusionService:
     def __init__(self):
+        # Stateful variables for late fusion
+        self.latest_sensor_anomaly = False
+        self.last_sensor_time = 0.0
+        
+        self.latest_vision_conf = 0.0
+        self.last_vision_time = 0.0
+        
+        # Track the last time ANY anomaly was detected for auto-reset (5 mins)
+        self.last_anomaly_time = 0.0
+        
         # We assume models are located in backend/models/
         models_dir = os.path.join(os.path.dirname(__file__), "..", "ml_models")
         
@@ -137,18 +147,58 @@ class LateFusionService:
             print(f"Error processing vision data: {e}")
             return result_scores
 
-    def evaluate_late_fusion(self, sensor_anomaly: bool, vision_fire_conf: float) -> str:
+    def update_sensor(self, is_anomaly: bool) -> str:
+        import time
+        self.last_sensor_time = time.time()
+        self.latest_sensor_anomaly = is_anomaly
+        if is_anomaly:
+            self.last_anomaly_time = self.last_sensor_time
+        return self.evaluate_late_fusion()
+        
+    def update_vision(self, fire_conf: float) -> str:
+        import time
+        self.last_vision_time = time.time()
+        self.latest_vision_conf = fire_conf
+        if fire_conf > 0.6:
+            self.last_anomaly_time = self.last_vision_time
+        return self.evaluate_late_fusion()
+
+    def evaluate_late_fusion(self) -> str:
         """
-        If vision > 0.6 AND sensor anomaly == True -> Risk: 'DANGER'
-        If vision > 0.6 OR sensor anomaly == True -> Risk: 'WARNING'
-        Else -> Risk: 'SAFE'
+        Returns one of: 'FIRE_DANGER', 'CCTV_ALERT', 'SENSOR_ALERT', 'SAFE'
+        berdasarkan status terakhir. Kita asumsikan status "kadaluarsa" jika 
+        lebih dari 5 menit tidak ada update yang anomali, tapi itu 
+        di-handle oleh auto-reset secara keseluruhan.
         """
-        if vision_fire_conf > 0.6 and sensor_anomaly:
-            return 'DANGER'
-        elif vision_fire_conf > 0.6 or sensor_anomaly:
-            return 'WARNING'
+        sensor_anomaly = self.latest_sensor_anomaly
+        vision_fire = self.latest_vision_conf > 0.6
+        
+        if sensor_anomaly and vision_fire:
+            return 'FIRE_DANGER'
+        elif vision_fire:
+            return 'CCTV_ALERT'
+        elif sensor_anomaly:
+            return 'SENSOR_ALERT'
         else:
             return 'SAFE'
+
+    def check_auto_reset(self) -> bool:
+        """
+        Return True if 5 minutes have passed since the last anomaly.
+        This signals that all alerts should be resolved.
+        """
+        import time
+        if self.last_anomaly_time == 0.0:
+            return False # Nothing to reset
+            
+        current_time = time.time()
+        if current_time - self.last_anomaly_time > 300: # 5 minutes
+            # Reset the timer so we don't spam reset
+            self.last_anomaly_time = 0.0
+            self.latest_sensor_anomaly = False
+            self.latest_vision_conf = 0.0
+            return True
+        return False
 
 # Instantiate a global service instance so models are only loaded once on server worker start
 fusion_service = LateFusionService()

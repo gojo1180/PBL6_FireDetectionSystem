@@ -245,7 +245,7 @@ export default function DashboardPage() {
       </header>
 
       <main className="flex-1 p-6 lg:p-8 space-y-6">
-        <StatusBanner latestAlert={latestAlert} devices={devices} />
+        <StatusBanner latestAlert={latestAlert} devices={devices} onClearAlert={fetchDashboardData} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {memoizedSensorCards}
@@ -254,7 +254,7 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <GasTrendChart chartData={chartData} />
-          <IncidentLog alertsList={alertsList} />
+          <IncidentLog alertsList={alertsList} onClearAlert={fetchDashboardData} />
         </div>
       </main>
     </div>
