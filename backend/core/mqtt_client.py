@@ -92,6 +92,7 @@ def on_message(client, userdata, msg):
             if active_alerts.data and len(active_alerts.data) > 0:
                 # Update existing alert
                 alert_id = active_alerts.data[0]["id"]
+                alert_data["triggered_at"] = datetime.utcnow().isoformat()
                 supabase.table("fusion_alerts").update(alert_data).eq("id", alert_id).execute()
                 print(f"⚠️ Fusion Alert Updated: {alert_level}")
             else:

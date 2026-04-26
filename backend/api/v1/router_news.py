@@ -7,6 +7,7 @@ Endpoints:
 """
 
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, HttpUrl
 from typing import Optional
 import requests
@@ -178,7 +179,7 @@ def extract_article(
 
 
 # ─── POST /news/summarize ───────────────────────────────────────────
-@router.post("/news/summarize", response_model=SummarizeResponse)
+@router.post("/news/summarize")
 def summarize_article(
     payload: SummarizeRequest,
     current_user: dict = Depends(get_current_user),
@@ -243,16 +244,17 @@ def summarize_article(
     try:
         from services.summarization_service import run_summarization_model
 
-        summary = run_summarization_model(full_text)
+        return StreamingResponse(
+            run_summarization_model(full_text),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            }
+        )
     except Exception as e:
         logger.error(f"[News] Summarization failed: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Gagal merangkum artikel: {str(e)}",
         )
-
-    return SummarizeResponse(
-        url=payload.url,
-        full_text=full_text[:2000],  # Limit full text in response
-        summary=summary,
-    )

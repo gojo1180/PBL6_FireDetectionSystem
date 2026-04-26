@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { apiFetch } from "@/lib/api";
-import { Activity, Bell, Flame, Gauge, Wind, Droplets, ChevronDown, MapPin, Server } from "lucide-react";
+import { getDevices, getDashboardSensors, getLatestSensor, getLatestVision, getAlerts } from "@/lib/api";
+import { Activity, Bell, Flame, Gauge, Wind, Droplets, ChevronDown, MapPin, Server, Download } from "lucide-react";
 
 import { SensorLog, VisionLog, FusionAlert, Device } from "@/types";
 import { fmtTime } from "@/lib/utils";
+import { getToken } from "@/lib/auth";
 
 import { StatusBanner } from "@/components/dashboard/StatusBanner";
 import { MetricCard } from "@/components/ui/MetricCard";
@@ -54,7 +55,7 @@ export default function DashboardPage() {
 
     const fetchDevices = async () => {
       try {
-        const data = await apiFetch<Device[]>("/api/v1/devices");
+        const data = await getDevices();
         if (data && data.length > 0) {
           setDevices(data);
           // Auto-select first IoT/Sensor device, or first device overall
@@ -74,7 +75,7 @@ export default function DashboardPage() {
     if (!selectedDeviceId) return;
     try {
       // Fetch last 15 sensor readings for the SELECTED device
-      const sensors = await apiFetch<SensorLog[]>(`/api/v1/sensors?limit=15&device_id=${selectedDeviceId}`);
+      const sensors = await getDashboardSensors(selectedDeviceId, 15);
       if (sensors && sensors.length > 0) {
         // API returns desc order, reverse for chronological chart
         const chronological = [...sensors].reverse();
@@ -88,11 +89,11 @@ export default function DashboardPage() {
       }
 
       // Fetch latest vision log
-      const vision = await apiFetch<VisionLog | null>("/api/v1/vision/latest");
+      const vision = await getLatestVision();
       if (vision) setLatestVision(vision);
 
       // Fetch recent alerts GLOBALLY (last 10) — DO NOT filter by device
-      const alerts = await apiFetch<FusionAlert[]>("/api/v1/alerts?limit=10");
+      const alerts = await getAlerts(10);
       if (alerts && alerts.length > 0) {
         setLatestAlert(alerts[0]);
         setAlertsList(alerts);
@@ -107,7 +108,7 @@ export default function DashboardPage() {
     if (!selectedDeviceId) return;
     try {
       // Poll latest sensor for the SELECTED device
-      const sensor = await apiFetch<SensorLog | null>(`/api/v1/sensors/latest/${selectedDeviceId}`);
+      const sensor = await getLatestSensor(selectedDeviceId);
       if (sensor && sensor.recorded_at !== lastSensorTs.current) {
         setLatestSensor(sensor);
         setSensorHistory((prev) => [...prev, sensor].slice(-15));
@@ -115,11 +116,11 @@ export default function DashboardPage() {
       }
 
       // Poll latest vision
-      const vision = await apiFetch<VisionLog | null>("/api/v1/vision/latest");
+      const vision = await getLatestVision();
       if (vision) setLatestVision(vision);
 
       // Poll alerts GLOBALLY — DO NOT filter by device
-      const alerts = await apiFetch<FusionAlert[]>("/api/v1/alerts?limit=10");
+      const alerts = await getAlerts(10);
       if (alerts && alerts.length > 0) {
         setLatestAlert(alerts[0]);
         setAlertsList(alerts);
@@ -149,6 +150,34 @@ export default function DashboardPage() {
     CO: Number(s.co_level.toFixed(2)),
     LPG: Number(s.lpg_level.toFixed(2)),
   })), [sensorHistory, mounted]);
+
+  const downloadCSV = async () => {
+    if (!selectedDeviceId) return;
+    try {
+      const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const token = getToken();
+      
+      const res = await fetch(`${BASE_URL}/api/v1/sensors/export/csv?device_id=${selectedDeviceId}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      
+      if (!res.ok) throw new Error("Failed to download CSV");
+      
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sensor_logs_${selectedDeviceId}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error("Download failed", err);
+    }
+  };
 
   const selectedDevice = useMemo(() => devices.find(d => d.id === selectedDeviceId), [devices, selectedDeviceId]);
 
@@ -232,6 +261,15 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-4">
+          <button
+            onClick={downloadCSV}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-ctp-base border border-ctp-crust hover:border-ctp-blue/50 text-ctp-text text-sm transition-all duration-200"
+            title="Download CSV Data"
+          >
+            <Download size={14} className="text-ctp-blue" />
+            <span className="hidden md:inline font-medium">Export CSV</span>
+          </button>
+          
           <div className="relative">
             <Bell size={18} className="text-ctp-subtext0" />
             {alertsList.filter(a => !a.is_resolved).length > 0 && (

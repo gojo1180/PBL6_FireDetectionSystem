@@ -1,8 +1,9 @@
 export interface Device {
   id: string;
+  user_id?: string;
   device_name: string;
   device_type: string;
-  location: string;
+  location?: string | null;
   status: string;
   rtsp_url?: string | null;
 }
