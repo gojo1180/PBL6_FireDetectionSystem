@@ -96,7 +96,7 @@ def add_sensor_data(sensor: SensorLogCreate):
     data["device_id"] = device_id
     data["recorded_at"] = datetime.utcnow().isoformat()
     
-    # Process with Isolation Forest and update state
+    # Process with LSTM Autoencoder and update state
     is_anomaly = fusion_service.process_sensor_data(data)
     alert_level = fusion_service.update_sensor(is_anomaly)
     

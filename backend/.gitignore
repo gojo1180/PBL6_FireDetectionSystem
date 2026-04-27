@@ -7,5 +7,6 @@ __pycache__/
 .env
 ml_models/*.pt
 ml_models/*.pkl
+ml_models/*.h5
 scripts/logs/
 *.log

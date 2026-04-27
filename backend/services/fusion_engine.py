@@ -2,15 +2,23 @@ import os
 import io
 import cv2
 import numpy as np
+from collections import deque
 from PIL import Image
 import joblib
 from ultralytics import YOLO
 import warnings
 
-# Abaikan warning "X does not have valid feature names" setiap kali inference numpy scaler
+# Suppress TensorFlow info/warning logs (harus sebelum import tf)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+import tensorflow as tf
+
+# Abaikan warning sklearn scaler
 warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
 class LateFusionService:
+    # Panjang sequence yang dibutuhkan LSTM Autoencoder
+    SEQUENCE_LENGTH = 10
+
     def __init__(self):
         # Stateful variables for late fusion
         self.latest_sensor_anomaly = False
@@ -22,38 +30,61 @@ class LateFusionService:
         # Track the last time ANY anomaly was detected for auto-reset (5 mins)
         self.last_anomaly_time = 0.0
         
-        # We assume models are located in backend/models/
+        # Time-series buffer untuk LSTM — menyimpan N data terbaru
+        self.sensor_buffer = deque(maxlen=self.SEQUENCE_LENGTH)
+        
+        # We assume models are located in backend/ml_models/
         models_dir = os.path.join(os.path.dirname(__file__), "..", "ml_models")
         
+        # ---------- YOLO (Vision) ----------
         yolo_path = os.path.join(models_dir, "best.pt")
         if os.path.exists(yolo_path):
             self.yolo_model = YOLO(yolo_path)
         else:
             print(f"Warning: YOLO model not found at {yolo_path}")
             self.yolo_model = None
-            
-        if_path = os.path.join(models_dir, "model_isolation_forest.pkl")
-        if os.path.exists(if_path):
-            self.if_model = joblib.load(if_path)
-        else:
-            print(f"Warning: Isolation Forest model not found at {if_path}")
-            self.if_model = None
 
-        scaler_path = os.path.join(models_dir, "scaler_isolation_forest.pkl")
+        # ---------- LSTM Autoencoder (Sensor) ----------
+        lstm_path = os.path.join(models_dir, "model_lstm_autoencoder_WoI.h5")
+        if os.path.exists(lstm_path):
+            self.lstm_model = tf.keras.models.load_model(lstm_path, compile=False)
+            # Deteksi SEQUENCE_LENGTH dari input shape model jika tersedia
+            try:
+                expected_seq = self.lstm_model.input_shape[1]
+                if expected_seq is not None and expected_seq != self.SEQUENCE_LENGTH:
+                    print(f"⚠️ Model expects sequence length {expected_seq}, updating buffer.")
+                    self.SEQUENCE_LENGTH = expected_seq
+                    self.sensor_buffer = deque(maxlen=self.SEQUENCE_LENGTH)
+            except Exception:
+                pass
+            print("✅ LSTM Autoencoder model loaded successfully.")
+        else:
+            print(f"⚠️ Warning: LSTM model not found at {lstm_path}")
+            self.lstm_model = None
+
+        scaler_path = os.path.join(models_dir, "scaler_lstm_WoI.pkl")
         if os.path.exists(scaler_path):
             self.scaler = joblib.load(scaler_path)
-            print("✅ StandardScaler (scaler_isolation_forest.pkl) loaded successfully.")
+            print("✅ StandardScaler (scaler_lstm_WoI.pkl) loaded successfully.")
         else:
-            print(f"⚠️ Warning: StandardScaler not found at {scaler_path}. Harap masukkan file 'scaler_isolation_forest.pkl' kesini!")
+            print(f"⚠️ Warning: StandardScaler not found at {scaler_path}")
             self.scaler = None
+
+        threshold_path = os.path.join(models_dir, "threshold_lstm_WoI.pkl")
+        if os.path.exists(threshold_path):
+            self.threshold = joblib.load(threshold_path)
+            print(f"✅ Anomaly threshold loaded: {self.threshold}")
+        else:
+            print(f"⚠️ Warning: Threshold file not found at {threshold_path}. Menggunakan default 0.5")
+            self.threshold = 0.5
 
     def process_sensor_data(self, sensor_data: dict) -> bool:
         """
-        Extract [cng_level, co_level, lpg_level], reshape, and predict using the Isolation Forest.
-        Isolation Forest usually outputs -1 for anomaly, 1 for normal.
-        Returns True if anomaly detected, False otherwise.
+        Extract fitur sensor, normalisasi, masukkan ke buffer time-series,
+        lalu prediksi anomali menggunakan LSTM Autoencoder (reconstruction error).
+        Returns True jika anomaly terdeteksi, False jika normal.
         """
-        if not self.if_model:
+        if not self.lstm_model:
             return False
             
         try:
@@ -64,24 +95,43 @@ class LateFusionService:
             flame_raw = float(sensor_data.get("flame_detected", 0.0))
 
             # URUTAN WAJIB SCALER: ['cng', 'co', 'flame', 'lpg', 'smoke']
-            features = [
+            features = np.array([
                 cng_raw,
                 co_raw,
                 flame_raw,
                 lpg_raw,
                 smoke_raw
-            ]
-            X = np.array(features).reshape(1, -1)
+            ]).reshape(1, -1)
             
-            # Normalisasi menggunakan StandardScaler sebelum inference
+            # Normalisasi menggunakan StandardScaler
             if self.scaler:
-                X = self.scaler.transform(X)
+                features = self.scaler.transform(features)
             else:
-                print("⚠️ Peringatan: StandardScaler tidak diload! Melanjutkan inference dengan data asli (belum dinormalisasi).")
+                print("⚠️ Peringatan: StandardScaler tidak diload! Melanjutkan dengan data asli.")
 
-            prediction = self.if_model.predict(X)
+            # Tambahkan ke buffer time-series
+            self.sensor_buffer.append(features.flatten())
             
-            is_anomaly = True if prediction[0] == -1 else False
+            # Buffer belum penuh → belum bisa prediksi, anggap SAFE
+            if len(self.sensor_buffer) < self.SEQUENCE_LENGTH:
+                print(f"📊 Buffer: {len(self.sensor_buffer)}/{self.SEQUENCE_LENGTH} — menunggu data cukup...")
+                return False
+            
+            # Bentuk sequence: (1, SEQUENCE_LENGTH, n_features)
+            sequence = np.array(list(self.sensor_buffer))
+            sequence = sequence.reshape(1, self.SEQUENCE_LENGTH, sequence.shape[1])
+            
+            # Prediksi (reconstruct) menggunakan LSTM Autoencoder
+            reconstructed = self.lstm_model.predict(sequence, verbose=0)
+            
+            # Hitung reconstruction error (MSE per sample)
+            mse = np.mean(np.power(sequence - reconstructed, 2))
+            
+            is_anomaly = bool(mse > self.threshold)
+            
+            if is_anomaly:
+                print(f"🔥 ANOMALY DETECTED! MSE: {mse:.6f} > threshold: {self.threshold:.6f}")
+            
             return is_anomaly
         except Exception as e:
             print(f"Error processing sensor data: {e}")
