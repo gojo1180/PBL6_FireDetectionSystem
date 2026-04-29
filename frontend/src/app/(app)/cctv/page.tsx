@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Activity, Camera, ShieldAlert, Cpu, Network, Frame, VideoOff, WifiOff, ChevronDown, MapPin, Server, RefreshCw } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import { getDevices } from "@/lib/api";
 import { Device } from "@/types";
 
 // How long to wait for stream to load before considering it dead (ms)
@@ -47,7 +47,7 @@ export default function CCTVPage() {
 
     const fetchDevices = async () => {
       try {
-        const data = await apiFetch<Device[]>("/api/v1/devices");
+        const data = await getDevices();
         if (data && data.length > 0) {
           setDevices(data);
           // Auto-select the first CCTV device, or first device overall

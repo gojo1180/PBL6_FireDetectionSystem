@@ -4,18 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import {
   Activity, Server, Plus, Pencil, Trash2, X, Loader2, MapPin, Wifi, WifiOff, Camera, Copy, Check
 } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import { getDevices, createDevice, updateDevice, deleteDevice } from "@/lib/api";
 import { getUser } from "@/lib/auth";
-
-interface Device {
-  id: string;
-  user_id: string;
-  device_name: string;
-  device_type: string;
-  rtsp_url: string | null;
-  status: string;
-  location: string | null;
-}
+import { Device } from "@/types";
 
 export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
@@ -35,7 +26,7 @@ export default function SettingsPage() {
 
   const fetchDevices = useCallback(async () => {
     try {
-      const data = await apiFetch<Device[]>("/api/v1/devices/");
+      const data = await getDevices();
       setDevices(data);
     } catch (err) {
       console.error("Failed to fetch devices:", err);
@@ -53,14 +44,12 @@ export default function SettingsPage() {
     e.preventDefault();
     setAddLoading(true);
     try {
-      await apiFetch("/api/v1/devices/", {
-        method: "POST",
-        body: {
-          ...addForm,
-          user_id: getUser()?.user_id || "00000000-0000-0000-0000-000000000000",
-          rtsp_url: addForm.rtsp_url || null,
-          location: addForm.location || null,
-        },
+      await createDevice({
+        device_name: addForm.device_name,
+        device_type: addForm.device_type,
+        rtsp_url: addForm.rtsp_url || null,
+        location: addForm.location || null,
+        user_id: getUser()?.user_id || "00000000-0000-0000-0000-000000000000",
       });
       setShowAdd(false);
       setAddForm({ device_name: "", device_type: "SENSOR", rtsp_url: "", location: "" });
@@ -77,13 +66,10 @@ export default function SettingsPage() {
     if (!editDevice) return;
     setEditLoading(true);
     try {
-      await apiFetch(`/api/v1/devices/${editDevice.id}`, {
-        method: "PUT",
-        body: {
-          device_name: editForm.device_name || undefined,
-          rtsp_url: editForm.rtsp_url || undefined,
-          location: editForm.location || undefined,
-        },
+      await updateDevice(editDevice.id, {
+        device_name: editForm.device_name || undefined,
+        rtsp_url: editForm.rtsp_url || undefined,
+        location: editForm.location || undefined,
       });
       setEditDevice(null);
       fetchDevices();
@@ -97,7 +83,7 @@ export default function SettingsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this device?")) return;
     try {
-      await apiFetch(`/api/v1/devices/${id}`, { method: "DELETE" });
+      await deleteDevice(id);
       fetchDevices();
     } catch (err) {
       console.error("Delete failed:", err);

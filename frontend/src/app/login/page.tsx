@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Flame, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import { login } from "@/lib/api";
 import { setToken, isAuthenticated } from "@/lib/auth";
 
 export default function LoginPage() {
@@ -24,11 +24,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const data = await apiFetch<{ access_token: string }>("/api/v1/auth/login", {
-        method: "POST",
-        body: { email, password },
-        auth: false,
-      });
+      const data = await login({ email, password });
       setToken(data.access_token);
       router.push("/dashboard");
     } catch (err: unknown) {

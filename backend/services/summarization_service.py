@@ -20,7 +20,7 @@ from core.config import settings
 logger = logging.getLogger(__name__)
 
 # ── Configuration from .env via pydantic-settings ──────────────────────────
-HF_SPACE_URL = settings.HF_SUMMARY_MODEL_URL  # e.g. https://nizu31-summary-kebakaran.hf.space
+HF_SPACE_URL = settings.HF_SUMMARY_MODEL_URL  
 HF_API_KEY = settings.HF_API_KEY
 
 
@@ -28,7 +28,7 @@ def run_summarization_model(
     full_text: str,
     max_length: int = 150,
     min_length: int = 40,
-) -> str:
+):
     """
     Summarize the given full article text via the HF Space Gradio API.
 
@@ -40,7 +40,8 @@ def run_summarization_model(
     """
     # ── Guard: empty input ──────────────────────────────────────────────
     if not full_text or not full_text.strip():
-        return "Tidak ada konten artikel yang bisa dirangkum."
+        yield "Tidak ada konten artikel yang bisa dirangkum."
+        return
 
     # ── Guard: missing configuration ────────────────────────────────────
     if not HF_SPACE_URL or not HF_API_KEY:
@@ -84,10 +85,8 @@ def run_summarization_model(
 
     if submit_resp.status_code == 503:
         logger.warning("HF Space returned 503 — Space is sleeping / model loading.")
-        return (
-            "Model AI sedang diaktifkan di server utama, "
-            "silakan coba lagi dalam 10-20 detik."
-        )
+        yield "Model AI sedang diaktifkan di server utama, silakan coba lagi dalam 10-20 detik."
+        return
 
     if submit_resp.status_code == 401:
         logger.error("HF Space returned 401 — invalid API key.")
@@ -138,7 +137,8 @@ def run_summarization_model(
     # Gradio streams events like:
     #   event: complete
     #   data: ["summary text here"]
-    summary_text = None
+    previous_text = ""
+    yielded_any = False
     try:
         for line in result_resp.iter_lines(decode_unicode=True):
             if line is None:
@@ -147,10 +147,18 @@ def run_summarization_model(
             if line.startswith("data:"):
                 data_str = line[len("data:"):].strip()
                 if data_str:
-                    data = json.loads(data_str)
-                    # Gradio returns data as a list: ["summary text"]
-                    if isinstance(data, list) and len(data) > 0:
-                        summary_text = data[0]
+                    try:
+                        data = json.loads(data_str)
+                        # Gradio returns data as a list: ["summary text"]
+                        if isinstance(data, list) and len(data) > 0:
+                            current_text = data[0]
+                            delta = current_text[len(previous_text):]
+                            if delta:
+                                yield delta
+                                previous_text = current_text
+                                yielded_any = True
+                    except json.JSONDecodeError:
+                        continue
     except Exception as exc:
         logger.error(f"Error parsing SSE stream: {exc}")
         raise HTTPException(
@@ -158,11 +166,9 @@ def run_summarization_model(
             detail="Gagal memproses respons dari Hugging Face Space.",
         )
 
-    if summary_text:
-        return summary_text
-
-    logger.error(f"No summary extracted from SSE stream. Full response: {result_resp.text}")
-    raise HTTPException(
-        status_code=500,
-        detail="Format respons dari Hugging Face Space tidak sesuai. Tidak ada ringkasan ditemukan.",
-    )
+    if not yielded_any:
+        logger.error(f"No summary extracted from SSE stream. Full response: {result_resp.text}")
+        raise HTTPException(
+            status_code=500,
+            detail="Format respons dari Hugging Face Space tidak sesuai. Tidak ada ringkasan ditemukan.",
+        )
