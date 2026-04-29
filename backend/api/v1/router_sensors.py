@@ -22,6 +22,28 @@ def get_sensor_data(limit: int = 50, device_id: Optional[str] = None, current_us
     response = query.order("recorded_at", desc=True).limit(limit).execute()
     return response.data
 
+@router.get("/sensors/calibration")
+def get_calibration_status(current_user: dict = Depends(get_current_user)):
+    """Fetch the current calibration state from the fusion engine."""
+    return {
+        "fase_aktif": fusion_service.FASE_AKTIF,
+        "error_saat_ini": getattr(fusion_service, "latest_error", 0.0),
+        "threshold_dinamis": fusion_service.THRESHOLD_DINAMIS,
+        "counter_pesan": getattr(fusion_service, "counter_pesan", 0),
+        "sampling_seconds": getattr(fusion_service, "SAMPLING_SECONDS", 120),
+        "toleransi_threshold": getattr(fusion_service, "TOLERANSI_THRESHOLD", 1.15)
+    }
+
+from pydantic import BaseModel
+class CalibrationConfig(BaseModel):
+    toleransi_threshold: float
+
+@router.post("/sensors/calibration/config")
+def set_calibration_config(config: CalibrationConfig, current_user: dict = Depends(get_current_user)):
+    """Update the tolerance multiplier dynamically."""
+    fusion_service.update_toleransi(config.toleransi_threshold)
+    return {"message": "Toleransi diupdate", "new_threshold": fusion_service.THRESHOLD_DINAMIS}
+
 @router.get("/sensors/latest", response_model=Optional[dict])
 def get_latest_sensor_data(current_user: dict = Depends(get_current_user)):
     """Fetch only the single latest sensor log."""
