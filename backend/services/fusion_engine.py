@@ -45,9 +45,9 @@ class LateFusionService:
             self.yolo_model = None
 
         # ---------- LSTM Autoencoder (Sensor) ----------
-        lstm_path = os.path.join(models_dir, "model_lstm_autoencoderV2.h5")
+        lstm_path = os.path.join(models_dir, "model_finetuned_lokal.h5")
         if os.path.exists(lstm_path):
-            self.lstm_model = tf.keras.models.load_model(lstm_path, compile=False)
+            self.lstm_model = tf.keras.models.load_model(lstm_path,compile=False)
             # Deteksi SEQUENCE_LENGTH dari input shape model jika tersedia
             try:
                 expected_seq = self.lstm_model.input_shape[1]
@@ -62,15 +62,15 @@ class LateFusionService:
             print(f"⚠️ Warning: LSTM model not found at {lstm_path}")
             self.lstm_model = None
 
-        scaler_path = os.path.join(models_dir, "scaler_lstmV2.pkl")
+        scaler_path = os.path.join(models_dir, "scaler_lstm_lokal.pkl")
         if os.path.exists(scaler_path):
             self.scaler = joblib.load(scaler_path)
-            print("✅ StandardScaler (scaler_lstm_WoI.pkl) loaded successfully.")
+            print("✅ StandardScaler (scaler_lstm_lokal.pkl) loaded successfully.")
         else:
             print(f"⚠️ Warning: StandardScaler not found at {scaler_path}")
             self.scaler = None
 
-        threshold_path = os.path.join(models_dir, "threshold_lstm_WoI.pkl")
+        threshold_path = os.path.join(models_dir, "threshold_lstm_lokal.pkl")
         if os.path.exists(threshold_path):
             self.threshold = joblib.load(threshold_path)
             print(f"✅ Anomaly threshold loaded: {self.threshold}")
@@ -78,14 +78,16 @@ class LateFusionService:
             print(f"⚠️ Warning: Threshold file not found at {threshold_path}. Menggunakan default 0.5")
             self.threshold = 0.5
 
-        # ---------- Auto-Kalibrasi (Dynamic Threshold) ----------
-        self.SAMPLING_SECONDS = 120     # Waktu pengambilan baseline (dalam iterasi/detik)
-        self.TOLERANSI_THRESHOLD = 1.15  # Pengali error tertinggi
+        # ---------- Konfigurasi Threshold (Statis) ----------
+        # Variabel dummy agar API router_sensors.py tidak error
+        self.SAMPLING_SECONDS = 0
+        self.TOLERANSI_THRESHOLD = 1.0
         self.counter_pesan = 0
         self.history_error_ruangan = []
-        self.THRESHOLD_DINAMIS = self.threshold # Default gunakan threshold statis dulu
-        self.latest_error = 0.0         # Tambahkan state terbaru untuk diakses API
-        self.FASE_AKTIF = "SAMPLING"    # Langsung mulai dari fase kalibrasi
+        
+        self.THRESHOLD_DINAMIS = self.threshold # Menggunakan threshold bawaan dari pkl
+        self.latest_error = 0.0
+        self.FASE_AKTIF = "MONITORING"    # Langsung mulai dari fase monitoring
 
     def process_sensor_data(self, sensor_data: dict) -> bool:
         """
@@ -137,54 +139,24 @@ class LateFusionService:
             error_saat_ini = np.mean(np.abs(sequence - reconstructed))
             self.latest_error = float(error_saat_ini)
             
-            # ==========================================
-            # STATE MACHINE: PENGATUR FASE (AUTO-KALIBRASI)
-            # ==========================================
-            if self.FASE_AKTIF == "SAMPLING":
-                self.history_error_ruangan.append(error_saat_ini)
-                self.counter_pesan += 1
-                
-                # Biar terminal tidak terlalu penuh, print per 10 iterasi saja atau akhir
-                if self.counter_pesan % 10 == 0 or self.counter_pesan == 1 or self.counter_pesan >= self.SAMPLING_SECONDS:
-                    print(f"⚙️ [KALIBRASI] Mengukur partikel udara... ({self.counter_pesan}/{self.SAMPLING_SECONDS}) | Error: {error_saat_ini:.4f}")
-                
-                if self.counter_pesan >= self.SAMPLING_SECONDS:
-                    self.FASE_AKTIF = "MONITORING"
-                    
-                    # Rumus Dynamic Baseline
-                    self.THRESHOLD_DINAMIS = max(self.history_error_ruangan) * self.TOLERANSI_THRESHOLD
-                    
-                    print("\n" + "="*55)
-                    print(f"✅ AUTO-KALIBRASI SELESAI!")
-                    print(f"🎯 Threshold Dinamis dikunci pada: {self.THRESHOLD_DINAMIS:.4f}")
-                    print("🛡️ SISTEM AKTIF: Memantau Anomali & Kebakaran...")
-                    print("="*55 + "\n")
-                
-                # Mengembalikan False selama fase kalibrasi
-                return False
-                
-            elif self.FASE_AKTIF == "MONITORING":
-                is_anomaly = bool(error_saat_ini > self.THRESHOLD_DINAMIS)
-                
-                if is_anomaly:
-                    print(f"🔥 ANOMALY DETECTED! Error: {error_saat_ini:.6f} > Batas Dinamis: {self.THRESHOLD_DINAMIS:.6f}")
-                
-                return is_anomaly
+            # Deteksi anomali menggunakan threshold bawaan (statis)
+            is_anomaly = bool(error_saat_ini > self.THRESHOLD_DINAMIS)
+            
+            if is_anomaly:
+                print(f"🔥 ANOMALY DETECTED! Error: {error_saat_ini:.6f} > Batas Threshold: {self.THRESHOLD_DINAMIS:.6f}")
+            
+            return is_anomaly
         except Exception as e:
             print(f"Error processing sensor data: {e}")
             return False
 
     def update_toleransi(self, new_toleransi: float):
         """
-        Secara dinamis mengubah pengali threshold (TOLERANSI_THRESHOLD) 
-        tanpa harus restart program. Jika sedang MONITORING, threshold langsung disesuaikan.
+        Mengubah multiplier threshold secara dinamis (mengalikan base threshold bawaan).
         """
         self.TOLERANSI_THRESHOLD = new_toleransi
-        if self.FASE_AKTIF == "MONITORING" and self.history_error_ruangan:
-            self.THRESHOLD_DINAMIS = max(self.history_error_ruangan) * self.TOLERANSI_THRESHOLD
-            print(f"⚙️ Toleransi diubah ke {new_toleransi}x. Threshold Dinamis baru: {self.THRESHOLD_DINAMIS:.4f}")
-        else:
-            print(f"⚙️ Toleransi diubah ke {new_toleransi}x. Akan diterapkan setelah kalibrasi selesai.")
+        self.THRESHOLD_DINAMIS = self.threshold * self.TOLERANSI_THRESHOLD
+        print(f"⚙️ Toleransi diubah ke {new_toleransi}x. Batas Threshold baru: {self.THRESHOLD_DINAMIS:.4f}")
 
     def process_vision_data(self, image_input) -> dict:
         """
