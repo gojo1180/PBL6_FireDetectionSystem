@@ -130,6 +130,13 @@ export async function resolveAlert(alertId: string): Promise<void> {
   return apiFetch<void>(`/api/v1/alerts/${alertId}/resolve`, { method: "PATCH" });
 }
 
+export async function markAlertFeedback(alertId: string, isFalsePositive: boolean): Promise<void> {
+  return apiFetch<void>(`/api/v1/alerts/${alertId}/feedback`, {
+    method: "PATCH",
+    body: { is_false_positive: isFalsePositive }
+  });
+}
+
 // ─── News Interfaces ────────────────────────────────────────────────
 export interface NewsArticle {
   title: string;

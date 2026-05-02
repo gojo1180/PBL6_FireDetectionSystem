@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, status
+from pydantic import BaseModel
 from typing import List
 import uuid
 from datetime import datetime
@@ -50,3 +51,24 @@ async def resolve_alert(alert_id: str):
         )
         
     return {"message": "Alert berhasil diselesaikan", "data": response.data}
+
+class FeedbackUpdate(BaseModel):
+    is_false_positive: bool
+
+@router.patch("/alerts/{alert_id}/feedback")
+async def provide_feedback(alert_id: str, feedback: FeedbackUpdate):
+    """Provide feedback on whether an alert is a false positive."""
+    response = (
+        supabase.table("fusion_alerts")
+        .update({"is_false_positive": feedback.is_false_positive})
+        .eq("id", alert_id)
+        .execute()
+    )
+    
+    if not response.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Alert ID tidak ditemukan di database"
+        )
+        
+    return {"message": "Feedback recorded", "data": response.data}

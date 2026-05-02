@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Bell, ShieldCheck } from 'lucide-react';
 import { FusionAlert } from '@/types';
 import { fmtTime } from '@/lib/utils';
-import { resolveAlert } from '@/lib/api';
+import { resolveAlert, markAlertFeedback } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function IncidentLog({ alertsList, onClearAlert }: { alertsList: FusionAlert[], onClearAlert?: () => void }) {
@@ -26,6 +26,16 @@ export function IncidentLog({ alertsList, onClearAlert }: { alertsList: FusionAl
       console.error("Failed to clear alert", e);
     }
   };
+
+  const handleMarkFalseAlarm = async (alertId: string) => {
+    try {
+      await markAlertFeedback(alertId, true);
+      if (onClearAlert) onClearAlert();
+    } catch (e) {
+      console.error("Failed to mark alert as false alarm", e);
+    }
+  };
+
   return (
     <div className="card flex flex-col max-h-[380px]">
       <div className="px-5 py-3 border-b border-ctp-crust flex items-center justify-between shrink-0">
@@ -87,14 +97,25 @@ export function IncidentLog({ alertsList, onClearAlert }: { alertsList: FusionAl
                         }`}>{a.risk_level}</span>
                       <span className="text-[10px] font-mono text-ctp-overlay0">{fmtTime(a.triggered_at)}</span>
                     </div>
-                    {!a.is_resolved && (
-                      <button
-                        onClick={() => setConfirmingAlertId(a.id)}
-                        className="text-[10px] text-ctp-subtext0 hover:text-ctp-text bg-ctp-surface0 hover:bg-ctp-surface1 px-2 py-0.5 rounded transition-colors"
-                      >
-                        Clear
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {a.is_false_positive == null && (
+                        <button
+                          onClick={() => handleMarkFalseAlarm(a.id)}
+                          title="Mark as False Alarm (Used for retraining)"
+                          className="text-[10px] text-ctp-peach hover:text-white bg-ctp-surface0 hover:bg-ctp-peach px-2 py-0.5 rounded transition-colors"
+                        >
+                          False Alarm
+                        </button>
+                      )}
+                      {!a.is_resolved && (
+                        <button
+                          onClick={() => setConfirmingAlertId(a.id)}
+                          className="text-[10px] text-ctp-subtext0 hover:text-ctp-text bg-ctp-surface0 hover:bg-ctp-surface1 px-2 py-0.5 rounded transition-colors"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <p className={`text-xs leading-relaxed line-clamp-2 ${isLingering ? 'text-ctp-overlay0 italic' : 'text-ctp-subtext1'}`}>
                     {displayMessage}

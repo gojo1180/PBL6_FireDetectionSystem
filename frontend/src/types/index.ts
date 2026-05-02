@@ -21,4 +21,5 @@ export interface VisionLog {
 export interface FusionAlert {
   id: string; device_id: string; risk_level: string; fusion_score: number;
   alert_message: string; is_resolved: boolean; triggered_at: string;
+  is_false_positive?: boolean | null;
 }

@@ -89,6 +89,7 @@ class FusionAlertBase(BaseModel):
     fusion_score: float
     alert_message: str
     is_resolved: bool = Field(default=False)
+    is_false_positive: Optional[bool] = Field(default=None)
 
 class FusionAlertCreate(FusionAlertBase):
     pass
