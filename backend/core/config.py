@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     NEWSDATA_API_KEY: Optional[str] = None
     HF_SUMMARY_MODEL_URL: Optional[str] = None
     HF_API_KEY: Optional[str] = None
+    
+    # MLOps GitHub Actions Config
+    GITHUB_PAT: Optional[str] = None
+    GITHUB_OWNER: str = "gojo1180"
+    GITHUB_REPO: str = "PBL6_FireDetectionSystem"
 
     class Config:
         env_file = ".env"

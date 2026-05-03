@@ -2,15 +2,24 @@ import os
 import io
 import cv2
 import numpy as np
+from collections import deque
 from PIL import Image
 import joblib
 from ultralytics import YOLO
 import warnings
+from core.database import supabase
 
-# Abaikan warning "X does not have valid feature names" setiap kali inference numpy scaler
+# Suppress TensorFlow info/warning logs (harus sebelum import tf)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+import tensorflow as tf
+
+# Abaikan warning sklearn scaler
 warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
 class LateFusionService:
+    # Panjang sequence yang dibutuhkan LSTM Autoencoder
+    SEQUENCE_LENGTH = 10
+
     def __init__(self):
         # Stateful variables for late fusion
         self.latest_sensor_anomaly = False
@@ -22,38 +31,102 @@ class LateFusionService:
         # Track the last time ANY anomaly was detected for auto-reset (5 mins)
         self.last_anomaly_time = 0.0
         
-        # We assume models are located in backend/models/
-        models_dir = os.path.join(os.path.dirname(__file__), "..", "ml_models")
+        # Multi-Tenant In-Memory Cache
+        self.active_models = {}
         
-        yolo_path = os.path.join(models_dir, "best.pt")
+        # We assume models are located in backend/ml_models/
+        self.models_dir = os.path.join(os.path.dirname(__file__), "..", "ml_models")
+        self.base_lstm_path = os.path.join(self.models_dir, "model_lstm.h5")
+        self.base_scaler_path = os.path.join(self.models_dir, "scaler_lstm.pkl")
+        self.base_threshold_path = os.path.join(self.models_dir, "threshold_lstm.pkl")
+        
+        # Dummy variables for backward compatibility with router_sensors.py API
+        self.latest_error = 0.0
+        self.FASE_AKTIF = "MONITORING"
+        self.SAMPLING_SECONDS = 0
+        self.TOLERANSI_THRESHOLD = 1.0
+        self.counter_pesan = 0
+        self.history_error_ruangan = []
+        self.THRESHOLD_DINAMIS = 0.5 
+        
+        # ---------- YOLO (Vision) ----------
+        yolo_path = os.path.join(self.models_dir, "best.pt")
         if os.path.exists(yolo_path):
             self.yolo_model = YOLO(yolo_path)
         else:
             print(f"Warning: YOLO model not found at {yolo_path}")
             self.yolo_model = None
-            
-        if_path = os.path.join(models_dir, "model_isolation_forest.pkl")
-        if os.path.exists(if_path):
-            self.if_model = joblib.load(if_path)
-        else:
-            print(f"Warning: Isolation Forest model not found at {if_path}")
-            self.if_model = None
 
-        scaler_path = os.path.join(models_dir, "scaler_isolation_forest.pkl")
-        if os.path.exists(scaler_path):
-            self.scaler = joblib.load(scaler_path)
-            print("✅ StandardScaler (scaler_isolation_forest.pkl) loaded successfully.")
-        else:
-            print(f"⚠️ Warning: StandardScaler not found at {scaler_path}. Harap masukkan file 'scaler_isolation_forest.pkl' kesini!")
-            self.scaler = None
+    def get_device_artifacts(self, device_id: str):
+        if device_id in self.active_models:
+            return self.active_models[device_id]
+            
+        print(f"🔄 Loading artifacts for device {device_id}...")
+        
+        # Path for downloaded files
+        device_dir = f"/tmp/ml_models/{device_id}"
+        os.makedirs(device_dir, exist_ok=True)
+        paths = {
+            "model": f"{device_dir}/model.h5",
+            "scaler": f"{device_dir}/scaler.pkl",
+            "threshold": f"{device_dir}/threshold.pkl"
+        }
+        
+        bucket = "ml_models"
+        try:
+            # Attempt to download from Supabase Storage
+            with open(paths["model"], "wb") as f:
+                f.write(supabase.storage.from_(bucket).download(f"{device_id}/model.h5"))
+            with open(paths["scaler"], "wb") as f:
+                f.write(supabase.storage.from_(bucket).download(f"{device_id}/scaler.pkl"))
+            with open(paths["threshold"], "wb") as f:
+                f.write(supabase.storage.from_(bucket).download(f"{device_id}/threshold.pkl"))
+            
+            # Load the device-specific models
+            model = tf.keras.models.load_model(paths["model"], compile=False)
+            scaler = joblib.load(paths["scaler"])
+            threshold = joblib.load(paths["threshold"])
+            print(f"✅ Loaded custom artifacts for {device_id} from Supabase")
+        except Exception as e:
+            print(f"⚠️ Custom artifacts for {device_id} not found ({e}). Falling back to base models.")
+            # Load global base models
+            model = tf.keras.models.load_model(self.base_lstm_path, compile=False) if os.path.exists(self.base_lstm_path) else None
+            scaler = joblib.load(self.base_scaler_path) if os.path.exists(self.base_scaler_path) else None
+            threshold = joblib.load(self.base_threshold_path) if os.path.exists(self.base_threshold_path) else 0.5
+            
+        # Detect sequence length
+        seq_length = self.SEQUENCE_LENGTH
+        if model:
+            try:
+                expected_seq = model.input_shape[1]
+                if expected_seq is not None:
+                    seq_length = expected_seq
+            except:
+                pass
+
+        self.active_models[device_id] = {
+            "model": model,
+            "scaler": scaler,
+            "threshold": threshold,
+            "buffer": deque(maxlen=seq_length)
+        }
+        
+        return self.active_models[device_id]
 
     def process_sensor_data(self, sensor_data: dict) -> bool:
         """
-        Extract [cng_level, co_level, lpg_level], reshape, and predict using the Isolation Forest.
-        Isolation Forest usually outputs -1 for anomaly, 1 for normal.
-        Returns True if anomaly detected, False otherwise.
+        Extract fitur sensor, normalisasi, masukkan ke buffer time-series,
+        lalu prediksi anomali menggunakan LSTM Autoencoder spesifik per-device.
         """
-        if not self.if_model:
+        device_id = str(sensor_data.get("device_id", "default"))
+        artifacts = self.get_device_artifacts(device_id)
+        
+        model = artifacts["model"]
+        scaler = artifacts["scaler"]
+        threshold = artifacts["threshold"]
+        buffer = artifacts["buffer"]
+        
+        if not model:
             return False
             
         try:
@@ -63,29 +136,54 @@ class LateFusionService:
             smoke_raw = float(sensor_data.get("smoke_detected", 0.0))
             flame_raw = float(sensor_data.get("flame_detected", 0.0))
 
-            # URUTAN WAJIB SCALER: ['cng', 'co', 'flame', 'lpg', 'smoke']
-            features = [
-                cng_raw,
-                co_raw,
-                flame_raw,
-                lpg_raw,
-                smoke_raw
-            ]
-            X = np.array(features).reshape(1, -1)
+            features = np.array([
+                cng_raw, co_raw, flame_raw, lpg_raw, smoke_raw
+            ]).reshape(1, -1)
             
-            # Normalisasi menggunakan StandardScaler sebelum inference
-            if self.scaler:
-                X = self.scaler.transform(X)
-            else:
-                print("⚠️ Peringatan: StandardScaler tidak diload! Melanjutkan inference dengan data asli (belum dinormalisasi).")
+            if scaler:
+                features = scaler.transform(features)
 
-            prediction = self.if_model.predict(X)
+            buffer.append(features.flatten())
             
-            is_anomaly = True if prediction[0] == -1 else False
+            if len(buffer) < buffer.maxlen:
+                return False
+            
+            sequence = np.array(list(buffer))
+            sequence = sequence.reshape(1, buffer.maxlen, sequence.shape[1])
+            
+            reconstructed = model.predict(sequence, verbose=0)
+            
+            # Menghitung Error PER FITUR (menghasilkan array 5 nilai)
+            error_per_fitur = np.mean(np.abs(sequence - reconstructed), axis=1)[0]
+            
+            # Terapkan toleransi pada threshold (threshold_dinamis_array berisi 5 nilai)
+            threshold_dinamis_array = threshold * self.TOLERANSI_THRESHOLD
+            
+            # Deteksi anomali: jika salah satu sensor melebihi threshold
+            is_anomaly = bool(np.any(error_per_fitur > threshold_dinamis_array))
+            
+            # Update global variables for backward compatibility with frontend API
+            # Karena frontend masih mengharapkan 1 angka (scalar), kita gunakan rata-ratanya
+            self.latest_error = float(np.mean(error_per_fitur))
+            self.THRESHOLD_DINAMIS = float(np.mean(threshold_dinamis_array))
+            
+            if is_anomaly:
+                print(f"🔥 ANOMALY DETECTED [{device_id}]!")
+                print(f"   [Error] : {[round(e, 4) for e in error_per_fitur]}")
+                print(f"   [Batas] : {[round(t, 4) for t in threshold_dinamis_array]}")
+            
             return is_anomaly
         except Exception as e:
-            print(f"Error processing sensor data: {e}")
+            print(f"Error processing sensor data for {device_id}: {e}")
             return False
+
+    def update_toleransi(self, new_toleransi: float):
+        """
+        Mengubah multiplier threshold secara dinamis.
+        Catatan: Karena sekarang multi-tenant, ini hanya mengubah multiplier global.
+        """
+        self.TOLERANSI_THRESHOLD = new_toleransi
+        print(f"⚙️ Toleransi global diubah ke {new_toleransi}x.")
 
     def process_vision_data(self, image_input) -> dict:
         """

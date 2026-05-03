@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends
 from typing import List, Optional
 import uuid
+import csv
+from io import StringIO
 from datetime import datetime
+from fastapi.responses import Response
 
 from core.database import supabase
 from core.security import get_current_user
@@ -18,6 +21,28 @@ def get_sensor_data(limit: int = 50, device_id: Optional[str] = None, current_us
         query = query.eq("device_id", device_id)
     response = query.order("recorded_at", desc=True).limit(limit).execute()
     return response.data
+
+@router.get("/sensors/calibration")
+def get_calibration_status(current_user: dict = Depends(get_current_user)):
+    """Fetch the current calibration state from the fusion engine."""
+    return {
+        "fase_aktif": fusion_service.FASE_AKTIF,
+        "error_saat_ini": getattr(fusion_service, "latest_error", 0.0),
+        "threshold_dinamis": fusion_service.THRESHOLD_DINAMIS,
+        "counter_pesan": getattr(fusion_service, "counter_pesan", 0),
+        "sampling_seconds": getattr(fusion_service, "SAMPLING_SECONDS", 120),
+        "toleransi_threshold": getattr(fusion_service, "TOLERANSI_THRESHOLD", 1.15)
+    }
+
+from pydantic import BaseModel
+class CalibrationConfig(BaseModel):
+    toleransi_threshold: float
+
+@router.post("/sensors/calibration/config")
+def set_calibration_config(config: CalibrationConfig, current_user: dict = Depends(get_current_user)):
+    """Update the tolerance multiplier dynamically."""
+    fusion_service.update_toleransi(config.toleransi_threshold)
+    return {"message": "Toleransi diupdate", "new_threshold": fusion_service.THRESHOLD_DINAMIS}
 
 @router.get("/sensors/latest", response_model=Optional[dict])
 def get_latest_sensor_data(current_user: dict = Depends(get_current_user)):
@@ -44,6 +69,45 @@ def get_latest_sensor_by_device(device_id: str, current_user: dict = Depends(get
         return data[0]
     return None
 
+@router.get("/sensors/export/csv")
+def export_sensor_data_csv(limit: int = 1000, device_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Export sensor logs as CSV, including the anomaly prediction."""
+    query = supabase.table("sensor_logs").select("*")
+    if device_id:
+        query = query.eq("device_id", device_id)
+    response = query.order("recorded_at", desc=True).limit(limit).execute()
+    data = response.data
+
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Header
+    writer.writerow([
+        "recorded_at", "device_id", "cng_level", "co_level", "lpg_level", 
+        "smoke_detected", "flame_detected", "is_anomaly"
+    ])
+    
+    for row in data:
+        # compute prediction
+        is_anomaly = fusion_service.process_sensor_data(row)
+        writer.writerow([
+            row.get("recorded_at"),
+            row.get("device_id"),
+            row.get("cng_level"),
+            row.get("co_level"),
+            row.get("lpg_level"),
+            row.get("smoke_detected"),
+            row.get("flame_detected"),
+            is_anomaly
+        ])
+        
+    output.seek(0)
+    return Response(
+        content=output.getvalue(), 
+        media_type="text/csv", 
+        headers={"Content-Disposition": f"attachment; filename=sensor_logs_{device_id or 'all'}.csv"}
+    )
+
 @router.post("/sensors")
 def add_sensor_data(sensor: SensorLogCreate):
     """Insert new sensor data and check late fusion alert."""
@@ -54,7 +118,7 @@ def add_sensor_data(sensor: SensorLogCreate):
     data["device_id"] = device_id
     data["recorded_at"] = datetime.utcnow().isoformat()
     
-    # Process with Isolation Forest and update state
+    # Process with LSTM Autoencoder and update state
     is_anomaly = fusion_service.process_sensor_data(data)
     alert_level = fusion_service.update_sensor(is_anomaly)
     

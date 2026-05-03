@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { apiFetch } from "@/lib/api";
+import { getNews, extractNews, NewsArticle, SummarizeResponse } from "@/lib/api";
+import { getToken } from "@/lib/auth";
 import {
   Newspaper,
   Sparkles,
@@ -14,22 +15,6 @@ import {
   ChevronRight,
   ImageOff,
 } from "lucide-react";
-
-// ─── Types ──────────────────────────────────────────────────────────
-interface NewsArticle {
-  title: string;
-  link: string;
-  image_url: string | null;
-  description: string | null;
-  source: string | null;
-  pubDate: string | null;
-}
-
-interface SummarizeResponse {
-  url: string;
-  full_text: string;
-  summary: string;
-}
 
 // ─── Helper: format date ────────────────────────────────────────────
 function formatDate(dateStr: string | null): string {
@@ -163,11 +148,7 @@ export default function FireNewsPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiFetch<{
-        status: string;
-        total: number;
-        articles: NewsArticle[];
-      }>("/api/v1/news");
+      const data = await getNews();
       setArticles(data.articles);
       if (data.articles.length > 0 && !selectedArticle) {
         setSelectedArticle(data.articles[0]);
@@ -193,10 +174,7 @@ export default function FireNewsPage() {
     setLoadingContent(true);
 
     try {
-      const data = await apiFetch<{ full_text: string }>("/api/v1/news/extract", {
-        method: "POST",
-        body: { url: article.link },
-      });
+      const data = await extractNews(article.link);
       setFullText(data.full_text);
     } catch (err) {
       console.error("[News] Extract error:", err);
@@ -215,11 +193,34 @@ export default function FireNewsPage() {
     setSummaryError(null);
 
     try {
-      const data = await apiFetch<SummarizeResponse>("/api/v1/news/summarize", {
+      const token = getToken();
+      const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
+      const response = await fetch(`${BASE_URL}/api/v1/news/summarize`, {
         method: "POST",
-        body: { url: selectedArticle.link, full_text: fullText },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ url: selectedArticle.link, full_text: fullText }),
       });
-      setSummary(data.summary);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Gagal merangkum artikel`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("Stream not supported");
+
+      const decoder = new TextDecoder();
+      setSummary(""); // Start empty to append
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        setSummary((prev) => (prev || "") + chunk);
+      }
     } catch (err) {
       console.error("[News] Summarize error:", err);
       setSummaryError(
@@ -427,7 +428,20 @@ export default function FireNewsPage() {
                     </div>
                     <p className="text-ctp-text leading-relaxed text-[15px] whitespace-pre-wrap">
                       {summary}
+                      {summarizing && <span className="animate-pulse font-bold ml-1 text-ctp-blue">|</span>}
                     </p>
+                  </div>
+                )}
+
+                {/* Loading state before first chunk arrives */}
+                {summarizing && !summary && (
+                  <div className="relative p-5 rounded-2xl bg-ctp-blue/5 border border-ctp-blue/20 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Loader2 size={14} className="text-ctp-blue animate-spin" />
+                      <span className="text-xs font-bold text-ctp-blue uppercase tracking-wider">
+                        AI sedang memproses...
+                      </span>
+                    </div>
                   </div>
                 )}
 

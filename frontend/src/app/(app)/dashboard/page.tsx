@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { apiFetch } from "@/lib/api";
-import { Activity, Bell, Flame, Gauge, Wind, Droplets, ChevronDown, MapPin, Server } from "lucide-react";
+import { getDevices, getDashboardSensors, getLatestSensor, getLatestVision, getAlerts, getCalibrationStatus, CalibrationStatus, setCalibrationConfig } from "@/lib/api";
+import { Activity, Bell, Flame, Gauge, Wind, Droplets, ChevronDown, MapPin, Server, Download, BrainCircuit, Settings2 } from "lucide-react";
 
 import { SensorLog, VisionLog, FusionAlert, Device } from "@/types";
 import { fmtTime } from "@/lib/utils";
+import { getToken } from "@/lib/auth";
 
 import { StatusBanner } from "@/components/dashboard/StatusBanner";
 import { MetricCard } from "@/components/ui/MetricCard";
@@ -32,6 +33,23 @@ export default function DashboardPage() {
   const [latestAlert, setLatestAlert] = useState<FusionAlert | null>(null);
   const [sensorHistory, setSensorHistory] = useState<SensorLog[]>([]);
   const [alertsList, setAlertsList] = useState<FusionAlert[]>([]);
+  const [calibration, setCalibration] = useState<CalibrationStatus | null>(null);
+  const [isUpdatingToleransi, setIsUpdatingToleransi] = useState(false);
+
+  const handleToleransiChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = parseFloat(e.target.value);
+    setIsUpdatingToleransi(true);
+    try {
+      await setCalibrationConfig(val);
+      // fetch immediately to reflect UI change
+      const calib = await getCalibrationStatus();
+      if (calib) setCalibration(calib);
+    } catch (err) {
+      console.error("Failed to update toleransi", err);
+    } finally {
+      setIsUpdatingToleransi(false);
+    }
+  };
 
   // Keep a ref to track last known sensor timestamp to detect new entries
   const lastSensorTs = useRef<string | null>(null);
@@ -54,7 +72,7 @@ export default function DashboardPage() {
 
     const fetchDevices = async () => {
       try {
-        const data = await apiFetch<Device[]>("/api/v1/devices");
+        const data = await getDevices();
         if (data && data.length > 0) {
           setDevices(data);
           // Auto-select first IoT/Sensor device, or first device overall
@@ -74,7 +92,7 @@ export default function DashboardPage() {
     if (!selectedDeviceId) return;
     try {
       // Fetch last 15 sensor readings for the SELECTED device
-      const sensors = await apiFetch<SensorLog[]>(`/api/v1/sensors?limit=15&device_id=${selectedDeviceId}`);
+      const sensors = await getDashboardSensors(selectedDeviceId, 15);
       if (sensors && sensors.length > 0) {
         // API returns desc order, reverse for chronological chart
         const chronological = [...sensors].reverse();
@@ -88,15 +106,19 @@ export default function DashboardPage() {
       }
 
       // Fetch latest vision log
-      const vision = await apiFetch<VisionLog | null>("/api/v1/vision/latest");
+      const vision = await getLatestVision();
       if (vision) setLatestVision(vision);
 
       // Fetch recent alerts GLOBALLY (last 10) — DO NOT filter by device
-      const alerts = await apiFetch<FusionAlert[]>("/api/v1/alerts?limit=10");
+      const alerts = await getAlerts(10);
       if (alerts && alerts.length > 0) {
         setLatestAlert(alerts[0]);
         setAlertsList(alerts);
       }
+
+      // Fetch calibration
+      const calib = await getCalibrationStatus();
+      if (calib) setCalibration(calib);
     } catch (err) {
       console.log("[Dashboard] Error fetching data:", err);
     }
@@ -107,7 +129,7 @@ export default function DashboardPage() {
     if (!selectedDeviceId) return;
     try {
       // Poll latest sensor for the SELECTED device
-      const sensor = await apiFetch<SensorLog | null>(`/api/v1/sensors/latest/${selectedDeviceId}`);
+      const sensor = await getLatestSensor(selectedDeviceId);
       if (sensor && sensor.recorded_at !== lastSensorTs.current) {
         setLatestSensor(sensor);
         setSensorHistory((prev) => [...prev, sensor].slice(-15));
@@ -115,15 +137,19 @@ export default function DashboardPage() {
       }
 
       // Poll latest vision
-      const vision = await apiFetch<VisionLog | null>("/api/v1/vision/latest");
+      const vision = await getLatestVision();
       if (vision) setLatestVision(vision);
 
       // Poll alerts GLOBALLY — DO NOT filter by device
-      const alerts = await apiFetch<FusionAlert[]>("/api/v1/alerts?limit=10");
+      const alerts = await getAlerts(10);
       if (alerts && alerts.length > 0) {
         setLatestAlert(alerts[0]);
         setAlertsList(alerts);
       }
+
+      // Poll calibration
+      const calib = await getCalibrationStatus();
+      if (calib) setCalibration(calib);
     } catch (err) {
       console.log("[Dashboard] Polling error:", err);
     }
@@ -149,6 +175,34 @@ export default function DashboardPage() {
     CO: Number(s.co_level.toFixed(2)),
     LPG: Number(s.lpg_level.toFixed(2)),
   })), [sensorHistory, mounted]);
+
+  const downloadCSV = async () => {
+    if (!selectedDeviceId) return;
+    try {
+      const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const token = getToken();
+      
+      const res = await fetch(`${BASE_URL}/api/v1/sensors/export/csv?device_id=${selectedDeviceId}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      
+      if (!res.ok) throw new Error("Failed to download CSV");
+      
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sensor_logs_${selectedDeviceId}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error("Download failed", err);
+    }
+  };
 
   const selectedDevice = useMemo(() => devices.find(d => d.id === selectedDeviceId), [devices, selectedDeviceId]);
 
@@ -232,6 +286,15 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-4">
+          <button
+            onClick={downloadCSV}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-ctp-base border border-ctp-crust hover:border-ctp-blue/50 text-ctp-text text-sm transition-all duration-200"
+            title="Download CSV Data"
+          >
+            <Download size={14} className="text-ctp-blue" />
+            <span className="hidden md:inline font-medium">Export CSV</span>
+          </button>
+          
           <div className="relative">
             <Bell size={18} className="text-ctp-subtext0" />
             {alertsList.filter(a => !a.is_resolved).length > 0 && (
@@ -246,6 +309,65 @@ export default function DashboardPage() {
 
       <main className="flex-1 p-6 lg:p-8 space-y-6">
         <StatusBanner latestAlert={latestAlert} devices={devices} onClearAlert={fetchDashboardData} />
+
+        {calibration && (
+          <div className="bg-ctp-mantle border border-ctp-crust rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between shadow-sm gap-4">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${calibration.fase_aktif === 'MONITORING' ? 'bg-ctp-green/20 text-ctp-green' : 'bg-ctp-yellow/20 text-ctp-yellow'}`}>
+                <BrainCircuit size={20} className={calibration.fase_aktif !== 'MONITORING' ? 'animate-pulse' : ''} />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-ctp-text">AI Auto-Calibration</h3>
+                <p className={`text-[11px] uppercase tracking-widest font-bold ${calibration.fase_aktif === 'MONITORING' ? 'text-ctp-green' : 'text-ctp-yellow animate-pulse'}`}>
+                  {calibration.fase_aktif}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-4 md:gap-8 justify-between md:justify-end border-t border-ctp-crust md:border-t-0 pt-3 md:pt-0">
+              <div className="text-left md:text-right">
+                <p className="text-[10px] text-ctp-overlay0 uppercase tracking-wider mb-0.5">Multiplier</p>
+                <div className="flex items-center gap-2">
+                  <Settings2 size={12} className="text-ctp-overlay0 hidden md:block" />
+                  <select 
+                    value={calibration.toleransi_threshold}
+                    onChange={handleToleransiChange}
+                    disabled={isUpdatingToleransi}
+                    className="bg-ctp-crust text-ctp-text text-xs font-mono font-medium rounded-md px-1.5 py-0.5 border border-ctp-surface0 focus:border-ctp-blue outline-none cursor-pointer disabled:opacity-50"
+                  >
+                    <option value={1.1}>1.10x (Strict)</option>
+                    <option value={1.15}>1.15x (Normal)</option>
+                    <option value={1.2}>1.20x (Relaxed)</option>
+                    <option value={1.3}>1.30x (Lenient)</option>
+                    <option value={1.4}>1.40x (Very Lenient)</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="text-left md:text-right">
+                <p className="text-[10px] text-ctp-overlay0 uppercase tracking-wider mb-0.5">Current Error (MAE)</p>
+                <p className="font-mono font-medium text-ctp-text text-sm">
+                  {calibration.error_saat_ini > 0 ? calibration.error_saat_ini.toFixed(5) : "Wait..."}
+                </p>
+              </div>
+              <div className="text-left md:text-right">
+                <p className="text-[10px] text-ctp-overlay0 uppercase tracking-wider mb-0.5">Dynamic Threshold</p>
+                <p className="font-mono font-medium text-ctp-text text-sm">
+                  {calibration.threshold_dinamis.toFixed(5)}
+                </p>
+              </div>
+              
+              {calibration.fase_aktif === 'SAMPLING' && (
+                <div className="text-left md:text-right">
+                  <p className="text-[10px] text-ctp-overlay0 uppercase tracking-wider mb-0.5">Progress</p>
+                  <p className="font-mono font-medium text-ctp-yellow text-sm">
+                    {calibration.counter_pesan} / {calibration.sampling_seconds}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {memoizedSensorCards}

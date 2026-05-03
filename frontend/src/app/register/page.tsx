@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Flame, Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import { register } from "@/lib/api";
 import { setToken, isAuthenticated } from "@/lib/auth";
 
 export default function RegisterPage() {
@@ -37,10 +37,10 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const data = await apiFetch<{ access_token: string }>("/api/v1/auth/register", {
-        method: "POST",
-        body: { email, password, full_name: fullName || null },
-        auth: false,
+      const data = await register({
+        email,
+        password,
+        full_name: fullName,
       });
       setToken(data.access_token);
       router.push("/dashboard");

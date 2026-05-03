@@ -211,6 +211,7 @@ def cctv_inference_loop():
                         
                         if active_alerts.data and len(active_alerts.data) > 0:
                             alert_id = active_alerts.data[0]["id"]
+                            alert_data["triggered_at"] = datetime.utcnow().isoformat()
                             supabase.table("fusion_alerts").update(alert_data).eq("id", alert_id).execute()
                             print(f"⚠️ Fusion Alert Updated via CCTV: {alert_level}")
                         else:

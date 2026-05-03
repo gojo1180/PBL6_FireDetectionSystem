@@ -1,8 +1,9 @@
 export interface Device {
   id: string;
+  user_id?: string;
   device_name: string;
   device_type: string;
-  location: string;
+  location?: string | null;
   status: string;
   rtsp_url?: string | null;
 }
@@ -20,4 +21,5 @@ export interface VisionLog {
 export interface FusionAlert {
   id: string; device_id: string; risk_level: string; fusion_score: number;
   alert_message: string; is_resolved: boolean; triggered_at: string;
+  is_false_positive?: boolean | null;
 }
