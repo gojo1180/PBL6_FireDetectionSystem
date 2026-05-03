@@ -200,11 +200,14 @@ def main():
     # 6. Recalculate Threshold
     print("📐 Recalculating Anomaly Threshold...")
     reconstructions = model.predict(X_train)
-    train_loss = np.mean(np.abs(reconstructions - X_train), axis=(1, 2))
     
-    # Using the 99th percentile of training loss as the new threshold to avoid outliers
-    new_threshold = np.percentile(train_loss, 99)
-    print(f"🎯 New Threshold Calculated: {new_threshold:.6f}")
+    # Menghitung MAE loss per timestep (axis=1), menyisakan dimensi sampel dan fitur
+    train_mae_loss_per_fitur = np.mean(np.abs(reconstructions - X_train), axis=1)
+    
+    # Ambil nilai error tertinggi untuk MASING-MASING sensor (Shape: 5 threshold berbeda)
+    # Mengikuti logic notebook kamu: np.max(..., axis=0)
+    new_threshold = np.max(train_mae_loss_per_fitur, axis=0)
+    print(f"🎯 New Threshold per Sensor Calculated: {new_threshold}")
 
     # 7. Save and Upload Artifacts
     print("💾 Saving updated artifacts locally...")
@@ -214,7 +217,7 @@ def main():
 
     model.save(new_model_path)
     joblib.dump(scaler, new_scaler_path)
-    joblib.dump(float(new_threshold), new_threshold_path)
+    joblib.dump(new_threshold, new_threshold_path)
 
     print("☁️ Uploading to Supabase Storage...")
     upload_to_storage(supabase, device_id, "model.h5", new_model_path)
