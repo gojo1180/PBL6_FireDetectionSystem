@@ -153,11 +153,12 @@ def main():
     if not model_exists:
         # Fallback to a global base model if device-specific model doesn't exist
         print("⚠️ Device-specific model not found. Attempting to download global base model...")
-        base_model_path = "../backend/ml_models/model_finetuned_lokal.h5"
+        # Path relatif dari root repositori karena GitHub Actions run 'python mlops/retrain.py' dari root
+        base_model_path = "backend/ml_models/model_lstm.h5"
         if os.path.exists(base_model_path):
             local_model_path = base_model_path
         else:
-            raise FileNotFoundError("Could not find any base model to fine-tune.")
+            raise FileNotFoundError(f"Could not find any base model to fine-tune at {base_model_path}")
 
     # 4. Preprocessing
     print("⚙️ Preprocessing data...")
