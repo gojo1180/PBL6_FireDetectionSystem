@@ -102,9 +102,9 @@ def main():
     # Since we can't easily query "5000 rows before/after" efficiently via simple REST without complex RPC,
     # we'll fetch based on time windows.
     for fp in false_positives:
-        fp_time = datetime.fromisoformat(fp["triggered_at"].replace('Z', '+00:00'))
-        start_time = fp_time - timedelta(minutes=10)
-        end_time = fp_time + timedelta(minutes=10)
+        fp_time = pd.to_datetime(fp["triggered_at"])
+        start_time = fp_time - pd.Timedelta(minutes=10)
+        end_time = fp_time + pd.Timedelta(minutes=10)
         
         window_res = supabase.table("sensor_logs") \
             .select(",".join(FEATURES)) \
