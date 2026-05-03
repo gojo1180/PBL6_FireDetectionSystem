@@ -56,7 +56,7 @@ __pycache__/
 .vercel
 
 # Models / Weights
-#backend/ml_models/*.pt
-#backend/ml_models/*.pkl
-#*.pt
-#*.pkl
+# backend/ml_models/*.pt
+# backend/ml_models/*.pkl
+# *.pt
+# *.pkl
