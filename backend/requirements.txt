@@ -1,14 +1,32 @@
+# Web Framework & Server
 fastapi
 uvicorn
+python-multipart
 pydantic
 pydantic-settings
+python-dotenv
+requests
+
+# Database & Communication
 supabase
 paho-mqtt
-python-dotenv
+
+# Security & Auth
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==4.0.1
+email-validator
+
+# ML & Computer Vision
+numpy
+Pillow
+opencv-python
 ultralytics
 scikit-learn
 joblib
-opencv-python
-python-multipart
-requests
 tensorflow
+
+# News & Scraping
+newspaper3k
+beautifulsoup4
+lxml
