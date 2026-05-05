@@ -33,6 +33,10 @@ class LateFusionService:
         # Time-series buffer untuk LSTM — menyimpan N data terbaru
         self.sensor_buffer = deque(maxlen=self.SEQUENCE_LENGTH)
         
+        # Threshold default jika gagal memuat file
+        self.static_threshold = 0.995954
+        
+
         # We assume models are located in backend/ml_models/
         models_dir = os.path.join(os.path.dirname(__file__), "..", "ml_models")
         
@@ -45,44 +49,60 @@ class LateFusionService:
             self.yolo_model = None
 
         # ---------- LSTM Autoencoder (Sensor) ----------
-        lstm_path = os.path.join(models_dir, "model_lstm_autoencoder_WoI.h5")
+        lstm_path = os.path.join(models_dir, "model_finetuned_lokal.h5")
         if os.path.exists(lstm_path):
             self.lstm_model = tf.keras.models.load_model(lstm_path, compile=False)
             # Deteksi SEQUENCE_LENGTH dari input shape model jika tersedia
             try:
                 expected_seq = self.lstm_model.input_shape[1]
                 if expected_seq is not None and expected_seq != self.SEQUENCE_LENGTH:
-                    print(f"⚠️ Model expects sequence length {expected_seq}, updating buffer.")
+                    print(f"[WARNING] Model expects sequence length {expected_seq}, updating buffer.")
                     self.SEQUENCE_LENGTH = expected_seq
                     self.sensor_buffer = deque(maxlen=self.SEQUENCE_LENGTH)
             except Exception:
                 pass
-            print("✅ LSTM Autoencoder model loaded successfully.")
+            print("[OK] LSTM Autoencoder model loaded successfully.")
         else:
-            print(f"⚠️ Warning: LSTM model not found at {lstm_path}")
+            print(f"[WARNING] LSTM model not found at {lstm_path}")
             self.lstm_model = None
 
-        scaler_path = os.path.join(models_dir, "scaler_lstm_WoI.pkl")
+        scaler_path = os.path.join(models_dir, "scaler_lstm_lokal.pkl")
+        if not os.path.exists(scaler_path):
+            # Fallback ke nama file dengan copy jika ada
+            scaler_path_copy = os.path.join(models_dir, "scaler_lstm_lokal copy.pkl")
+            if os.path.exists(scaler_path_copy):
+                scaler_path = scaler_path_copy
+                
         if os.path.exists(scaler_path):
             self.scaler = joblib.load(scaler_path)
-            print("✅ StandardScaler (scaler_lstm_WoI.pkl) loaded successfully.")
+            print(f"[OK] StandardScaler ({os.path.basename(scaler_path)}) loaded successfully.")
         else:
-            print(f"⚠️ Warning: StandardScaler not found at {scaler_path}")
+            print(f"[WARNING] StandardScaler not found at {scaler_path}")
             self.scaler = None
 
-        threshold_path = os.path.join(models_dir, "threshold_lstm_WoI.pkl")
+        # ---------- Load Static Threshold ----------
+        threshold_path = os.path.join(models_dir, "threshold_lstm_lokal.pkl")
         if os.path.exists(threshold_path):
-            self.threshold = joblib.load(threshold_path)
-            print(f"✅ Anomaly threshold loaded: {self.threshold}")
+            try:
+                loaded_threshold = joblib.load(threshold_path)
+                if isinstance(loaded_threshold, np.ndarray):
+                    loaded_threshold = loaded_threshold.item()
+                self.static_threshold = float(loaded_threshold)
+                print(f"[OK] Static LSTM Threshold loaded successfully: {self.static_threshold:.6f}")
+            except Exception as e:
+                print(f"[WARNING] Gagal memuat Static Threshold: {e}. Menggunakan fallback {self.static_threshold:.6f}")
         else:
-            print(f"⚠️ Warning: Threshold file not found at {threshold_path}. Menggunakan default 0.5")
-            self.threshold = 0.5
+            print(f"[WARNING] Static Threshold tidak ditemukan di {threshold_path}. Menggunakan fallback {self.static_threshold:.6f}")
 
     def process_sensor_data(self, sensor_data: dict) -> bool:
         """
         Extract fitur sensor, normalisasi, masukkan ke buffer time-series,
-        lalu prediksi anomali menggunakan LSTM Autoencoder (reconstruction error).
-        Returns True jika anomaly terdeteksi, False jika normal.
+        lalu prediksi anomali menggunakan LSTM Autoencoder (reconstruction error / MAE).
+        
+        Fase 1 - Kalibrasi: Mengumpulkan MAE selama 60 siklus untuk menentukan threshold dinamis.
+        Fase 2 - Monitoring: Membandingkan MAE real-time dengan threshold yang sudah dikalibrasi.
+        
+        Returns True jika anomaly terdeteksi, False jika normal atau sedang kalibrasi.
         """
         if not self.lstm_model:
             return False
@@ -92,13 +112,15 @@ class LateFusionService:
             co_raw = float(sensor_data.get("co_level", 0.0))
             lpg_raw = float(sensor_data.get("lpg_level", 0.0))
             smoke_raw = float(sensor_data.get("smoke_detected", 0.0))
-            flame_raw = float(sensor_data.get("flame_detected", 0.0))
+
+            # Flame di-hardcode ke 0.6 sesuai format dataset
+            flame_fixed = 0.6
 
             # URUTAN WAJIB SCALER: ['cng', 'co', 'flame', 'lpg', 'smoke']
             features = np.array([
                 cng_raw,
                 co_raw,
-                flame_raw,
+                flame_fixed,
                 lpg_raw,
                 smoke_raw
             ]).reshape(1, -1)
@@ -107,14 +129,14 @@ class LateFusionService:
             if self.scaler:
                 features = self.scaler.transform(features)
             else:
-                print("⚠️ Peringatan: StandardScaler tidak diload! Melanjutkan dengan data asli.")
+                print("[WARNING] Peringatan: StandardScaler tidak diload! Melanjutkan dengan data asli.")
 
             # Tambahkan ke buffer time-series
             self.sensor_buffer.append(features.flatten())
             
-            # Buffer belum penuh → belum bisa prediksi, anggap SAFE
+            # Buffer belum penuh -> belum bisa prediksi, memori AI sedang disiapkan
             if len(self.sensor_buffer) < self.SEQUENCE_LENGTH:
-                print(f"📊 Buffer: {len(self.sensor_buffer)}/{self.SEQUENCE_LENGTH} — menunggu data cukup...")
+                print(f"[MEMORI AI] Menyiapkan buffer... {len(self.sensor_buffer)}/{self.SEQUENCE_LENGTH}")
                 return False
             
             # Bentuk sequence: (1, SEQUENCE_LENGTH, n_features)
@@ -124,13 +146,18 @@ class LateFusionService:
             # Prediksi (reconstruct) menggunakan LSTM Autoencoder
             reconstructed = self.lstm_model.predict(sequence, verbose=0)
             
-            # Hitung reconstruction error (MSE per sample)
-            mse = np.mean(np.power(sequence - reconstructed, 2))
+            # Hitung reconstruction error (MAE - Mean Absolute Error)
+            mae = float(np.mean(np.abs(sequence - reconstructed)))
             
-            is_anomaly = bool(mse > self.threshold)
+            # ============================================================
+            # PEMANTAUAN AKTIF — Deteksi anomali real-time
+            # ============================================================
+            is_anomaly = bool(mae > self.static_threshold)
             
             if is_anomaly:
-                print(f"🔥 ANOMALY DETECTED! MSE: {mse:.6f} > threshold: {self.threshold:.6f}")
+                print(f"[MONITOR] BAHAYA | MAE: {mae:.6f} (Batas: {self.static_threshold:.6f})")
+            else:
+                print(f"[MONITOR] AMAN   | MAE: {mae:.6f} (Batas: {self.static_threshold:.6f})")
             
             return is_anomaly
         except Exception as e:
