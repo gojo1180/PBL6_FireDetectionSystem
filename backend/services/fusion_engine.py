@@ -94,6 +94,15 @@ class LateFusionService:
         else:
             print(f"[WARNING] Static Threshold tidak ditemukan di {threshold_path}. Menggunakan fallback {self.static_threshold:.6f}")
 
+        # ---------- Auto-Kalibrasi (Dynamic Threshold) ----------
+        self.SAMPLING_SECONDS = 120     # Waktu pengambilan baseline (dalam iterasi/detik)
+        self.TOLERANSI_THRESHOLD = 1.15  # Pengali error tertinggi
+        self.counter_pesan = 0
+        self.history_error_ruangan = []
+        self.THRESHOLD_DINAMIS = self.static_threshold # Default gunakan threshold statis dulu
+        self.latest_error = 0.0         # Tambahkan state terbaru untuk diakses API
+        self.FASE_AKTIF = "SAMPLING"    # Langsung mulai dari fase kalibrasi
+
     def process_sensor_data(self, sensor_data: dict) -> bool:
         """
         Extract fitur sensor, normalisasi, masukkan ke buffer time-series,
@@ -148,6 +157,7 @@ class LateFusionService:
             
             # Hitung reconstruction error (MAE - Mean Absolute Error)
             mae = float(np.mean(np.abs(sequence - reconstructed)))
+            self.latest_error = mae # Update latest_error untuk API
             
             # ============================================================
             # PEMANTAUAN AKTIF — Deteksi anomali real-time
@@ -157,12 +167,26 @@ class LateFusionService:
             if is_anomaly:
                 print(f"[MONITOR] BAHAYA | MAE: {mae:.6f} (Batas: {self.static_threshold:.6f})")
             else:
-                print(f"[MONITOR] AMAN   | MAE: {mae:.6f} (Batas: {self.static_threshold:.6f})")
+                # Debugging print occasionally to avoid spam
+                # print(f"[MONITOR] AMAN   | MAE: {mae:.6f} (Batas: {self.static_threshold:.6f})")
+                pass
             
             return is_anomaly
         except Exception as e:
             print(f"Error processing sensor data: {e}")
             return False
+
+    def update_toleransi(self, new_toleransi: float):
+        """
+        Secara dinamis mengubah pengali threshold (TOLERANSI_THRESHOLD) 
+        tanpa harus restart program. Jika sedang MONITORING, threshold langsung disesuaikan.
+        """
+        self.TOLERANSI_THRESHOLD = new_toleransi
+        if hasattr(self, 'FASE_AKTIF') and self.FASE_AKTIF == "MONITORING" and self.history_error_ruangan:
+            self.THRESHOLD_DINAMIS = max(self.history_error_ruangan) * self.TOLERANSI_THRESHOLD
+            print(f"⚙️ Toleransi diubah ke {new_toleransi}x. Threshold Dinamis baru: {self.THRESHOLD_DINAMIS:.4f}")
+        else:
+            print(f"⚙️ Toleransi diubah ke {new_toleransi}x. Akan diterapkan setelah kalibrasi selesai.")
 
     def process_vision_data(self, image_input) -> dict:
         """

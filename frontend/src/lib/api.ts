@@ -102,6 +102,26 @@ export async function getLatestVision(): Promise<VisionLog | null> {
   return apiFetch<VisionLog | null>("/api/v1/vision/latest");
 }
 
+export interface CalibrationStatus {
+  fase_aktif: string;
+  error_saat_ini: number;
+  threshold_dinamis: number;
+  counter_pesan: number;
+  sampling_seconds: number;
+  toleransi_threshold: number;
+}
+
+export async function getCalibrationStatus(): Promise<CalibrationStatus> {
+  return apiFetch<CalibrationStatus>("/api/v1/sensors/calibration");
+}
+
+export async function setCalibrationConfig(toleransi_threshold: number): Promise<any> {
+  return apiFetch<any>("/api/v1/sensors/calibration/config", {
+    method: "POST",
+    body: { toleransi_threshold },
+  });
+}
+
 export async function getAlerts(limit: number = 10): Promise<FusionAlert[]> {
   return apiFetch<FusionAlert[]>(`/api/v1/alerts?limit=${limit}`);
 }
