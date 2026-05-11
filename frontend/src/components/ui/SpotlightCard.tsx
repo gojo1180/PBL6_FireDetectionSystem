@@ -10,7 +10,7 @@ export interface SpotlightCardProps {
 export function SpotlightCard({
   children,
   className = "",
-  spotlightColor = "rgba(255, 255, 255, 0.05)",
+  spotlightColor = "rgba(99, 102, 241, 0.06)",
   warn = false,
 }: SpotlightCardProps) {
   const divRef = useRef<HTMLDivElement>(null);
@@ -36,25 +36,25 @@ export function SpotlightCard({
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`relative overflow-hidden card transition-colors duration-300 bg-ctp-mantle border ${
-        warn ? "border-ctp-red/50 shadow-[0_0_15px_rgba(237,135,150,0.2)]" : "border-ctp-crust shadow-lg"
+      className={`relative overflow-hidden transition-all duration-300 bg-white border ${
+        warn ? "border-red-200 shadow-[0_0_15px_rgba(239,68,68,0.15)]" : "border-slate-100 shadow-sm"
       } ${className}`}
     >
       {/* Background Spotlight - Always Visible */}
       <div
         className="pointer-events-none absolute inset-0 z-0 transition-all duration-500"
         style={{
-          background: `radial-gradient(500px circle at ${gradientPosition}, ${warn ? 'rgba(237, 135, 150, 0.2)' : spotlightColor}, transparent 70%)`,
+          background: `radial-gradient(500px circle at ${gradientPosition}, ${warn ? 'rgba(239, 68, 68, 0.08)' : spotlightColor}, transparent 70%)`,
         }}
       />
       
       {/* Warn Pulse Overlay */}
       {warn && (
-        <div className="pointer-events-none absolute inset-0 z-0 animate-pulse bg-ctp-red/10" />
+        <div className="pointer-events-none absolute inset-0 z-0 animate-pulse bg-red-50/50" />
       )}
 
       {/* Inner reflection border */}
-      <div className="pointer-events-none absolute inset-0 z-0 rounded-2xl border border-white/5" />
+      <div className="pointer-events-none absolute inset-0 z-0 rounded-2xl border border-white/80" />
 
       {/* Content wrapper */}
       <div className="relative z-10 w-full h-full">

@@ -14,19 +14,21 @@ export const VisionCard = memo(function VisionCard({ latestVision }: { latestVis
   }, [latestVision?.image_url]);
 
   return (
-    <div className="card overflow-hidden flex flex-col">
-      <div className="px-5 py-3 border-b border-ctp-crust flex items-center justify-between">
+    <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+      <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Camera size={16} className="text-ctp-lavender" />
-          <span className="text-sm font-semibold text-ctp-text">Vision Feed</span>
+          <div className="p-1.5 rounded-lg bg-violet-50">
+            <Camera size={14} className="text-violet-500" />
+          </div>
+          <span className="text-sm font-semibold text-slate-700">Vision Feed</span>
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-ctp-green font-semibold">
-          <span className="w-2 h-2 rounded-full bg-ctp-green animate-pulse" />
+        <div className="flex items-center gap-1.5 text-xs text-emerald-500 font-semibold">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           LIVE
         </div>
       </div>
       
-      <div className={`relative aspect-video flex items-center justify-center transition-colors duration-300 ${latestVision && latestVision.fire_confidence > 0.5 ? "bg-red-50" : "bg-ctp-crust"}`}>
+      <div className={`relative aspect-video flex items-center justify-center transition-colors duration-300 ${latestVision && latestVision.fire_confidence > 0.5 ? "bg-red-50" : "bg-slate-50"}`}>
         
         {latestVision?.image_url && !imgError ? (
           <Image 
@@ -41,17 +43,17 @@ export const VisionCard = memo(function VisionCard({ latestVision }: { latestVis
           <div className="flex flex-col items-center gap-2">
             {latestVision && latestVision.fire_confidence > 0.55 ? (
               <>
-                <div className="absolute inset-0 border-4 border-ctp-red animate-pulse pointer-events-none z-10" />
-                <Flame size={48} strokeWidth={1.5} className="text-ctp-red" />
+                <div className="absolute inset-0 border-4 border-red-500 animate-pulse pointer-events-none z-10" />
+                <Flame size={48} strokeWidth={1.5} className="text-red-500" />
               </>
             ) : (
               imgError ? (
                 <div className="text-center">
-                  <ImageOff size={40} className="text-ctp-overlay0 mx-auto" />
-                  <p className="text-[10px] text-ctp-overlay0 mt-2">Image Load Failed</p>
+                  <ImageOff size={40} className="text-slate-300 mx-auto" />
+                  <p className="text-[10px] text-slate-400 mt-2">Image Load Failed</p>
                 </div>
               ) : (
-                <Eye size={48} strokeWidth={1} className="text-ctp-surface1" />
+                <Eye size={48} strokeWidth={1} className="text-slate-200" />
               )
             )}
           </div>
@@ -63,7 +65,7 @@ export const VisionCard = memo(function VisionCard({ latestVision }: { latestVis
       <div className="p-5 space-y-4 flex-1">
         <ConfidenceBar label="Fire" value={latestVision?.fire_confidence ?? 0} color="#d20f39" threshold={0.55} />
         <ConfidenceBar label="Smoke" value={latestVision?.smoke_confidence ?? 0} color="#fe640b" threshold={0.50} />
-        <p className="text-[10px] text-ctp-overlay0 font-mono tabular-nums pt-1">
+        <p className="text-[10px] text-slate-400 font-mono tabular-nums pt-1">
           Last detection: {latestVision ? fmtTime(latestVision.recorded_at) : "No events"}
         </p>
       </div>

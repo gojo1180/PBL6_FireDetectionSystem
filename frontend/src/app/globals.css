@@ -2,7 +2,7 @@
 @import "tailwindcss";
 
 /* ============================================
-   Catppuccin Latte — Industrial IoT Theme
+   Clean Light Professional — IoT Dashboard
    ============================================ */
 
 @theme {
@@ -14,24 +14,24 @@
   --color-ctp-maroon: #e64553;
   --color-ctp-peach: #fe640b;
   --color-ctp-yellow: #df8e1d;
-  --color-ctp-green: #40a02b;
-  --color-ctp-teal: #179299;
-  --color-ctp-sky: #04a5e5;
+  --color-ctp-green: #16a34a;
+  --color-ctp-teal: #14b8a6;
+  --color-ctp-sky: #0ea5e9;
   --color-ctp-sapphire: #209fb5;
-  --color-ctp-blue: #1e66f5;
-  --color-ctp-lavender: #7287fd;
-  --color-ctp-text: #4c4f69;
-  --color-ctp-subtext1: #5c5f77;
-  --color-ctp-subtext0: #6c6f85;
-  --color-ctp-overlay2: #7c7f93;
-  --color-ctp-overlay1: #8c8fa1;
-  --color-ctp-overlay0: #9ca0b0;
-  --color-ctp-surface2: #acb0be;
-  --color-ctp-surface1: #bcc0cc;
-  --color-ctp-surface0: #ccd0da;
-  --color-ctp-base: #eff1f5;
-  --color-ctp-mantle: #e6e9ef;
-  --color-ctp-crust: #dce0e8;
+  --color-ctp-blue: #6366f1;
+  --color-ctp-lavender: #818cf8;
+  --color-ctp-text: #1e293b;
+  --color-ctp-subtext1: #334155;
+  --color-ctp-subtext0: #64748b;
+  --color-ctp-overlay2: #64748b;
+  --color-ctp-overlay1: #94a3b8;
+  --color-ctp-overlay0: #94a3b8;
+  --color-ctp-surface2: #cbd5e1;
+  --color-ctp-surface1: #e2e8f0;
+  --color-ctp-surface0: #e2e8f0;
+  --color-ctp-base: #f8fafc;
+  --color-ctp-mantle: #ffffff;
+  --color-ctp-crust: #f1f5f9;
 }
 
 * {
@@ -57,19 +57,20 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-ctp-surface1);
+  background: #cbd5e1;
   border-radius: 99px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-ctp-surface2);
+  background: #94a3b8;
 }
 
 /* Card base */
 .card {
-  background: var(--color-ctp-mantle);
-  border: 1px solid var(--color-ctp-crust);
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
   border-radius: 16px;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
 }
 
 /* Status glow animations */

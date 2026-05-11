@@ -43,7 +43,7 @@ export function StatusBanner({ latestAlert, devices, onClearAlert }: StatusBanne
 
   const bannerMap: Record<string, { bg: string; text: string; icon: React.ReactNode; label: string; glow: string; blink: string }> = {
     FIRE_DANGER: {
-      bg: "bg-ctp-red",
+      bg: "bg-red-500",
       text: "text-white",
       icon: <AlertTriangle size={22} />,
       label: deviceLabel ? `FIRE DANGER — Anomaly at ${deviceLabel}` : "FIRE DANGER — Immediate Action Required",
@@ -51,7 +51,7 @@ export function StatusBanner({ latestAlert, devices, onClearAlert }: StatusBanne
       blink: "animate-blink",
     },
     CCTV_ALERT: {
-      bg: "bg-ctp-peach",
+      bg: "bg-amber-500",
       text: "text-white",
       icon: <Zap size={22} />,
       label: deviceLabel ? `CCTV ALERT — Threat detected at ${deviceLabel}` : "CCTV ALERT — Threat detected",
@@ -59,15 +59,15 @@ export function StatusBanner({ latestAlert, devices, onClearAlert }: StatusBanne
       blink: "",
     },
     SENSOR_ALERT: {
-      bg: "bg-ctp-yellow",
-      text: "text-ctp-crust",
+      bg: "bg-yellow-500",
+      text: "text-white",
       icon: <AlertTriangle size={22} />,
       label: deviceLabel ? `SENSOR ALERT — Anomaly at ${deviceLabel}` : "SENSOR ALERT — Anomaly Detected",
       glow: "animate-glow-yellow",
       blink: "",
     },
     DANGER: {
-      bg: "bg-ctp-red",
+      bg: "bg-red-500",
       text: "text-white",
       icon: <AlertTriangle size={22} />,
       label: deviceLabel ? `DANGER — Anomaly at ${deviceLabel}` : "DANGER — Immediate Action Required",
@@ -75,7 +75,7 @@ export function StatusBanner({ latestAlert, devices, onClearAlert }: StatusBanne
       blink: "animate-blink",
     },
     WARNING: {
-      bg: "bg-ctp-peach",
+      bg: "bg-amber-500",
       text: "text-white",
       icon: <Zap size={22} />,
       label: deviceLabel ? `WARNING — Anomaly at ${deviceLabel}` : "WARNING — Anomaly Detected",
@@ -83,7 +83,7 @@ export function StatusBanner({ latestAlert, devices, onClearAlert }: StatusBanne
       blink: "",
     },
     SAFE: {
-      bg: "bg-ctp-green",
+      bg: "bg-emerald-500",
       text: "text-white",
       icon: <ShieldCheck size={22} />,
       label: "ALL SYSTEMS NORMAL",
@@ -137,7 +137,7 @@ export function StatusBanner({ latestAlert, devices, onClearAlert }: StatusBanne
           {latestAlert && !latestAlert.is_resolved && (
             <button 
               onClick={() => setConfirmingAlertId(latestAlert.id)}
-              className="px-3 py-1.5 bg-black/20 hover:bg-black/30 backdrop-blur-sm rounded-lg border border-white/20 transition-all font-semibold uppercase tracking-wider"
+              className="px-3 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg border border-white/20 transition-all font-semibold uppercase tracking-wider"
             >
               Clear Alert
             </button>
@@ -151,27 +151,27 @@ export function StatusBanner({ latestAlert, devices, onClearAlert }: StatusBanne
       
       {/* CONFIRMATION MODAL */}
       {confirmingAlertId && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-          <div className="bg-ctp-mantle p-6 rounded-2xl border border-ctp-crust shadow-2xl max-w-md w-full animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 backdrop-blur-sm px-4">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-ctp-red/10 flex items-center justify-center shrink-0">
-                <ShieldCheck size={20} className="text-ctp-red" />
+              <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+                <ShieldCheck size={20} className="text-red-500" />
               </div>
-              <h3 className="text-lg font-bold text-ctp-text">Konfirmasi Resolusi Alert</h3>
+              <h3 className="text-lg font-bold text-slate-800">Konfirmasi Resolusi Alert</h3>
             </div>
-            <p className="text-sm text-ctp-subtext0 mb-6 leading-relaxed">
+            <p className="text-sm text-slate-500 mb-6 leading-relaxed">
               Apakah Anda yakin kondisi di lokasi sudah benar-benar aman? Tindakan ini akan menyembunyikan peringatan dari layar utama.
             </p>
             <div className="flex items-center justify-end gap-3">
               <button 
                 onClick={() => setConfirmingAlertId(null)} 
-                className="px-4 py-2.5 rounded-xl text-sm font-semibold text-ctp-text hover:bg-ctp-surface0 transition-colors"
+                className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
               >
                 Batal
               </button>
               <button 
                 onClick={handleClear} 
-                className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-ctp-red text-white hover:bg-ctp-red/80 transition-all shadow-lg shadow-ctp-red/25 active:scale-95"
+                className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-red-500 text-white hover:bg-red-600 transition-all shadow-lg shadow-red-500/25 active:scale-95"
               >
                 Ya, Tandai Aman
               </button>
