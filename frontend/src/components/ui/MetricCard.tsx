@@ -67,7 +67,6 @@ const getEnvSpotlightColor = (accent: string) => {
 };
 
 // Full class-name lookup so Tailwind JIT can detect them at build time.
-// Dynamic interpolation like `text-${accent}` is NOT supported.
 const accentClassMap: Record<string, { text: string; bar: string; iconBg: string }> = {
   'ctp-blue':     { text: 'text-ctp-blue',     bar: 'bg-ctp-blue shadow-[0_0_8px_currentColor]',     iconBg: 'bg-ctp-blue/10' },
   'ctp-sky':      { text: 'text-ctp-sky',      bar: 'bg-ctp-sky shadow-[0_0_8px_currentColor]',      iconBg: 'bg-ctp-sky/10' },
@@ -167,4 +166,3 @@ export function MetricCard({
     </SpotlightCard>
   );
 }
-

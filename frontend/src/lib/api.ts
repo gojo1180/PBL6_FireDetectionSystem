@@ -106,6 +106,8 @@ export interface CalibrationStatus {
   fase_aktif: string;
   error_saat_ini: number;
   threshold_dinamis: number;
+  error_per_fitur?: Record<string, number>;
+  threshold_per_fitur?: Record<string, number>;
   counter_pesan: number;
   sampling_seconds: number;
   toleransi_threshold: number;
@@ -128,6 +130,13 @@ export async function getAlerts(limit: number = 10): Promise<FusionAlert[]> {
 
 export async function resolveAlert(alertId: string): Promise<void> {
   return apiFetch<void>(`/api/v1/alerts/${alertId}/resolve`, { method: "PATCH" });
+}
+
+export async function markAlertFeedback(alertId: string, isFalsePositive: boolean): Promise<void> {
+  return apiFetch<void>(`/api/v1/alerts/${alertId}/feedback`, {
+    method: "PATCH",
+    body: { is_false_positive: isFalsePositive }
+  });
 }
 
 // ─── News Interfaces ────────────────────────────────────────────────

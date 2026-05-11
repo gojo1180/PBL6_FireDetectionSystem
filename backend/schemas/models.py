@@ -50,6 +50,8 @@ class SensorLogBase(BaseModel):
     lpg_level: float
     smoke_detected: float 
     flame_detected: float  
+    temperature: Optional[float] = None
+    humidity: Optional[float] = None
 
 class SensorLogCreate(SensorLogBase):
     pass
@@ -89,6 +91,7 @@ class FusionAlertBase(BaseModel):
     fusion_score: float
     alert_message: str
     is_resolved: bool = Field(default=False)
+    is_false_positive: Optional[bool] = Field(default=None)
 
 class FusionAlertCreate(FusionAlertBase):
     pass

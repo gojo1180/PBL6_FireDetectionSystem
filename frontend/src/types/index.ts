@@ -10,7 +10,8 @@ export interface Device {
 
 export interface SensorLog {
   id: string; device_id: string; cng_level: number; co_level: number;
-  lpg_level: number; flame_detected: number; smoke_detected: number; recorded_at: string;
+  lpg_level: number; flame_detected: number; smoke_detected: number; 
+  temperature?: number; humidity?: number; recorded_at: string;
 }
 
 export interface VisionLog {
@@ -21,4 +22,5 @@ export interface VisionLog {
 export interface FusionAlert {
   id: string; device_id: string; risk_level: string; fusion_score: number;
   alert_message: string; is_resolved: boolean; triggered_at: string;
+  is_false_positive?: boolean | null;
 }

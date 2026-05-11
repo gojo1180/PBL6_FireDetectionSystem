@@ -27,6 +27,12 @@ export default function DashboardPage() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const [latestSensor, setLatestSensor] = useState<SensorLog | null>(null);
   const [latestVision, setLatestVision] = useState<VisionLog | null>(null);
@@ -171,7 +177,6 @@ export default function DashboardPage() {
 
   const chartData = useMemo(() => sensorHistory.map((s) => ({
     time: mounted ? fmtTime(s.recorded_at) : "",
-    CNG: Number(s.cng_level.toFixed(2)),
     CO: Number(s.co_level.toFixed(2)),
     LPG: Number(s.lpg_level.toFixed(2)),
   })), [sensorHistory, mounted]);
@@ -226,7 +231,7 @@ export default function DashboardPage() {
   }, [calibration]);
 
   const isBuffering = latestSensor 
-    ? (Date.now() - new Date(latestSensor.recorded_at + 'Z').getTime() > 10000) 
+    ? (currentTime - new Date(latestSensor.recorded_at + 'Z').getTime() > 10000) 
     : true;
 
   const memoizedSensorCards = useMemo(() => (

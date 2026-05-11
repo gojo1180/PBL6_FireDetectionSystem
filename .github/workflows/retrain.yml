@@ -1,0 +1,32 @@
+name: Continuous Training Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      device_id:
+        description: 'Target Device ID to retrain'
+        required: true
+        type: string
+
+jobs:
+  retrain_model:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: pip install -r mlops/requirements.txt
+
+      - name: Run Retraining Script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python mlops/retrain.py --device_id "${{ github.event.inputs.device_id }}"

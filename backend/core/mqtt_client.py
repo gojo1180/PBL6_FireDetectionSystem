@@ -66,6 +66,8 @@ def on_message(client, userdata, msg):
             "lpg_level": float(sensor_data.get("lpg_level", 0.0)),
             "flame_detected": parse_bool_to_float(flame_val),
             "smoke_detected": parse_bool_to_float(smoke_val),
+            "temperature": float(sensor_data.get("temperature", 0.0)),
+            "humidity": float(sensor_data.get("humidity", 0.0)),
             "recorded_at": datetime.utcnow().isoformat()
         }
         
