@@ -60,3 +60,6 @@ __pycache__/
 # backend/ml_models/*.pkl
 # *.pt
 # *.pkl
+
+# Temporary Artifacts
+tmp_artifacts/

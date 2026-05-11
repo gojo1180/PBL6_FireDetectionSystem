@@ -9,7 +9,6 @@ import {
 
 export interface ChartPoint {
   time: string;
-  CNG: number;
   CO: number;
   LPG: number;
 }
@@ -32,7 +31,6 @@ export const GasTrendChart = memo(function GasTrendChart({ chartData }: { chartD
             <YAxis tick={{ fontSize: 10, fill: "#9ca0b0" }} tickLine={false} axisLine={{ stroke: "#ccd0da" }} width={40} />
             <Tooltip contentStyle={{ background: "#e6e9ef", border: "1px solid #dce0e8", borderRadius: "12px", fontSize: "12px", color: "#4c4f69" }} />
             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "12px", color: "#6c6f85" }} />
-            <Line type="monotone" dataKey="CNG" stroke="#1e66f5" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
             <Line type="monotone" dataKey="CO" stroke="#fe640b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
             <Line type="monotone" dataKey="LPG" stroke="#179299" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
           </LineChart>

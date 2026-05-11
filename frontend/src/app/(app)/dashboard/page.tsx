@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { getDevices, getDashboardSensors, getLatestSensor, getLatestVision, getAlerts, getCalibrationStatus, CalibrationStatus, setCalibrationConfig } from "@/lib/api";
-import { Activity, Bell, Flame, Gauge, Wind, Droplets, ChevronDown, MapPin, Server, Download, BrainCircuit, Settings2 } from "lucide-react";
+import { Activity, Bell, Flame, Gauge, Wind, Droplets, ChevronDown, MapPin, Server, Download, BrainCircuit, Settings2, Thermometer } from "lucide-react";
 
 import { SensorLog, VisionLog, FusionAlert, Device } from "@/types";
 import { fmtTime } from "@/lib/utils";
@@ -27,6 +27,12 @@ export default function DashboardPage() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const [latestSensor, setLatestSensor] = useState<SensorLog | null>(null);
   const [latestVision, setLatestVision] = useState<VisionLog | null>(null);
@@ -171,7 +177,6 @@ export default function DashboardPage() {
 
   const chartData = useMemo(() => sensorHistory.map((s) => ({
     time: mounted ? fmtTime(s.recorded_at) : "",
-    CNG: Number(s.cng_level.toFixed(2)),
     CO: Number(s.co_level.toFixed(2)),
     LPG: Number(s.lpg_level.toFixed(2)),
   })), [sensorHistory, mounted]);
@@ -208,15 +213,48 @@ export default function DashboardPage() {
 
   const isSystemInDanger = latestAlert ? !latestAlert.is_resolved : false;
 
+  const checkFeatureWarn = useCallback((feature: string) => {
+    if (!calibration?.error_per_fitur || !calibration?.threshold_per_fitur) return isSystemInDanger;
+    const err = calibration.error_per_fitur[feature];
+    const thr = calibration.threshold_per_fitur[feature];
+    if (err !== undefined && thr !== undefined) {
+      return err > thr;
+    }
+    return isSystemInDanger;
+  }, [calibration, isSystemInDanger]);
+
+  const getFeatureProgress = useCallback((feature: string) => {
+    if (!calibration?.error_per_fitur || !calibration?.threshold_per_fitur) return 0;
+    const err = calibration.error_per_fitur[feature] || 0;
+    const thr = calibration.threshold_per_fitur[feature] || 1; // avoid div by zero
+    return Math.min((err / thr) * 100, 100);
+  }, [calibration]);
+
+  const isBuffering = latestSensor 
+    ? (currentTime - new Date(latestSensor.recorded_at + 'Z').getTime() > 10000) 
+    : true;
+
   const memoizedSensorCards = useMemo(() => (
-    <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-6 gap-4">
-      <MetricCard className="col-span-1 md:col-span-2" label="CNG" value={latestSensor?.cng_level} unit="ppm" icon={<Gauge size={20} className="text-ctp-blue" />} accent="ctp-blue" warn={isSystemInDanger} />
-      <MetricCard className="col-span-1 md:col-span-2" label="CO" value={latestSensor?.co_level} unit="ppm" icon={<Wind size={20} className="text-ctp-peach" />} accent="ctp-peach" warn={isSystemInDanger} />
-      <MetricCard className="col-span-1 md:col-span-2" label="LPG" value={latestSensor?.lpg_level} unit="ppm" icon={<Droplets size={20} className="text-ctp-teal" />} accent="ctp-teal" warn={isSystemInDanger} />
-      <MetricCard className="col-span-1 md:col-span-3" label="SMOKE" value={latestSensor?.smoke_detected} unit="ppm" icon={<Wind size={20} className="text-ctp-lavender" />} accent="ctp-lavender" warn={isSystemInDanger} />
-      <MetricCard className="col-span-2 md:col-span-3" label="FLAME" value={latestSensor?.flame_detected} unit="lvl" icon={<Flame size={20} className="text-ctp-red" />} accent="ctp-red" warn={isSystemInDanger} />
+    <div className="relative lg:col-span-2">
+      {isBuffering && (
+        <div className="absolute inset-0 z-10 bg-ctp-mantle/60 backdrop-blur-[2px] rounded-xl flex items-center justify-center border border-ctp-yellow/30 shadow-[0_0_25px_rgba(229,200,144,0.15)] animate-in fade-in duration-300">
+          <div className="flex flex-col items-center gap-3 bg-ctp-base/95 px-6 py-5 rounded-2xl border border-ctp-surface1 shadow-xl">
+            <div className="w-8 h-8 border-4 border-ctp-yellow border-t-transparent rounded-full animate-spin"></div>
+            <div className="text-center">
+              <p className="text-sm font-bold text-ctp-yellow tracking-widest uppercase mb-1">Connection Interrupted</p>
+              <p className="text-[11px] text-ctp-subtext0 max-w-[200px]">Waiting for new sensor data to rebuild temporal sequence buffer...</p>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className={`grid grid-cols-2 md:grid-cols-6 gap-4 ${isBuffering ? 'opacity-40 grayscale-[0.5] pointer-events-none' : 'transition-all duration-500'}`}>
+        <MetricCard className="col-span-1 md:col-span-3" label="CO" value={latestSensor?.co_level} unit="ppm" icon={<Wind size={20} className="text-ctp-peach" />} accent="ctp-peach" warn={checkFeatureWarn("co")} progress={getFeatureProgress("co")} />
+        <MetricCard className="col-span-1 md:col-span-3" label="LPG" value={latestSensor?.lpg_level} unit="ppm" icon={<Droplets size={20} className="text-ctp-teal" />} accent="ctp-teal" warn={checkFeatureWarn("lpg")} progress={getFeatureProgress("lpg")} />
+        <MetricCard className="col-span-1 md:col-span-3" label="SMOKE" value={latestSensor?.smoke_detected} unit="ppm" icon={<Wind size={20} className="text-ctp-lavender" />} accent="ctp-lavender" warn={checkFeatureWarn("smoke")} progress={getFeatureProgress("smoke")} />
+        <MetricCard className="col-span-2 md:col-span-3" label="FLAME" value={latestSensor?.flame_detected} unit="lvl" icon={<Flame size={20} className="text-ctp-red" />} accent="ctp-red" warn={checkFeatureWarn("flame")} progress={getFeatureProgress("flame")} />
+      </div>
     </div>
-  ), [latestSensor, isSystemInDanger]);
+  ), [latestSensor, isBuffering, checkFeatureWarn, getFeatureProgress]);
 
   if (!mounted) return <div className="flex-1 min-h-screen bg-ctp-base" />;
 
@@ -310,64 +348,67 @@ export default function DashboardPage() {
       <main className="flex-1 p-6 lg:p-8 space-y-6">
         <StatusBanner latestAlert={latestAlert} devices={devices} onClearAlert={fetchDashboardData} />
 
-        {calibration && (
-          <div className="bg-ctp-mantle border border-ctp-crust rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between shadow-sm gap-4">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${calibration.fase_aktif === 'MONITORING' ? 'bg-ctp-green/20 text-ctp-green' : 'bg-ctp-yellow/20 text-ctp-yellow'}`}>
-                <BrainCircuit size={20} className={calibration.fase_aktif !== 'MONITORING' ? 'animate-pulse' : ''} />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-ctp-text">AI Auto-Calibration</h3>
-                <p className={`text-[11px] uppercase tracking-widest font-bold ${calibration.fase_aktif === 'MONITORING' ? 'text-ctp-green' : 'text-ctp-yellow animate-pulse'}`}>
-                  {calibration.fase_aktif}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-4 md:gap-8 justify-between md:justify-end border-t border-ctp-crust md:border-t-0 pt-3 md:pt-0">
-              <div className="text-left md:text-right">
-                <p className="text-[10px] text-ctp-overlay0 uppercase tracking-wider mb-0.5">Multiplier</p>
-                <div className="flex items-center gap-2">
-                  <Settings2 size={12} className="text-ctp-overlay0 hidden md:block" />
-                  <select 
-                    value={calibration.toleransi_threshold}
-                    onChange={handleToleransiChange}
-                    disabled={isUpdatingToleransi}
-                    className="bg-ctp-crust text-ctp-text text-xs font-mono font-medium rounded-md px-1.5 py-0.5 border border-ctp-surface0 focus:border-ctp-blue outline-none cursor-pointer disabled:opacity-50"
-                  >
-                    <option value={1.1}>1.10x (Strict)</option>
-                    <option value={1.15}>1.15x (Normal)</option>
-                    <option value={1.2}>1.20x (Relaxed)</option>
-                    <option value={1.3}>1.30x (Lenient)</option>
-                    <option value={1.4}>1.40x (Very Lenient)</option>
-                  </select>
+        <div className="flex flex-col lg:flex-row gap-6">
+          {calibration && (
+            <div className="flex-1 bg-ctp-mantle border border-ctp-crust rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between shadow-sm gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-ctp-blue/20 text-ctp-blue">
+                  <BrainCircuit size={20} />
                 </div>
-              </div>
-              
-              <div className="text-left md:text-right">
-                <p className="text-[10px] text-ctp-overlay0 uppercase tracking-wider mb-0.5">Current Error (MAE)</p>
-                <p className="font-mono font-medium text-ctp-text text-sm">
-                  {calibration.error_saat_ini > 0 ? calibration.error_saat_ini.toFixed(5) : "Wait..."}
-                </p>
-              </div>
-              <div className="text-left md:text-right">
-                <p className="text-[10px] text-ctp-overlay0 uppercase tracking-wider mb-0.5">Dynamic Threshold</p>
-                <p className="font-mono font-medium text-ctp-text text-sm">
-                  {calibration.threshold_dinamis.toFixed(5)}
-                </p>
-              </div>
-              
-              {calibration.fase_aktif === 'SAMPLING' && (
-                <div className="text-left md:text-right">
-                  <p className="text-[10px] text-ctp-overlay0 uppercase tracking-wider mb-0.5">Progress</p>
-                  <p className="font-mono font-medium text-ctp-yellow text-sm">
-                    {calibration.counter_pesan} / {calibration.sampling_seconds}
+                <div>
+                  <h3 className="text-sm font-semibold text-ctp-text">AI Anomaly Detection</h3>
+                  <p className="text-[11px] text-ctp-subtext0 mt-0.5">
+                    System is actively analyzing sensor variances
                   </p>
                 </div>
-              )}
+              </div>
+              
+              <div className="flex items-center gap-3 bg-ctp-crust px-4 py-2.5 rounded-lg border border-ctp-surface0">
+                <div className="flex flex-col">
+                  <label htmlFor="sensitivity-select" className="text-[10px] text-ctp-overlay0 uppercase tracking-wider font-bold mb-1">
+                    Sensitivity Level
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Settings2 size={14} className="text-ctp-blue" />
+                    <select 
+                      id="sensitivity-select"
+                      value={calibration.toleransi_threshold}
+                      onChange={handleToleransiChange}
+                      disabled={isUpdatingToleransi}
+                      className="bg-transparent text-ctp-text text-sm font-medium focus:outline-none cursor-pointer disabled:opacity-50 appearance-none pr-2"
+                    >
+                      <option value={1.1}>High (Strict)</option>
+                      <option value={1.15}>Balanced (Recommended)</option>
+                      <option value={1.2}>Low (Relaxed)</option>
+                      <option value={1.3}>Very Low</option>
+                      <option value={1.4}>Minimum Alerts</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-ctp-mantle border border-ctp-crust rounded-xl p-4 flex items-center justify-around shadow-sm gap-8 lg:w-72 shrink-0">
+            <div className="flex flex-col items-center">
+              <Thermometer size={22} className="text-ctp-red mb-1.5" />
+              <p className="text-2xl font-bold text-ctp-text font-mono">
+                {latestSensor?.temperature !== undefined ? `${latestSensor.temperature.toFixed(1)}°` : '--'}
+              </p>
+              <p className="text-[10px] text-ctp-overlay0 uppercase tracking-wider font-bold mt-0.5">Temp</p>
+            </div>
+            
+            <div className="w-px h-12 bg-ctp-crust"></div>
+            
+            <div className="flex flex-col items-center">
+              <Droplets size={22} className="text-ctp-blue mb-1.5" />
+              <p className="text-2xl font-bold text-ctp-text font-mono">
+                {latestSensor?.humidity !== undefined ? `${latestSensor.humidity.toFixed(1)}%` : '--'}
+              </p>
+              <p className="text-[10px] text-ctp-overlay0 uppercase tracking-wider font-bold mt-0.5">Humidity</p>
             </div>
           </div>
-        )}
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {memoizedSensorCards}

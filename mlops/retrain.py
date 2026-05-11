@@ -19,7 +19,7 @@ load_dotenv()
 
 # Constants
 SEQUENCE_LENGTH = 10
-FEATURES = ['cng_level', 'co_level', 'flame_detected', 'lpg_level', 'smoke_detected']
+FEATURES = ['co_level', 'flame_detected', 'lpg_level', 'smoke_detected']
 BUCKET_NAME = "ml_models"
 
 def get_supabase_client() -> Client:
@@ -160,29 +160,43 @@ def main():
         else:
             raise FileNotFoundError(f"Could not find any base model to fine-tune at {base_model_path}")
 
-    # 4. Preprocessing
-    print("⚙️ Preprocessing data...")
-    # The prompt explicitly requested using MinMaxScaler.
-    # If a scaler already exists for this device, we could load it.
-    # However, since we are combining baseline + new false positives, refitting a MinMaxScaler
-    # on the comprehensive dataset ensures all values fall within [0, 1].
-    scaler = MinMaxScaler()
-    scaled_data = scaler.fit_transform(df)
+    # 4. Preprocessing & Sequence Creation (REVISI DATA DRIFT & TEMPORAL WINDOW)
+    print("⚙️ Preprocessing data and creating sequences per window...")
+    
+    # KUNCI 1: Load scaler lama, JANGAN bikin MinMaxScaler baru
+    scaler = joblib.load(local_scaler_path)
 
-    # Create Sequences
-    X_train = create_sequences(scaled_data, SEQUENCE_LENGTH)
-    print(f"🧩 Created {len(X_train)} sequences for training. Shape: {X_train.shape}")
+    X_train_list = []
 
-    # 5. Load and Train Model
+    for frame in dataset_frames:
+        # Menghitung Delta (selisih) karena model baru dilatih dengan Delta
+        frame_diff = frame[FEATURES].diff().fillna(0)
+        
+        scaled_frame = scaler.transform(frame_diff)
+        
+        seqs = create_sequences(scaled_frame, SEQUENCE_LENGTH)
+        if len(seqs) > 0:
+            X_train_list.append(seqs)
+
+    if not X_train_list:
+        print("❌ Not enough data to create sequences. Skipping retraining.")
+        return
+
+    X_train = np.vstack(X_train_list)
+    print(f"🧩 Total sequences assembled for retraining: {X_train.shape}")
+
+    np.random.shuffle(X_train)
+
+
+    # 5. Load and Train Model 
     print("🧠 Loading model...")
     model = load_model(local_model_path, compile=False)
     
-    # Recompile since it was loaded with compile=False
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.0005), loss='mae')
 
     print("🚀 Fine-tuning model (Continuous Training)...")
     early_stopping = EarlyStopping(
-        monitor='loss', 
+        monitor='val_loss',
         patience=5, 
         restore_best_weights=True,
         verbose=1
@@ -205,10 +219,9 @@ def main():
     # Menghitung MAE loss per timestep (axis=1), menyisakan dimensi sampel dan fitur
     train_mae_loss_per_fitur = np.mean(np.abs(reconstructions - X_train), axis=1)
     
-    # Ambil nilai error tertinggi untuk MASING-MASING sensor (Shape: 5 threshold berbeda)
-    # Mengikuti logic notebook kamu: np.max(..., axis=0)
-    new_threshold = np.max(train_mae_loss_per_fitur, axis=0)
-    print(f"🎯 New Threshold per Sensor Calculated: {new_threshold}")
+    # Ambil nilai error threshold (Percentil ke-99) untuk MASING-MASING sensor (Shape: 4 threshold berbeda)
+    new_threshold = np.percentile(train_mae_loss_per_fitur, 99, axis=0)
+    print(f"🎯 New Threshold per Sensor (99th Percentile) Calculated: {new_threshold}")
 
     # 7. Save and Upload Artifacts
     print("💾 Saving updated artifacts locally...")
