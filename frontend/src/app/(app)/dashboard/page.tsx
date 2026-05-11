@@ -186,15 +186,15 @@ export default function DashboardPage() {
     try {
       const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const token = getToken();
-      
+
       const res = await fetch(`${BASE_URL}/api/v1/sensors/export/csv?device_id=${selectedDeviceId}`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
       });
-      
+
       if (!res.ok) throw new Error("Failed to download CSV");
-      
+
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -230,8 +230,8 @@ export default function DashboardPage() {
     return Math.min((err / thr) * 100, 100);
   }, [calibration]);
 
-  const isBuffering = latestSensor 
-    ? (currentTime - new Date(latestSensor.recorded_at + 'Z').getTime() > 10000) 
+  const isBuffering = latestSensor
+    ? (currentTime - new Date(latestSensor.recorded_at + 'Z').getTime() > 10000)
     : true;
 
   const memoizedSensorCards = useMemo(() => (
@@ -406,7 +406,7 @@ export default function DashboardPage() {
             <Download size={14} className="text-ctp-blue" />
             <span className="hidden md:inline font-medium">Export CSV</span>
           </button>
-          
+
           <div className="relative">
             <Bell size={18} className="text-ctp-subtext0" />
             {alertsList.filter(a => !a.is_resolved).length > 0 && (
@@ -436,7 +436,7 @@ export default function DashboardPage() {
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3 bg-ctp-crust px-4 py-2.5 rounded-lg border border-ctp-surface0">
               <div className="flex flex-col">
                 <label htmlFor="sensitivity-select" className="text-[10px] text-ctp-overlay0 uppercase tracking-wider font-bold mb-1">
@@ -444,7 +444,7 @@ export default function DashboardPage() {
                 </label>
                 <div className="flex items-center gap-2">
                   <Settings2 size={14} className="text-ctp-blue" />
-                  <select 
+                  <select
                     id="sensitivity-select"
                     value={calibration.toleransi_threshold}
                     onChange={handleToleransiChange}
