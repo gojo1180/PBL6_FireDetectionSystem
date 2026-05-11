@@ -50,6 +50,8 @@ class SensorLogBase(BaseModel):
     lpg_level: float
     smoke_detected: float 
     flame_detected: float  
+    temperature: Optional[float] = None
+    humidity: Optional[float] = None
 
 class SensorLogCreate(SensorLogBase):
     pass

@@ -106,6 +106,8 @@ export interface CalibrationStatus {
   fase_aktif: string;
   error_saat_ini: number;
   threshold_dinamis: number;
+  error_per_fitur?: Record<string, number>;
+  threshold_per_fitur?: Record<string, number>;
   counter_pesan: number;
   sampling_seconds: number;
   toleransi_threshold: number;

@@ -25,9 +25,10 @@ interface MetricCardProps {
   accent: string;
   warn: boolean;
   className?: string;
+  progress?: number;
 }
 
-export function MetricCard({ label, value, unit, icon, accent, warn, className = "" }: MetricCardProps) {
+export function MetricCard({ label, value, unit, icon, accent, warn, className = "", progress }: MetricCardProps) {
   const spotlightColor = getSpotlightColor(accent, warn);
 
   return (
@@ -52,7 +53,7 @@ export function MetricCard({ label, value, unit, icon, accent, warn, className =
       <div className="mt-3 w-full h-1.5 rounded-full bg-ctp-crust/80 overflow-hidden shadow-inner flex items-center">
         <div 
           className={`h-full rounded-full transition-all duration-700 ease-out bg-${warn ? 'ctp-red' : accent} shadow-[0_0_8px_currentColor]`} 
-          style={{ width: `${Math.min((value ?? 0) * 5, 100)}%` }} 
+          style={{ width: `${progress !== undefined ? progress : Math.min((value ?? 0) * 5, 100)}%` }} 
         />
       </div>
     </SpotlightCard>

@@ -42,6 +42,8 @@ class LateFusionService:
         
         # Dummy variables for backward compatibility with router_sensors.py API
         self.latest_error = 0.0
+        self.latest_error_per_fitur = {}
+        self.threshold_per_fitur = {}
         self.FASE_AKTIF = "MONITORING"
         self.SAMPLING_SECONDS = 0
         self.TOLERANSI_THRESHOLD = 1.0
@@ -63,8 +65,10 @@ class LateFusionService:
             
         print(f"🔄 Loading artifacts for device {device_id}...")
         
-        # Path for downloaded files
-        device_dir = f"/tmp/ml_models/{device_id}"
+        import tempfile
+        # Gunakan direktori temp bawaan OS (cross-platform: C:\Users\...\AppData\Local\Temp di Windows, /tmp di Linux/Mac)
+        base_tmp_dir = tempfile.gettempdir()
+        device_dir = os.path.join(base_tmp_dir, "fire_detection_models", device_id)
         os.makedirs(device_dir, exist_ok=True)
         paths = {
             "model": f"{device_dir}/model.h5",
@@ -108,7 +112,9 @@ class LateFusionService:
             "model": model,
             "scaler": scaler,
             "threshold": threshold,
-            "buffer": deque(maxlen=seq_length)
+            "buffer": deque(maxlen=seq_length),
+            "previous_data": None,
+            "last_time": 0.0
         }
         
         return self.active_models[device_id]
@@ -130,15 +136,36 @@ class LateFusionService:
             return False
             
         try:
-            cng_raw = float(sensor_data.get("cng_level", 0.0))
+            # Kita tidak lagi memasukkan CNG ke dalam model, hanya memantau.
             co_raw = float(sensor_data.get("co_level", 0.0))
+            flame_raw = float(sensor_data.get("flame_detected", 0.0))
             lpg_raw = float(sensor_data.get("lpg_level", 0.0))
             smoke_raw = float(sensor_data.get("smoke_detected", 0.0))
-            flame_raw = float(sensor_data.get("flame_detected", 0.0))
 
-            features = np.array([
-                cng_raw, co_raw, flame_raw, lpg_raw, smoke_raw
-            ]).reshape(1, -1)
+            current_data = np.array([co_raw, flame_raw, lpg_raw, smoke_raw])
+            
+            import time
+            current_time = time.time()
+            gap = current_time - artifacts.get("last_time", 0.0)
+            
+            # Jika jeda lebih dari 10 detik, anggap koneksi putus dan reset sequence buffer
+            # agar model tidak kaget melihat delta yang melompat jauh
+            if gap > 10.0 and artifacts.get("last_time", 0.0) != 0.0:
+                print(f"⚠️ Connection gap detected for {device_id} ({gap:.1f}s). Resetting sequence buffer.")
+                artifacts["previous_data"] = None
+                artifacts["buffer"].clear()
+                
+            artifacts["last_time"] = current_time
+
+            # Hitung Delta (Selisih dari detik sebelumnya)
+            if artifacts["previous_data"] is None:
+                delta_features = np.zeros(4)
+            else:
+                delta_features = current_data - artifacts["previous_data"]
+                
+            artifacts["previous_data"] = current_data
+
+            features = delta_features.reshape(1, -1)
             
             if scaler:
                 features = scaler.transform(features)
@@ -166,6 +193,18 @@ class LateFusionService:
             # Karena frontend masih mengharapkan 1 angka (scalar), kita gunakan rata-ratanya
             self.latest_error = float(np.mean(error_per_fitur))
             self.THRESHOLD_DINAMIS = float(np.mean(threshold_dinamis_array))
+            self.latest_error_per_fitur = {
+                "co": float(error_per_fitur[0]),
+                "flame": float(error_per_fitur[1]),
+                "lpg": float(error_per_fitur[2]),
+                "smoke": float(error_per_fitur[3])
+            }
+            self.threshold_per_fitur = {
+                "co": float(threshold_dinamis_array[0]),
+                "flame": float(threshold_dinamis_array[1]),
+                "lpg": float(threshold_dinamis_array[2]),
+                "smoke": float(threshold_dinamis_array[3])
+            }
             
             if is_anomaly:
                 print(f"🔥 ANOMALY DETECTED [{device_id}]!")
