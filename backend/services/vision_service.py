@@ -48,6 +48,7 @@ def config_polling_loop():
             if cctv_stop_event.is_set(): break
             time.sleep(0.5)
 
+retry_counter = 0
 def frame_reading_loop():
     global latest_frame, cap_reconnect_flag
     
@@ -72,17 +73,26 @@ def frame_reading_loop():
             os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
             print(f"📷 Attempting to connect to RTSP: {url_to_use}")
             
-            cap = cv2.VideoCapture(url_to_use, cv2.CAP_FFMPEG)
-            if cap.isOpened():
+        cap = cv2.VideoCapture(url_to_use, cv2.CAP_FFMPEG)
+        if cap.isOpened():
                 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
                 print("✅ Successfully connected to CCTV RTSP stream.")
+                retry_counter = 0 # Reset counter jika berhasil
                 with frame_lock:
                     if url_to_use == current_rtsp_url:
                         cap_reconnect_flag = False
-            else:
-                print("❌ Failed to connect to RTSP stream. Retrying in 5s...")
+        else:
+                # Modifikasi bagian ini agar log tidak spam
+                retry_counter += 1
+                if retry_counter <= 3:
+                    print(f"❌ Failed to connect to RTSP stream. Retrying in 5s... (Attempt {retry_counter})")
+                elif retry_counter == 4:
+                    print("🔇 RTSP connection failed repeatedly. Muting further logs to prevent spam. Will silently keep trying...")
+                
                 cap = None
-                for _ in range(10):
+                # Tunggu lebih lama (misal 10 detik) jika sudah sering gagal
+                wait_time = 5 if retry_counter < 5 else 10
+                for _ in range(wait_time * 2):
                     if cctv_stop_event.is_set() or cap_reconnect_flag: break
                     time.sleep(0.5)
                 continue
@@ -91,13 +101,12 @@ def frame_reading_loop():
             time.sleep(1)
             continue
             
-        # SOLUSI ANTI-LAG: grab() membuang antrean frame dengan kecepatan super tinggi tanpa beban CPU
         ret = cap.grab()
         if not ret:
-            print("⚠️ Failed to grab frame from CCTV. Reconnecting...")
+            print("⚠️ Failed to grab frame from CCTV. Camera might be lagging or offline. Reconnecting...")
             if cap: cap.release()
             cap = None
-            time.sleep(1)
+            time.sleep(3) # Ubah dari 1 menjadi 3 detik agar tidak terlalu agresif
             continue
 
         # Decode (retrieve) frame pada ~30 FPS untuk Dashboard & YOLO

@@ -429,11 +429,10 @@ export default function DashboardPage() {
             <button
               id="settings-popover-btn"
               onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg border transition-all duration-200 text-sm font-semibold ${
-                isSettingsOpen
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg border transition-all duration-200 text-sm font-semibold ${isSettingsOpen
                   ? "bg-indigo-50 border-indigo-200 text-indigo-600"
                   : "bg-slate-50 border-slate-200 hover:border-indigo-300 text-slate-600"
-              }`}
+                }`}
               title="AI Sensitivity Settings"
             >
               <Settings2 size={16} />
@@ -465,11 +464,11 @@ export default function DashboardPage() {
                           disabled={isUpdatingToleransi}
                           className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-4 py-2.5 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 cursor-pointer disabled:opacity-50 transition-all"
                         >
-                          <option value={1.1}>🔴 High (Strict)</option>
-                          <option value={1.15}>🟡 Balanced (Recommended)</option>
-                          <option value={1.2}>🟢 Low (Relaxed)</option>
-                          <option value={1.3}>⚪ Very Low</option>
-                          <option value={1.4}>💤 Minimum Alerts</option>
+                          <option value={1.1}>High (Strict)</option>
+                          <option value={1.15}>Balanced (Recommended)</option>
+                          <option value={1.2}>Low (Relaxed)</option>
+                          <option value={1.3}>Very Low</option>
+                          <option value={1.4}>Minimum Alerts</option>
                         </select>
                       </div>
                       <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-2 rounded-lg text-xs font-medium">
