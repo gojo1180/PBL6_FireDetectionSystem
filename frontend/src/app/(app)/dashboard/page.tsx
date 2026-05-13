@@ -10,7 +10,7 @@ import { getToken } from "@/lib/auth";
 
 import { StatusBanner } from "@/components/dashboard/StatusBanner";
 import { MetricCard } from "@/components/ui/MetricCard";
-import { VisionCard } from "@/components/dashboard/VisionCard";
+import { LiveCCTVCard } from "@/components/dashboard/LiveCCTVCard";
 import { IncidentLog } from "@/components/dashboard/IncidentLog";
 import dynamic from "next/dynamic";
 
@@ -508,7 +508,7 @@ export default function DashboardPage() {
         {/* ── Gas Trend + Vision Feed (side by side) ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <GasTrendChart chartData={chartData} />
-          <VisionCard latestVision={latestVision} />
+          <LiveCCTVCard latestVision={latestVision} isDanger={isSystemInDanger} />
         </div>
 
         {/* ── Incident Log (full width) ── */}

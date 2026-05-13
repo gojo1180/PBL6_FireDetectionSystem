@@ -50,7 +50,7 @@ def config_polling_loop():
 
 retry_counter = 0
 def frame_reading_loop():
-    global latest_frame, cap_reconnect_flag
+    global latest_frame, cap_reconnect_flag, retry_counter
     
     cap = None
     last_retrieve_time = 0
@@ -60,6 +60,7 @@ def frame_reading_loop():
             need_reconnect = cap_reconnect_flag
             url_to_use = current_rtsp_url
 
+        # ── Reconnect / initial connect ──────────────────────────
         if need_reconnect or (cap is None and url_to_use):
             if cap: 
                 cap.release()
@@ -73,16 +74,15 @@ def frame_reading_loop():
             os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
             print(f"📷 Attempting to connect to RTSP: {url_to_use}")
             
-        cap = cv2.VideoCapture(url_to_use, cv2.CAP_FFMPEG)
-        if cap.isOpened():
+            cap = cv2.VideoCapture(url_to_use, cv2.CAP_FFMPEG)
+            if cap.isOpened():
                 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
                 print("✅ Successfully connected to CCTV RTSP stream.")
-                retry_counter = 0 # Reset counter jika berhasil
+                retry_counter = 0
                 with frame_lock:
                     if url_to_use == current_rtsp_url:
                         cap_reconnect_flag = False
-        else:
-                # Modifikasi bagian ini agar log tidak spam
+            else:
                 retry_counter += 1
                 if retry_counter <= 3:
                     print(f"❌ Failed to connect to RTSP stream. Retrying in 5s... (Attempt {retry_counter})")
@@ -90,23 +90,24 @@ def frame_reading_loop():
                     print("🔇 RTSP connection failed repeatedly. Muting further logs to prevent spam. Will silently keep trying...")
                 
                 cap = None
-                # Tunggu lebih lama (misal 10 detik) jika sudah sering gagal
                 wait_time = 5 if retry_counter < 5 else 10
                 for _ in range(wait_time * 2):
                     if cctv_stop_event.is_set() or cap_reconnect_flag: break
                     time.sleep(0.5)
                 continue
 
+        # ── No URL configured yet — wait ─────────────────────────
         if not cap or not cap.isOpened():
             time.sleep(1)
             continue
-            
+        
+        # ── Grab the latest frame from the RTSP buffer ───────────
         ret = cap.grab()
         if not ret:
             print("⚠️ Failed to grab frame from CCTV. Camera might be lagging or offline. Reconnecting...")
-            if cap: cap.release()
+            cap.release()
             cap = None
-            time.sleep(3) # Ubah dari 1 menjadi 3 detik agar tidak terlalu agresif
+            time.sleep(3)
             continue
 
         # Decode (retrieve) frame pada ~30 FPS untuk Dashboard & YOLO
