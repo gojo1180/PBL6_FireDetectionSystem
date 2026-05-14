@@ -4,9 +4,12 @@ from typing import List, Optional
 import uuid
 import asyncio
 from datetime import datetime
+from pydantic import BaseModel
+from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
+import av
 
 from services.fusion_engine import fusion_service
-from services.vision_service import get_latest_frame_jpg
+from services.vision_service import get_latest_frame_jpg, get_latest_frame_bgr
 from core.database import supabase
 from core.security import get_current_user
 from schemas.models import VisionLogCreate
@@ -98,3 +101,78 @@ async def upload_frame(
     
     # Return the confidence scores
     return {"filename": file.filename, "scores": vision_results, "saved_to_db": saved_to_db}
+
+
+# ==========================================
+# WebRTC Signaling & Streaming
+# ==========================================
+
+class WebRTCOffer(BaseModel):
+    sdp: str
+    type: str
+
+class OpenCVStreamTrack(VideoStreamTrack):
+    """
+    Sebuah video stream track aiortc yang mengambil frame dari OpenCV.
+    Berfungsi mengubah NumPy BGR array menjadi `av.VideoFrame` secara real-time.
+    """
+    def __init__(self):
+        super().__init__()  # Penting untuk inisialisasi VideoStreamTrack!
+
+    async def recv(self):
+        # next_timestamp akan mengatur sinkronisasi waktu FPS WebRTC
+        pts, time_base = await self.next_timestamp()
+        
+        # Mengambil frame BGR (NumPy array) dari vision_service
+        frame_bgr = get_latest_frame_bgr()
+        
+        if frame_bgr is None:
+            # Jika belum ada frame (kamera offline / baru nyala), delay sedikit & beri blank frame
+            await asyncio.sleep(0.05)
+            import numpy as np
+            frame_bgr = np.zeros((480, 640, 3), dtype=np.uint8)
+            
+        # Konversi BGR OpenCV ke format yang dimengerti oleh av
+        new_frame = av.VideoFrame.from_ndarray(frame_bgr, format="bgr24")
+        new_frame.pts = pts
+        new_frame.time_base = time_base
+        
+        # Hapus reference numpy array untuk mengoptimalkan memori / GC
+        del frame_bgr
+        
+        return new_frame
+
+# Global set untuk melacak peer connections yang sedang aktif
+pcs = set()
+
+@router.post("/vision/webrtc/offer")
+async def webrtc_offer(offer: WebRTCOffer):
+    """
+    Endpoint untuk WebRTC signaling.
+    Menerima SDP offer dari frontend, memasang OpenCVStreamTrack, dan membalas dengan SDP answer.
+    """
+    pc = RTCPeerConnection()
+    pcs.add(pc)
+
+    @pc.on("connectionstatechange")
+    async def on_connectionstatechange():
+        print(f"📡 WebRTC Connection State: {pc.connectionState}")
+        if pc.connectionState in ["failed", "closed"]:
+            pcs.discard(pc)
+
+    # Memasukkan custom track ke dalam peer connection
+    pc.addTrack(OpenCVStreamTrack())
+
+    # Konfigurasi remote description (dari request frontend)
+    offer_obj = RTCSessionDescription(sdp=offer.sdp, type=offer.type)
+    await pc.setRemoteDescription(offer_obj)
+
+    # Membuat local description (Answer)
+    answer = await pc.createAnswer()
+    await pc.setLocalDescription(answer)
+
+    # Mengembalikan response ke frontend dalam bentuk JSON
+    return {
+        "sdp": pc.localDescription.sdp,
+        "type": pc.localDescription.type
+    }

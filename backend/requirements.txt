@@ -30,3 +30,7 @@ tensorflow
 newspaper3k
 beautifulsoup4
 lxml
+
+# WebRTC
+aiortc
+av

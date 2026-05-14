@@ -6,10 +6,6 @@ import { VisionLog } from "@/types";
 import { ConfidenceBar } from "@/components/ui/ConfidenceBar";
 import { fmtTime } from "@/lib/utils";
 
-// ─── Configuration ──────────────────────────────────────────────────────
-const STREAM_TIMEOUT = 10000; // ms before marking stream as offline
-const RECONNECT_INTERVAL = 6000; // auto-retry interval when offline
-
 // ─── Props ──────────────────────────────────────────────────────────────
 interface LiveCCTVCardProps {
   /** Latest vision log data for confidence bars */
@@ -18,78 +14,113 @@ interface LiveCCTVCardProps {
   isDanger?: boolean;
 }
 
+type ConnectionState = "connecting" | "live" | "error";
+
 // ─── Component ──────────────────────────────────────────────────────────
 export const LiveCCTVCard = memo(function LiveCCTVCard({
   latestVision,
   isDanger = false,
 }: LiveCCTVCardProps) {
-  const [streamUrl, setStreamUrl] = useState("");
-  const [isOffline, setIsOffline] = useState(false);
-  const [isReconnecting, setIsReconnecting] = useState(false);
-  const [reconnectCount, setReconnectCount] = useState(0);
+  const [connectionState, setConnectionState] = useState<ConnectionState>("connecting");
+  const [errorMessage, setErrorMessage] = useState("");
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const pcRef = useRef<RTCPeerConnection | null>(null);
 
-  const streamTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
-  const API_BASE =
-    process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  // ── WebRTC Setup ──────────────────────────────────────────────────────
+  const connectWebRTC = useCallback(async () => {
+    setConnectionState("connecting");
+    setErrorMessage("");
 
-  // ── Connect / reconnect to MJPEG stream ───────────────────────────
-  const connectStream = useCallback(() => {
-    if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-    if (streamTimeoutRef.current) clearTimeout(streamTimeoutRef.current);
+    try {
+      // 1. Buat instance RTCPeerConnection
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" } // Fallback STUN public
+        ]
+      });
+      pcRef.current = pc;
 
-    setIsOffline(false);
-    setIsReconnecting(false);
+      // 2. Transceiver untuk receive-only video
+      pc.addTransceiver("video", { direction: "recvonly" });
 
-    // Cache-bust with timestamp so the browser never serves a stale response
-    const url = `${API_BASE}/api/v1/vision/stream?t=${Date.now()}`;
-    setStreamUrl(url);
+      // 3. Tangkap event ontrack
+      pc.ontrack = (event) => {
+        if (event.track.kind === "video" && videoRef.current) {
+          videoRef.current.srcObject = event.streams[0];
+        }
+      };
 
-    // If the <img> doesn't fire onLoad within STREAM_TIMEOUT → offline
-    streamTimeoutRef.current = setTimeout(() => {
-      setIsOffline(true);
-    }, STREAM_TIMEOUT);
+      // 4. Pantau perubahan state koneksi
+      pc.onconnectionstatechange = () => {
+        console.log("📡 WebRTC State:", pc.connectionState);
+        if (pc.connectionState === "connected") {
+          setConnectionState("live");
+        } else if (
+          pc.connectionState === "failed" ||
+          pc.connectionState === "disconnected" ||
+          pc.connectionState === "closed"
+        ) {
+          setConnectionState("error");
+          setErrorMessage("Koneksi WebRTC terputus.");
+        }
+      };
+
+      // 5. Buat Offer dan set Local Description
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      // 6. Kirim offer SDP ke backend menggunakan fetch
+      const response = await fetch(`${API_BASE}/api/v1/vision/webrtc/offer`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sdp: pc.localDescription?.sdp,
+          type: pc.localDescription?.type,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to connect: ${response.statusText}`);
+      }
+
+      // 7. Terima Answer dari backend dan set Remote Description
+      const answer = await response.json();
+      await pc.setRemoteDescription(new RTCSessionDescription(answer));
+
+    } catch (err: any) {
+      console.error("❌ WebRTC Setup Error:", err);
+      setConnectionState("error");
+      setErrorMessage(err.message || "Gagal membangun koneksi WebRTC");
+    }
   }, [API_BASE]);
 
-  // Initial connection on mount
+  // Initial connection & Cleanup
   useEffect(() => {
-    connectStream();
+    connectWebRTC();
+
     return () => {
-      if (streamTimeoutRef.current) clearTimeout(streamTimeoutRef.current);
-      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      if (pcRef.current) {
+        pcRef.current.close();
+        pcRef.current = null;
+      }
     };
-  }, [connectStream]);
-
-  // Auto-reconnect when offline
-  useEffect(() => {
-    if (isOffline && !isReconnecting) {
-      setIsReconnecting(true);
-      reconnectTimerRef.current = setTimeout(() => {
-        setReconnectCount((prev) => prev + 1);
-        connectStream();
-      }, RECONNECT_INTERVAL);
-    }
-    return () => {
-      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-    };
-  }, [isOffline, isReconnecting, connectStream]);
-
-  const handleStreamLoad = () => {
-    if (streamTimeoutRef.current) clearTimeout(streamTimeoutRef.current);
-    setIsOffline(false);
-    setIsReconnecting(false);
-    setReconnectCount(0);
-  };
-
-  const handleStreamError = () => {
-    if (streamTimeoutRef.current) clearTimeout(streamTimeoutRef.current);
-    setIsOffline(true);
-  };
+  }, [connectWebRTC]);
 
   const handleRetry = () => {
-    setReconnectCount(0);
-    connectStream();
+    // Cleanup old connection before retrying
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    connectWebRTC();
   };
 
   // ── Derived styles based on danger state ───────────────────────────
@@ -112,13 +143,20 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
           </span>
         </div>
 
-        {/* LIVE / OFFLINE indicator */}
-        {isOffline ? (
+        {/* LIVE / OFFLINE / CONNECTING indicator */}
+        {connectionState === "error" && (
           <div className="flex items-center gap-1.5 text-xs text-slate-400 font-semibold">
             <span className="w-2 h-2 rounded-full bg-slate-300" />
             OFFLINE
           </div>
-        ) : (
+        )}
+        {connectionState === "connecting" && (
+          <div className="flex items-center gap-1.5 text-xs text-indigo-500 font-semibold">
+            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+            CONNECTING
+          </div>
+        )}
+        {connectionState === "live" && (
           <div className={`flex items-center gap-1.5 text-xs font-semibold ${liveLabelColor}`}>
             <span className={`w-2 h-2 rounded-full ${liveDotColor} animate-pulse`} />
             LIVE
@@ -130,27 +168,34 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
       <div
         className={`relative aspect-video bg-slate-50 overflow-hidden transition-all duration-300 ${dangerRing}`}
       >
-        {/* Online stream */}
+        {/* Video Element for WebRTC */}
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
+            connectionState === "live" ? "opacity-100" : "opacity-0"
+          }`}
+        />
+
+        {/* Skeleton Loading - Connecting */}
         <div
-          className={`absolute inset-0 transition-opacity duration-500 ${isOffline ? "opacity-0 pointer-events-none" : "opacity-100"
-            }`}
+          className={`absolute inset-0 flex items-center justify-center bg-slate-50 transition-opacity duration-500 ${
+            connectionState === "connecting" ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
         >
-          {streamUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={streamUrl}
-              alt="Live CCTV Stream"
-              className="w-full h-full object-cover rounded-lg"
-              onLoad={handleStreamLoad}
-              onError={handleStreamError}
-            />
-          )}
+          <div className="flex flex-col items-center gap-3">
+            <RefreshCw size={24} className="text-indigo-400 animate-spin" />
+            <p className="text-sm font-medium text-slate-500 animate-pulse">Menyiapkan stream latensi rendah...</p>
+          </div>
         </div>
 
-        {/* Offline fallback */}
+        {/* Error / Offline fallback */}
         <div
-          className={`absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-500 ${isOffline ? "opacity-100" : "opacity-0 pointer-events-none"
-            }`}
+          className={`absolute inset-0 flex flex-col items-center justify-center bg-slate-50 transition-opacity duration-500 ${
+            connectionState === "error" ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
         >
           <div className="flex flex-col items-center gap-3 p-6">
             <div className="relative">
@@ -164,27 +209,14 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
               Kamera Offline
             </p>
             <p className="text-xs text-slate-400 text-center max-w-[200px]">
-              Tidak dapat terhubung ke stream kamera. Sistem akan otomatis mencoba kembali.
+              {errorMessage || "Tidak dapat terhubung ke stream WebRTC."}
             </p>
-
-            {/* Reconnecting status */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200">
-              <RefreshCw
-                size={12}
-                className={`text-indigo-500 ${isReconnecting ? "animate-spin" : ""}`}
-              />
-              <span className="text-[11px] text-slate-500 font-mono">
-                {isReconnecting
-                  ? `Menghubungkan... (${reconnectCount + 1})`
-                  : "Menunggu..."}
-              </span>
-            </div>
 
             <button
               onClick={handleRetry}
-              className="mt-1 px-4 py-2 text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 hover:border-indigo-300 transition-all duration-200 active:scale-95"
+              className="mt-2 px-4 py-2 text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 hover:border-indigo-300 transition-all duration-200 active:scale-95"
             >
-              Coba Lagi
+              Coba Hubungkan Kembali
             </button>
           </div>
         </div>
@@ -200,7 +232,7 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
             BAHAYA
           </span>
         ) : (
-          !isOffline && (
+          connectionState === "live" && (
             <span className="absolute top-2 right-2 flex items-center gap-1 bg-emerald-500/80 text-white text-[10px] font-bold px-2 py-0.5 rounded z-10 backdrop-blur-sm">
               <ShieldCheck size={10} />
               AMAN

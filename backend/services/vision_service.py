@@ -297,6 +297,17 @@ def get_latest_frame_jpg():
     del buffer
     return result_bytes
 
+def get_latest_frame_bgr():
+    with frame_lock:
+        if latest_annotated_frame is not None:
+            frame_to_return = latest_annotated_frame.copy()
+        elif latest_frame is not None:
+            frame_to_return = latest_frame.copy()
+        else:
+            return None
+            
+    return frame_to_return
+
 def start_cctv_service():
     global frame_reader_thread, inference_thread, config_poll_thread
     print("🚀 Starting CCTV Background Services...")
