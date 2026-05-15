@@ -1,254 +1,435 @@
 "use client";
 
 import Link from "next/link";
-import { Flame, Eye, Cpu, Zap, Bell, ArrowRight, Activity, Globe, MessageCircle } from "lucide-react";
+import { Flame, Shield, Cpu, AlertTriangle, Eye, ArrowRight, User, Terminal, Database, Cloud, Sun, Moon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isAuthenticated } from "@/lib/auth";
+import { motion } from "framer-motion";
+
+// Reusable animation variants
+const fadeUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } }
+};
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.15
+    }
+  }
+};
+
+const flowLineVariant = {
+  hidden: { height: 0, opacity: 0 },
+  visible: { height: "100%", opacity: 1, transition: { duration: 0.8, ease: "easeInOut" } }
+};
 
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
   const [authed, setAuthed] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
   useEffect(() => {
     setMounted(true);
     setAuthed(isAuthenticated());
+    
+    // Read current theme state
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
+      setIsDarkMode(false);
+      document.documentElement.classList.remove('dark');
+    } else {
+      setIsDarkMode(true);
+      document.documentElement.classList.add('dark');
+    }
   }, []);
 
-  if (!mounted) return <div className="min-h-screen bg-ctp-base" />;
+  const toggleTheme = () => {
+    const newTheme = !isDarkMode;
+    setIsDarkMode(newTheme);
+    if (newTheme) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
+
+  if (!mounted) return <div className="min-h-screen bg-[#0f0f0f]" />;
 
   return (
-    <div className="min-h-screen flex flex-col bg-ctp-base">
+    <div className="relative min-h-screen flex flex-col overflow-hidden">
+      
       {/* ─── NAVBAR ─── */}
-      <nav className="sticky top-0 z-50 border-b border-ctp-crust bg-ctp-mantle/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-ctp-blue to-ctp-sapphire flex items-center justify-center shadow-lg shadow-ctp-blue/20">
-              <Flame size={18} className="text-white" />
-            </div>
-            <div>
-              <span className="font-bold text-ctp-text tracking-tight text-lg">Bomba</span>
-              <span className="font-bold text-ctp-blue tracking-tight text-lg">Fusion</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {authed ? (
-              <Link
-                href="/dashboard"
-                className="px-5 py-2.5 rounded-xl bg-ctp-blue text-white font-semibold text-sm hover:bg-ctp-sapphire transition-all duration-200 shadow-lg shadow-ctp-blue/25"
-              >
-                Go to Dashboard
-              </Link>
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  className="px-5 py-2.5 rounded-xl text-ctp-text font-medium text-sm hover:bg-ctp-surface0/60 transition-colors"
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/register"
-                  className="px-5 py-2.5 rounded-xl bg-ctp-blue text-white font-semibold text-sm hover:bg-ctp-sapphire transition-all duration-200 shadow-lg shadow-ctp-blue/25"
-                >
-                  Register
-                </Link>
-              </>
-            )}
+      <motion.nav 
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="fixed top-0 left-0 right-0 h-[64px] z-50 bg-[var(--color-canvas)]/80 backdrop-blur-xl border-b border-[var(--color-hairline)] flex items-center justify-between px-6 md:px-8 transition-colors duration-500"
+      >
+        <div className="flex items-center gap-2 cursor-pointer">
+          <Flame size={24} className="text-[var(--color-primary)] drop-shadow-sm" />
+          <div className="font-semibold text-[16px] tracking-tight text-[var(--color-body-strong)] transition-colors duration-500">
+            BombaFusion
           </div>
         </div>
-      </nav>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-full text-[var(--color-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface-card-elevated)] transition-all duration-300 focus:outline-none"
+            aria-label="Toggle Theme"
+          >
+            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
 
-      {/* ─── HERO ─── */}
-      <section className="relative overflow-hidden px-6 py-28 lg:py-36 flex flex-col items-center">
-        {/* Decorative background glow blobs */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-ctp-blue/8 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-ctp-red/6 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-ctp-sapphire/5 rounded-full blur-3xl pointer-events-none" />
+          <div className="w-px h-6 bg-[var(--color-hairline-strong)] mx-1"></div>
 
-        <div className="relative z-10 max-w-4xl text-center space-y-8">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-ctp-blue/10 border border-ctp-blue/20">
-            <Activity size={14} className="text-ctp-blue" />
-            <span className="text-xs font-semibold text-ctp-blue tracking-wide uppercase">Powered by Late-Fusion AI</span>
-          </div>
-
-          {/* Headline */}
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.1]">
-            <span className="text-ctp-text">Next-Gen</span>
-            <br />
-            <span className="bg-gradient-to-r from-ctp-blue via-ctp-sapphire to-ctp-teal bg-clip-text text-transparent">
-              Fire Detection
-            </span>
-            <br />
-            <span className="text-ctp-text">System</span>
-          </h1>
-
-          {/* Subtitle */}
-          <p className="text-lg md:text-xl text-ctp-subtext0 max-w-2xl mx-auto leading-relaxed">
-            Combining <strong className="text-ctp-text">YOLOv8 Computer Vision</strong>,{" "}
-            <strong className="text-ctp-text">Multi-Sensor IoT Data</strong>, and{" "}
-            <strong className="text-ctp-text">Late-Fusion AI</strong> for
-            unprecedented fire &amp; smoke detection accuracy.
-          </p>
-
-          {/* CTA */}
-          <div className="flex items-center justify-center gap-4 pt-4">
+          {authed ? (
             <Link
-              href={authed ? "/dashboard" : "/login"}
-              className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-ctp-blue text-white font-bold text-base hover:bg-ctp-sapphire transition-all duration-300 shadow-2xl shadow-ctp-blue/30 hover:shadow-ctp-sapphire/40 hover:scale-[1.02]"
+              href="/dashboard"
+              className="button-primary btn-text"
             >
-              Get Started
-              <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              Dashboard
             </Link>
-            <a
-              href="#features"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl border border-ctp-crust text-ctp-text font-semibold text-base hover:bg-ctp-mantle transition-all duration-200"
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="button-secondary-dark btn-text hidden sm:inline-flex"
+              >
+                Masuk
+              </Link>
+              <Link
+                href="/register"
+                className="button-primary btn-text shadow-sm hover:shadow-md"
+              >
+                Daftar
+              </Link>
+            </>
+          )}
+        </div>
+      </motion.nav>
+
+      <main className="relative z-10 flex-grow pt-[64px]">
+        {/* ─── HERO SECTION ─── */}
+        <section className="relative px-6 py-[96px] md:py-[120px] flex flex-col items-center justify-center">
+          {/* Spotlight Glow Backdrop */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: isDarkMode ? 0.2 : 0.4, scale: 1 }}
+            transition={{ duration: 1.5, ease: "easeOut" }}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[var(--color-primary-glow)] rounded-full blur-[150px] pointer-events-none z-0 transition-colors duration-700"
+          ></motion.div>
+
+          <motion.div 
+            variants={staggerContainer}
+            initial="hidden"
+            animate="visible"
+            className="max-w-5xl w-full space-y-10 relative z-10 flex flex-col items-center text-center"
+          >
+            <div className="flex flex-col items-center gap-6">
+              <motion.span variants={fadeUp} className="inline-flex items-center justify-center px-2.5 py-1 rounded-full bg-[var(--color-surface-card-elevated)] border border-[var(--color-hairline-strong)] text-[var(--color-body-strong)] caption-uppercase transition-colors duration-500 shadow-sm">
+                System Architecture v2.0
+              </motion.span>
+
+              <motion.h1 variants={fadeUp} className="display-mega md:display-mega text-[var(--color-body-strong)] max-w-4xl mx-auto leading-[1.05] transition-colors duration-500">
+                Next-Gen Fire Detection System
+              </motion.h1>
+
+              <motion.p variants={fadeUp} className="body-md text-[var(--color-muted)] max-w-2xl mx-auto transition-colors duration-500">
+                Menggabungkan keandalan Computer Vision, telemetri multi-sensor IoT, dan kecerdasan buatan Late-Fusion untuk akurasi deteksi tanpa preseden.
+              </motion.p>
+
+              <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <Link
+                  href={authed ? "/dashboard" : "/login"}
+                  className="button-primary flex items-center gap-2 shadow-sm hover:shadow-md"
+                >
+                  Live Dashboard
+                  <ArrowRight size={16} />
+                </Link>
+                <a
+                  href="#architecture"
+                  className="button-secondary-dark flex items-center gap-2 shadow-sm"
+                >
+                  <Terminal size={16} className="text-[var(--color-muted)]" />
+                  Lihat Arsitektur
+                </a>
+              </motion.div>
+            </div>
+          </motion.div>
+        </section>
+
+        {/* ─── COMPARISON SECTION ─── */}
+        <section className="px-6 pb-[96px] pt-[32px]">
+          <div className="max-w-5xl mx-auto">
+            <motion.div 
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              variants={fadeUp}
+              className="mb-16 text-center md:text-left"
             >
-              Learn More
-            </a>
-          </div>
-        </div>
-      </section>
+              <h2 className="display-lg text-[var(--color-body-strong)] mb-4 transition-colors duration-500">Kendala Produk Kami Dibanding Yang Lainnya</h2>
+              <p className="body-md text-[var(--color-muted)] transition-colors duration-500">Mengapa pendekatan tunggal seringkali gagal, dan bagaimana kami mengatasinya.</p>
+            </motion.div>
 
-      {/* ─── FEATURES GRID ─── */}
-      <section id="features" className="px-6 py-20 lg:py-28 bg-ctp-mantle border-t border-ctp-crust">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16 space-y-4">
-            <span className="text-xs font-bold uppercase tracking-widest text-ctp-blue">Core Capabilities</span>
-            <h2 className="text-3xl md:text-4xl font-bold text-ctp-text">Intelligent Threat Detection</h2>
-            <p className="text-ctp-subtext0 max-w-lg mx-auto">
-              Our multi-layered approach combines the best of vision AI and physical sensors.
-            </p>
-          </div>
+            <motion.div 
+              variants={staggerContainer}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-50px" }}
+              className="flex flex-col gap-6"
+            >
+              {/* Top: 2 Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+                <motion.div variants={fadeUp} className="feature-card flex flex-col justify-start shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:-translate-y-1 transition-transform duration-300">
+                  <div className="w-10 h-10 rounded-[8px] bg-[var(--color-surface-strong)] text-[var(--color-body-strong)] flex items-center justify-center mb-6 transition-colors duration-500 shadow-sm dark:shadow-none border border-[var(--color-hairline-soft)]">
+                    <AlertTriangle size={20} />
+                  </div>
+                  <h3 className="title-md text-[var(--color-body-strong)] mb-2 transition-colors duration-500">Kendala Sensor Konvensional</h3>
+                  <p className="body-md text-[var(--color-body)] transition-colors duration-500">
+                    Sistem lama hanya mengandalkan sensor asap yang pasif. Mereka harus menunggu partikel asap fisik masuk ke dalam alat, sehingga sangat terlambat menyadari kebakaran dan sering memicu alarm palsu akibat asap rokok atau aktivitas memasak biasa.
+                  </p>
+                </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Feature 1 */}
-            <div className="group relative p-8 rounded-2xl bg-ctp-base border border-ctp-crust hover:border-ctp-blue/30 transition-all duration-300 hover:shadow-xl hover:shadow-ctp-blue/5">
-              <div className="w-14 h-14 rounded-2xl bg-ctp-blue/10 flex items-center justify-center mb-6 group-hover:bg-ctp-blue/15 transition-colors">
-                <Eye size={28} className="text-ctp-blue" />
+                <motion.div variants={fadeUp} className="feature-card flex flex-col justify-start shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:-translate-y-1 transition-transform duration-300">
+                  <div className="w-10 h-10 rounded-[8px] bg-[var(--color-surface-strong)] text-[var(--color-body-strong)] flex items-center justify-center mb-6 transition-colors duration-500 shadow-sm dark:shadow-none border border-[var(--color-hairline-soft)]">
+                    <Eye size={20} />
+                  </div>
+                  <h3 className="title-md text-[var(--color-body-strong)] mb-2 transition-colors duration-500">Kendala Kamera Pintar Saja</h3>
+                  <p className="body-md text-[var(--color-body)] transition-colors duration-500">
+                    Kamera AI canggih memang cepat melihat api, namun sangat mudah terkecoh oleh pantulan cahaya matahari, lampu berkedip, atau warna cerah. Selain itu, kamera tidak bisa mendeteksi kebakaran jika terhalang oleh dinding atau objek besar.
+                  </p>
+                </motion.div>
               </div>
-              <h3 className="text-lg font-bold text-ctp-text mb-3">Real-Time RTSP Processing</h3>
-              <p className="text-sm text-ctp-subtext0 leading-relaxed">
-                Direct RTSP stream ingestion with YOLOv8 inference, delivering real-time threat
-                detection with bounding-box overlays at up to 20 FPS.
-              </p>
-            </div>
 
-            {/* Feature 2 */}
-            <div className="group relative p-8 rounded-2xl bg-ctp-base border border-ctp-crust hover:border-ctp-teal/30 transition-all duration-300 hover:shadow-xl hover:shadow-ctp-teal/5">
-              <div className="w-14 h-14 rounded-2xl bg-ctp-teal/10 flex items-center justify-center mb-6 group-hover:bg-ctp-teal/15 transition-colors">
-                <Cpu size={28} className="text-ctp-teal" />
+              {/* Bottom: 1 Full Card */}
+              <motion.div variants={fadeUp} className="feature-card flex flex-col md:flex-row items-center gap-8 relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:-translate-y-1 transition-transform duration-300">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-primary-glow)] rounded-full blur-[100px] opacity-[0.15] dark:opacity-10 pointer-events-none transition-opacity duration-500"></div>
+                
+                <div className="shrink-0 w-16 h-16 rounded-[8px] bg-[var(--color-primary)] text-[var(--color-on-primary)] flex items-center justify-center relative z-10 transition-colors duration-500 shadow-md">
+                  <Shield size={32} />
+                </div>
+                <div className="flex-1 relative z-10 text-center md:text-left">
+                  <h3 className="display-sm text-[var(--color-body-strong)] mb-2 transition-colors duration-500">Solusi Kami: Penggabungan Cerdas (Late-Fusion)</h3>
+                  <p className="body-md text-[var(--color-body)] transition-colors duration-500">
+                    Kami tidak memilih salah satu, kami menggunakan <span className="text-[var(--color-body-strong)] font-medium">keduanya</span>. Sistem kami memvalidasi penglihatan kamera pintar dengan data akurat dari sensor gas fisik secara bersamaan. Jika kamera melihat api tetapi sensor gas tidak merasakan anomali, sistem tidak akan panik. Hasilnya? Tingkat alarm palsu menurun drastis dan deteksi jauh lebih pasti.
+                  </p>
+                </div>
+              </motion.div>
+            </motion.div>
+          </div>
+        </section>
+
+        {/* ─── ARCHITECTURE SECTION ─── */}
+        <section id="architecture" className="px-6 py-[96px] border-t border-[var(--color-hairline)] transition-colors duration-500 overflow-hidden">
+          <div className="max-w-5xl mx-auto">
+            <motion.div 
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              variants={fadeUp}
+              className="mb-16 text-center md:text-left"
+            >
+              <h2 className="display-lg text-[var(--color-body-strong)] mb-4 transition-colors duration-500">Arsitektur Yang Digunakan</h2>
+              <p className="body-md text-[var(--color-muted)] transition-colors duration-500">Proses di balik layar bagaimana sistem kami melindungi Anda setiap detiknya.</p>
+            </motion.div>
+
+            {/* ─── VISUAL PIPELINE ARCHITECTURE ─── */}
+            <motion.div 
+              variants={staggerContainer}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              className="w-full flex flex-col items-center"
+            >
+              
+              {/* Step 1: Inputs */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-3xl relative z-10">
+                <motion.div variants={fadeUp} className="feature-card flex flex-col items-center text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:-translate-y-1 transition-transform duration-300">
+                  <div className="w-12 h-12 rounded-full bg-[var(--color-primary-glow)]/10 dark:bg-[var(--color-primary-glow)]/20 text-[var(--color-primary)] flex items-center justify-center mb-4 border border-[var(--color-primary-glow)]/30">
+                    <Eye size={24} />
+                  </div>
+                  <h3 className="title-md text-[var(--color-body-strong)] mb-2">Mata Digital (Kamera)</h3>
+                  <p className="body-sm text-[var(--color-muted)]">Mengawasi ruangan non-stop 30 kali per detik untuk mencari bentuk fisik api atau asap.</p>
+                </motion.div>
+
+                <motion.div variants={fadeUp} className="feature-card flex flex-col items-center text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:-translate-y-1 transition-transform duration-300">
+                  <div className="w-12 h-12 rounded-full bg-[var(--color-accent-violet)]/10 dark:bg-[var(--color-accent-violet)]/20 text-[var(--color-accent-violet)] flex items-center justify-center mb-4 border border-[var(--color-accent-violet)]/30">
+                    <Flame size={24} />
+                  </div>
+                  <h3 className="title-md text-[var(--color-body-strong)] mb-2">Hidung Digital (Sensor)</h3>
+                  <p className="body-sm text-[var(--color-muted)]">Mendeteksi anomali suhu dan gas berbahaya secara langsung di udara sekitar.</p>
+                </motion.div>
               </div>
-              <h3 className="text-lg font-bold text-ctp-text mb-3">Multi-Sensor Data Fusion</h3>
-              <p className="text-sm text-ctp-subtext0 leading-relaxed">
-                CNG, CO, LPG, smoke, and flame sensor readings fused with CCTV vision data
-                using Isolation Forest anomaly detection for robust risk scoring.
-              </p>
-            </div>
 
-            {/* Feature 3 */}
-            <div className="group relative p-8 rounded-2xl bg-ctp-base border border-ctp-crust hover:border-ctp-peach/30 transition-all duration-300 hover:shadow-xl hover:shadow-ctp-peach/5">
-              <div className="w-14 h-14 rounded-2xl bg-ctp-peach/10 flex items-center justify-center mb-6 group-hover:bg-ctp-peach/15 transition-colors">
-                <Bell size={28} className="text-ctp-peach" />
+              {/* Connecting Lines Downwards */}
+              <div className="flex w-full max-w-md justify-around relative h-20 -my-3 z-0 hidden md:flex">
+                 {/* Left line: Kamera to Engine */}
+                 <div className="w-[4px] h-full rounded-full bg-[var(--color-surface-card-elevated)] border-x border-[var(--color-hairline)] relative overflow-hidden">
+                    <motion.div variants={flowLineVariant} className="absolute left-0 w-full bg-gradient-to-b from-transparent via-[var(--color-primary)] to-[var(--color-primary-glow)] animate-data-flow"></motion.div>
+                 </div>
+                 {/* Right line: Sensor to Engine */}
+                 <div className="w-[4px] h-full rounded-full bg-[var(--color-surface-card-elevated)] border-x border-[var(--color-hairline)] relative overflow-hidden">
+                    <motion.div variants={flowLineVariant} className="absolute left-0 w-full bg-gradient-to-b from-transparent via-[var(--color-accent-violet)] to-[#b084f6] animate-data-flow" style={{ animationDelay: '0.7s' }}></motion.div>
+                 </div>
               </div>
-              <h3 className="text-lg font-bold text-ctp-text mb-3">Automated Threat Alerts</h3>
-              <p className="text-sm text-ctp-subtext0 leading-relaxed">
-                Instant fusion alerts with risk scoring, evidence snapshots uploaded to cloud
-                storage, and a real-time incident log delivered to your dashboard.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* ─── STATS BAR ─── */}
-      <section className="px-6 py-16 bg-ctp-base border-t border-ctp-crust">
-        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          <div>
-            <p className="text-3xl font-bold text-ctp-blue">5+</p>
-            <p className="text-xs text-ctp-subtext0 mt-1 uppercase tracking-wide font-medium">Sensor Types</p>
+              {/* Mobile connecting line */}
+              <div className="w-[4px] h-12 rounded-full bg-[var(--color-surface-card-elevated)] border-x border-[var(--color-hairline)] relative overflow-hidden md:hidden my-3 mx-auto z-0">
+                <motion.div variants={flowLineVariant} className="absolute left-0 w-full bg-gradient-to-b from-transparent via-[var(--color-primary)] to-[var(--color-primary-glow)] animate-data-flow"></motion.div>
+              </div>
+
+              {/* Step 2: Engine */}
+              <motion.div variants={fadeUp} className="feature-card w-full max-w-3xl relative z-10 flex flex-col items-center text-center border-[var(--color-primary)]/50 shadow-[0_0_40px_var(--color-primary-glow)] dark:shadow-none hover:-translate-y-1 transition-transform duration-300">
+                <div className="absolute inset-0 bg-[var(--color-primary-glow)]/5 dark:bg-[var(--color-primary-glow)]/10 rounded-[16px] pointer-events-none"></div>
+                <div className="w-16 h-16 rounded-full bg-[var(--color-surface-strong)] text-[var(--color-body-strong)] flex items-center justify-center mb-4 shadow-md border border-[var(--color-hairline-strong)]">
+                  <Cpu size={32} />
+                </div>
+                <h3 className="display-sm text-[var(--color-body-strong)] mb-2">Otak Utama (Late-Fusion Engine)</h3>
+                <p className="body-md text-[var(--color-muted)] mb-6">
+                  Sistem AI pusat ini menyatukan dan menganalisis laporan dari <strong>Kamera</strong> dan <strong>Sensor</strong> secara bersamaan. Ia secara cerdas menyaring alarm palsu dan hanya akan membunyikan tanda bahaya jika kedua perangkat memvalidasi ancaman.
+                </p>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--color-surface-card-elevated)] border border-[var(--color-hairline-strong)]">
+                   <div className="w-2 h-2 rounded-full bg-[var(--color-semantic-success)] animate-pulse shadow-[0_0_8px_var(--color-semantic-success)]"></div>
+                   <span className="caption text-[var(--color-body-strong)] font-code">Validasi silang aktif</span>
+                </div>
+              </motion.div>
+
+              {/* Connecting Line to Output */}
+              <div className="h-20 w-[4px] rounded-full bg-[var(--color-surface-card-elevated)] border-x border-[var(--color-hairline)] relative overflow-hidden -my-3 z-0 hidden md:block">
+                 <motion.div variants={flowLineVariant} className="absolute left-0 w-full bg-gradient-to-b from-transparent via-[var(--color-semantic-success)] to-[#4de393] animate-data-flow" style={{ animationDelay: '1.2s' }}></motion.div>
+              </div>
+              <div className="w-[4px] h-12 rounded-full bg-[var(--color-surface-card-elevated)] border-x border-[var(--color-hairline)] relative overflow-hidden md:hidden my-3 mx-auto z-0">
+                 <motion.div variants={flowLineVariant} className="absolute left-0 w-full bg-gradient-to-b from-transparent via-[var(--color-semantic-success)] to-[#4de393] animate-data-flow"></motion.div>
+              </div>
+
+              {/* Step 3: Result */}
+              <motion.div variants={fadeUp} className="feature-card w-full max-w-md flex flex-col items-center text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-[var(--color-surface-strong)] border-[var(--color-semantic-success)]/30 hover:-translate-y-1 transition-transform duration-300 z-10">
+                <div className="w-12 h-12 rounded-full bg-[var(--color-semantic-success)] text-[var(--color-canvas)] flex items-center justify-center mb-4 shadow-[0_0_15px_var(--color-semantic-success)]">
+                  <Shield size={24} />
+                </div>
+                <h3 className="title-md text-[var(--color-body-strong)] mb-1">Ruangan Anda Terlindungi</h3>
+                <p className="body-sm text-[var(--color-muted)]">Bebas dari kepanikan akibat alarm palsu.</p>
+              </motion.div>
+
+            </motion.div>
           </div>
-          <div>
-            <p className="text-3xl font-bold text-ctp-teal">&lt;2s</p>
-            <p className="text-xs text-ctp-subtext0 mt-1 uppercase tracking-wide font-medium">Detection Latency</p>
+        </section>
+
+        {/* ─── TEAM SECTION ─── */}
+        <section className="py-[96px] border-t border-[var(--color-hairline)] transition-colors duration-500 overflow-hidden">
+          <div className="max-w-5xl mx-auto px-6">
+            <motion.div 
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              variants={fadeUp}
+              className="mb-16 text-center md:text-left"
+            >
+              <h2 className="display-lg text-[var(--color-body-strong)] mb-4 transition-colors duration-500">Meet Our Developers</h2>
+              <p className="body-md text-[var(--color-muted)] transition-colors duration-500">Tim pengembang berdedikasi di balik arsitektur BombaFusion.</p>
+            </motion.div>
+
+            {/* Grid 3 Top, 2 Bottom Layout */}
+            <motion.div 
+              variants={staggerContainer}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-50px" }}
+              className="flex flex-col gap-6"
+            >
+              
+              {/* Top 3 */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                {[
+                  { name: "Muhammad Tammam Tanjung", nim: "2307412024" },
+                  { name: "Nalendra Regina Khanza", nim: "2307412011" },
+                  { name: "Naufal Hasan", nim: "2307412010" }
+                ].map((member, idx) => (
+                  <motion.div
+                    variants={fadeUp}
+                    key={idx}
+                    className="feature-card flex flex-col items-center text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-[0_10px_40px_rgb(0,0,0,0.08)]"
+                  >
+                    <div className="w-[64px] h-[64px] rounded-[9999px] bg-[var(--color-surface-strong)] flex items-center justify-center mb-6 border border-[var(--color-hairline-strong)] transition-colors duration-500 shadow-sm dark:shadow-none">
+                       <User size={24} className="text-[var(--color-muted)]" />
+                    </div>
+                    <h4 className="title-md text-[var(--color-body-strong)] mb-1 transition-colors duration-500">{member.name}</h4>
+                    <p className="caption text-[var(--color-muted)] mb-6 font-code transition-colors duration-500">ID: {member.nim}</p>
+                    <div className="mt-auto inline-flex items-center px-2 py-1 bg-[var(--color-surface-card-elevated)] rounded-[4px] border border-[var(--color-hairline)] transition-colors duration-500 shadow-sm dark:shadow-none">
+                      <span className="caption-uppercase text-[var(--color-muted)]">PNJ Developer</span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Bottom 2 Centered */}
+              <div className="flex flex-col sm:flex-row justify-center gap-6">
+                {[
+                  { name: "Nizham Aufar", nim: "2307412016" },
+                  { name: "Venu Wicaksono", nim: "2307412028" }
+                ].map((member, idx) => (
+                  <motion.div
+                    variants={fadeUp}
+                    key={idx}
+                    className="feature-card w-full sm:w-[calc(33.333%-1rem)] flex flex-col items-center text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-[0_10px_40px_rgb(0,0,0,0.08)]"
+                  >
+                    <div className="w-[64px] h-[64px] rounded-[9999px] bg-[var(--color-surface-strong)] flex items-center justify-center mb-6 border border-[var(--color-hairline-strong)] transition-colors duration-500 shadow-sm dark:shadow-none">
+                       <User size={24} className="text-[var(--color-muted)]" />
+                    </div>
+                    <h4 className="title-md text-[var(--color-body-strong)] mb-1 transition-colors duration-500">{member.name}</h4>
+                    <p className="caption text-[var(--color-muted)] mb-6 font-code transition-colors duration-500">ID: {member.nim}</p>
+                    <div className="mt-auto inline-flex items-center px-2 py-1 bg-[var(--color-surface-card-elevated)] rounded-[4px] border border-[var(--color-hairline)] transition-colors duration-500 shadow-sm dark:shadow-none">
+                      <span className="caption-uppercase text-[var(--color-muted)]">PNJ Developer</span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+            </motion.div>
+
           </div>
-          <div>
-            <p className="text-3xl font-bold text-ctp-peach">24/7</p>
-            <p className="text-xs text-ctp-subtext0 mt-1 uppercase tracking-wide font-medium">Monitoring</p>
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-ctp-lavender">YOLOv8</p>
-            <p className="text-xs text-ctp-subtext0 mt-1 uppercase tracking-wide font-medium">Vision Model</p>
-          </div>
-        </div>
-      </section>
+        </section>
+      </main>
 
       {/* ─── FOOTER ─── */}
-      <footer className="bg-ctp-mantle border-t border-ctp-crust pt-16 pb-8">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 lg:gap-8 mb-12">
-            {/* Brand Column */}
-            <div className="md:col-span-1 space-y-4">
-              <div className="flex items-center gap-2">
-                <Flame size={20} className="text-ctp-blue" />
-                <span className="font-bold text-lg text-ctp-text tracking-tight">Bomba<span className="text-ctp-blue">Fusion</span></span>
-              </div>
-              <p className="text-sm text-ctp-subtext0 leading-relaxed">
-                Advanced IoT fire and smoke detection leveraging multi-sensor data and Late-Fusion AI for absolute facility safety.
-              </p>
-              <div className="flex items-center gap-4 pt-2">
-                <a href="#" className="w-8 h-8 rounded-full bg-ctp-base border border-ctp-crust flex items-center justify-center text-ctp-subtext0 hover:text-ctp-blue hover:border-ctp-blue/30 transition-all">
-                  <MessageCircle size={14} />
-                </a>
-                <a href="#" className="w-8 h-8 rounded-full bg-ctp-base border border-ctp-crust flex items-center justify-center text-ctp-subtext0 hover:text-ctp-text hover:border-ctp-surface1 transition-all">
-                  <Globe size={14} />
-                </a>
-              </div>
-            </div>
-
-            {/* Links Columns */}
-            <div>
-              <h4 className="font-semibold text-ctp-text mb-4 text-sm">Product</h4>
-              <ul className="space-y-3 text-sm text-ctp-subtext0">
-                <li><a href="#features" className="hover:text-ctp-blue transition-colors">Features</a></li>
-                <li><a href="#" className="hover:text-ctp-blue transition-colors">Integrations</a></li>
-                <li><a href="/login" className="hover:text-ctp-blue transition-colors">Dashboard</a></li>
-                <li><a href="#" className="hover:text-ctp-blue transition-colors">Changelog</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-semibold text-ctp-text mb-4 text-sm">Resources</h4>
-              <ul className="space-y-3 text-sm text-ctp-subtext0">
-                <li><a href="#" className="hover:text-ctp-blue transition-colors">Documentation</a></li>
-                <li><a href="#" className="hover:text-ctp-blue transition-colors">Hardware Setup</a></li>
-                <li><a href="#" className="hover:text-ctp-blue transition-colors">API Reference</a></li>
-                <li><a href="#" className="hover:text-ctp-blue transition-colors">Community</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-semibold text-ctp-text mb-4 text-sm">Company</h4>
-              <ul className="space-y-3 text-sm text-ctp-subtext0">
-                <li><a href="#" className="hover:text-ctp-blue transition-colors">About Us</a></li>
-                <li><a href="#" className="hover:text-ctp-blue transition-colors">Contact Support</a></li>
-                <li><a href="#" className="hover:text-ctp-blue transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-ctp-blue transition-colors">Terms of Service</a></li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="pt-8 border-t border-ctp-crust flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-ctp-overlay0">
-              © {new Date().getFullYear()} BombaFusion. Built for enterprise safety.
-            </p>
+      <footer className="bg-[var(--color-canvas)]/80 backdrop-blur-lg border-t border-[var(--color-hairline)] p-[64px_32px] transition-colors duration-500 relative z-10">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start justify-between gap-12">
+          
+          <div className="flex flex-col items-start gap-4">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-ctp-green animate-pulse"></span>
-              <span className="text-xs text-ctp-green font-medium">All systems operational</span>
+              <Flame size={24} className="text-[var(--color-muted)]" />
+              <span className="font-semibold text-sm text-[var(--color-muted)] transition-colors duration-500">BombaFusion</span>
             </div>
+            <p className="body-sm text-[var(--color-muted)] max-w-xs transition-colors duration-500">
+              &copy; 2026 BombaFusion.<br/>
+              Developer Infrastructure for Fire Detection.
+            </p>
           </div>
+
+          <div className="flex flex-wrap gap-12">
+             <div className="flex flex-col gap-3">
+               <span className="title-sm text-[var(--color-body-strong)] transition-colors duration-500">Resources</span>
+               <a href="https://github.com/Tammam" target="_blank" rel="noreferrer" className="body-sm text-[var(--color-muted)] hover:text-[var(--color-body-strong)] transition-colors flex items-center gap-2">
+                  <Database size={14} /> Repository
+               </a>
+               <a href="#" className="body-sm text-[var(--color-muted)] hover:text-[var(--color-body-strong)] transition-colors flex items-center gap-2">
+                  <Cloud size={14} /> Documentation
+               </a>
+             </div>
+          </div>
+
         </div>
       </footer>
+
     </div>
   );
 }
