@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { getDevices, getDashboardSensors, getLatestSensor, getLatestVision, getAlerts, getCalibrationStatus, CalibrationStatus, setCalibrationConfig } from "@/lib/api";
+import { getDevices, getDashboardSensors, getLatestVision, getAlerts, getCalibrationStatus, CalibrationStatus, setCalibrationConfig } from "@/lib/api";
 import { Activity, Bell, Flame, Gauge, Wind, Droplets, ChevronDown, MapPin, Server, Download, BrainCircuit, Settings2, Thermometer, Zap } from "lucide-react";
 
 import { SensorLog, VisionLog, FusionAlert, Device } from "@/types";
 import { fmtTime } from "@/lib/utils";
 import { getToken } from "@/lib/auth";
+import { supabase } from "@/lib/supabaseClient";
 
 import { StatusBanner } from "@/components/dashboard/StatusBanner";
 import { MetricCard } from "@/components/ui/MetricCard";
@@ -14,13 +15,15 @@ import { LiveCCTVCard } from "@/components/dashboard/LiveCCTVCard";
 import { IncidentLog } from "@/components/dashboard/IncidentLog";
 import dynamic from "next/dynamic";
 
+import type { RealtimeChannel, RealtimePostgresInsertPayload } from "@supabase/supabase-js";
+
 const GasTrendChart = dynamic(
   () => import("@/components/dashboard/GasTrendChart").then((mod) => mod.GasTrendChart),
   { ssr: false }
 );
 
-// Polling interval in ms (3 seconds provides near-realtime feel)
-const POLL_INTERVAL = 3000;
+// Maximum number of data points in the sliding window for the chart
+const MAX_HISTORY = 15;
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
@@ -58,10 +61,12 @@ export default function DashboardPage() {
     }
   };
 
-  // Keep a ref to track last known sensor timestamp to detect new entries
-  const lastSensorTs = useRef<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
+
+  // Keep refs to channels for cleanup
+  const sensorChannelRef = useRef<RealtimeChannel | null>(null);
+  const alertChannelRef = useRef<RealtimeChannel | null>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -98,22 +103,20 @@ export default function DashboardPage() {
     fetchDevices();
   }, []);
 
-  // ─── Fetch all dashboard data from Backend API ─────────────────────
+  // ─── Fetch all dashboard data from Backend API (ONE-TIME) ──────────
   const fetchDashboardData = useCallback(async () => {
     if (!selectedDeviceId) return;
     try {
       // Fetch last 15 sensor readings for the SELECTED device
-      const sensors = await getDashboardSensors(selectedDeviceId, 15);
+      const sensors = await getDashboardSensors(selectedDeviceId, MAX_HISTORY);
       if (sensors && sensors.length > 0) {
         // API returns desc order, reverse for chronological chart
         const chronological = [...sensors].reverse();
         setLatestSensor(sensors[0]);
         setSensorHistory(chronological);
-        lastSensorTs.current = sensors[0].recorded_at;
       } else {
         setLatestSensor(null);
         setSensorHistory([]);
-        lastSensorTs.current = null;
       }
 
       // Fetch latest vision log
@@ -131,54 +134,110 @@ export default function DashboardPage() {
       const calib = await getCalibrationStatus();
       if (calib) setCalibration(calib);
     } catch (err) {
-      console.log("[Dashboard] Error fetching data:", err);
+      console.log("[Dashboard] Error fetching initial data:", err);
     }
   }, [selectedDeviceId]);
 
-  // ─── Lightweight poll for realtime-like updates ────────────────────
-  const pollForUpdates = useCallback(async () => {
-    if (!selectedDeviceId) return;
-    try {
-      // Poll latest sensor for the SELECTED device
-      const sensor = await getLatestSensor(selectedDeviceId);
-      if (sensor && sensor.recorded_at !== lastSensorTs.current) {
-        setLatestSensor(sensor);
-        setSensorHistory((prev) => [...prev, sensor].slice(-15));
-        lastSensorTs.current = sensor.recorded_at;
-      }
-
-      // Poll latest vision
-      const vision = await getLatestVision();
-      if (vision) setLatestVision(vision);
-
-      // Poll alerts GLOBALLY — DO NOT filter by device
-      const alerts = await getAlerts(10);
-      if (alerts && alerts.length > 0) {
-        setLatestAlert(alerts[0]);
-        setAlertsList(alerts);
-      }
-
-      // Poll calibration
-      const calib = await getCalibrationStatus();
-      if (calib) setCalibration(calib);
-    } catch (err) {
-      console.log("[Dashboard] Polling error:", err);
-    }
-  }, [selectedDeviceId]);
-
-  // Trigger full refetch when selectedDeviceId changes
+  // ─── Initial fetch + Supabase Realtime Subscriptions ───────────────
   useEffect(() => {
-    if (selectedDeviceId) {
-      fetchDashboardData();
-    }
+    if (!selectedDeviceId) return;
+
+    // 1) One-time initial data load via REST API
+    fetchDashboardData();
+
+    // 2) Subscribe to Supabase Realtime: sensor_logs (INSERT)
+    //    Only react to inserts for the currently selected device
+    const sensorChannel = supabase
+      .channel(`realtime-sensor-${selectedDeviceId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "sensor_logs",
+          filter: `device_id=eq.${selectedDeviceId}`,
+        },
+        (payload: RealtimePostgresInsertPayload<Record<string, unknown>>) => {
+          const newRow = payload.new as unknown as SensorLog;
+          console.log("[Realtime] New sensor_log:", newRow.recorded_at);
+
+          // Update latest sensor reading
+          setLatestSensor(newRow);
+
+          // Sliding window: append new data, keep max MAX_HISTORY points
+          setSensorHistory((prev) => [...prev, newRow].slice(-MAX_HISTORY));
+        }
+      )
+      .subscribe((status) => {
+        console.log("[Realtime] sensor_logs channel status:", status);
+      });
+
+    sensorChannelRef.current = sensorChannel;
+
+    // 3) Subscribe to Supabase Realtime: fusion_alerts (INSERT + UPDATE)
+    //    Listen globally — alerts can come from any device
+    const alertChannel = supabase
+      .channel("realtime-alerts")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "fusion_alerts",
+        },
+        (payload: RealtimePostgresInsertPayload<Record<string, unknown>>) => {
+          const newAlert = payload.new as unknown as FusionAlert;
+          console.log("[Realtime] New alert:", newAlert.risk_level, newAlert.alert_message);
+
+          // New alert becomes the latest
+          setLatestAlert(newAlert);
+
+          // Prepend to the alerts list, keep max 10
+          setAlertsList((prev) => [newAlert, ...prev].slice(0, 10));
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "fusion_alerts",
+        },
+        (payload) => {
+          const updated = payload.new as unknown as FusionAlert;
+          console.log("[Realtime] Alert updated:", updated.id, "resolved:", updated.is_resolved);
+
+          // Update in-place within the alerts list
+          setAlertsList((prev) =>
+            prev.map((a) => (a.id === updated.id ? updated : a))
+          );
+
+          // If the latest alert was resolved, recalculate latestAlert
+          setLatestAlert((prev) => {
+            if (prev && prev.id === updated.id) return updated;
+            return prev;
+          });
+        }
+      )
+      .subscribe((status) => {
+        console.log("[Realtime] fusion_alerts channel status:", status);
+      });
+
+    alertChannelRef.current = alertChannel;
+
+    // 4) Cleanup: unsubscribe channels on unmount or device change
+    return () => {
+      console.log("[Realtime] Cleaning up channels for device:", selectedDeviceId);
+      if (sensorChannelRef.current) {
+        supabase.removeChannel(sensorChannelRef.current);
+        sensorChannelRef.current = null;
+      }
+      if (alertChannelRef.current) {
+        supabase.removeChannel(alertChannelRef.current);
+        alertChannelRef.current = null;
+      }
+    };
   }, [selectedDeviceId, fetchDashboardData]);
-
-  // Start polling interval for near-realtime updates
-  useEffect(() => {
-    if (!selectedDeviceId) return;
-    const intervalId = setInterval(pollForUpdates, POLL_INTERVAL);
-    return () => clearInterval(intervalId);
-  }, [selectedDeviceId, pollForUpdates]);
 
   const chartData = useMemo(() => sensorHistory.map((s) => ({
     time: mounted ? fmtTime(s.recorded_at) : "",
@@ -219,13 +278,15 @@ export default function DashboardPage() {
   const isSystemInDanger = latestAlert ? !latestAlert.is_resolved : false;
 
   const checkFeatureWarn = useCallback((feature: string) => {
-    if (!calibration?.error_per_fitur || !calibration?.threshold_per_fitur) return isSystemInDanger;
+    // If there's an active unresolved alert, ALL cards turn red
+    if (isSystemInDanger) return true;
+    if (!calibration?.error_per_fitur || !calibration?.threshold_per_fitur) return false;
     const err = calibration.error_per_fitur[feature];
     const thr = calibration.threshold_per_fitur[feature];
     if (err !== undefined && thr !== undefined) {
       return err > thr;
     }
-    return isSystemInDanger;
+    return false;
   }, [calibration, isSystemInDanger]);
 
   const getFeatureProgress = useCallback((feature: string) => {
