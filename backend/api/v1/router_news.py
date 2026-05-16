@@ -74,23 +74,30 @@ def get_fire_news(
         )
 
     try:
-        response = requests.get(
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry
+
+        session = requests.Session()
+        retries = Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+        session.mount("https://", HTTPAdapter(max_retries=retries))
+
+        response = session.get(
             NEWSDATA_BASE_URL,
             params={
                 "apikey": NEWSDATA_API_KEY,
                 "q": q,
                 "language": language,
             },
-            timeout=15,
+            timeout=30, # Increased from 15 to 30
         )
         response.raise_for_status()
         data = response.json()
 
     except requests.exceptions.Timeout:
-        logger.error("[News] Timeout saat mengambil berita dari NewsData.io")
+        logger.error("[News] Timeout saat mengambil berita dari NewsData.io setelah 30 detik")
         raise HTTPException(
             status_code=504,
-            detail="Timeout saat mengambil berita. Silakan coba lagi.",
+            detail="Timeout saat mengambil berita (NewsData.io lambat). Silakan coba lagi.",
         )
     except requests.exceptions.RequestException as e:
         logger.error(f"[News] Error dari NewsData.io: {e}")
