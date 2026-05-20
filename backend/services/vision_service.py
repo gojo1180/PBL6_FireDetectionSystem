@@ -151,12 +151,12 @@ def cctv_inference_loop():
                 annotated_img = frame_to_process
 
             # Streak Counter Logic for False Positive Mitigation
-            if fire_conf > 0.6:
+            if fire_conf > 0.55:
                 fire_streak += 1
             else:
                 fire_streak = 0
             
-            if smoke_conf > 0.68:
+            if smoke_conf > 0.65:
                 smoke_streak += 1
             else:
                 smoke_streak = 0

@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } }
-};
+} as const;
 
 const staggerContainer = {
   hidden: { opacity: 0 },
@@ -20,12 +20,12 @@ const staggerContainer = {
       staggerChildren: 0.15
     }
   }
-};
+} as const;
 
 const flowLineVariant = {
   hidden: { height: 0, opacity: 0 },
   visible: { height: "100%", opacity: 1, transition: { duration: 0.8, ease: "easeInOut" } }
-};
+} as const;
 
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
@@ -35,11 +35,11 @@ export default function LandingPage() {
   useEffect(() => {
     setMounted(true);
     setAuthed(isAuthenticated());
-    
+
     // Read current theme state
     const savedTheme = localStorage.getItem('theme');
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
+
     if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
       setIsDarkMode(false);
       document.documentElement.classList.remove('dark');
@@ -65,9 +65,9 @@ export default function LandingPage() {
 
   return (
     <div className="relative min-h-screen flex flex-col overflow-hidden">
-      
+
       {/* ─── NAVBAR ─── */}
-      <motion.nav 
+      <motion.nav
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
@@ -76,7 +76,7 @@ export default function LandingPage() {
         <div className="flex items-center gap-2 cursor-pointer">
           <Flame size={24} className="text-[var(--color-primary)] drop-shadow-sm" />
           <div className="font-semibold text-[16px] tracking-tight text-[var(--color-body-strong)] transition-colors duration-500">
-            BombaFusion
+            BombaAI
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -120,14 +120,14 @@ export default function LandingPage() {
         {/* ─── HERO SECTION ─── */}
         <section className="relative px-6 py-[96px] md:py-[120px] flex flex-col items-center justify-center">
           {/* Spotlight Glow Backdrop */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: isDarkMode ? 0.2 : 0.4, scale: 1 }}
             transition={{ duration: 1.5, ease: "easeOut" }}
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[var(--color-primary-glow)] rounded-full blur-[150px] pointer-events-none z-0 transition-colors duration-700"
           ></motion.div>
 
-          <motion.div 
+          <motion.div
             variants={staggerContainer}
             initial="hidden"
             animate="visible"
@@ -169,7 +169,7 @@ export default function LandingPage() {
         {/* ─── COMPARISON SECTION ─── */}
         <section className="px-6 pb-[96px] pt-[32px]">
           <div className="max-w-5xl mx-auto">
-            <motion.div 
+            <motion.div
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: "-100px" }}
@@ -180,7 +180,7 @@ export default function LandingPage() {
               <p className="body-md text-[var(--color-muted)] transition-colors duration-500">Mengapa pendekatan tunggal seringkali gagal, dan bagaimana kami mengatasinya.</p>
             </motion.div>
 
-            <motion.div 
+            <motion.div
               variants={staggerContainer}
               initial="hidden"
               whileInView="visible"
@@ -213,7 +213,7 @@ export default function LandingPage() {
               {/* Bottom: 1 Full Card */}
               <motion.div variants={fadeUp} className="feature-card flex flex-col md:flex-row items-center gap-8 relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:-translate-y-1 transition-transform duration-300">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-primary-glow)] rounded-full blur-[100px] opacity-[0.15] dark:opacity-10 pointer-events-none transition-opacity duration-500"></div>
-                
+
                 <div className="shrink-0 w-16 h-16 rounded-[8px] bg-[var(--color-primary)] text-[var(--color-on-primary)] flex items-center justify-center relative z-10 transition-colors duration-500 shadow-md">
                   <Shield size={32} />
                 </div>
@@ -231,7 +231,7 @@ export default function LandingPage() {
         {/* ─── ARCHITECTURE SECTION ─── */}
         <section id="architecture" className="px-6 py-[96px] border-t border-[var(--color-hairline)] transition-colors duration-500 overflow-hidden">
           <div className="max-w-5xl mx-auto">
-            <motion.div 
+            <motion.div
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: "-100px" }}
@@ -243,14 +243,14 @@ export default function LandingPage() {
             </motion.div>
 
             {/* ─── VISUAL PIPELINE ARCHITECTURE ─── */}
-            <motion.div 
+            <motion.div
               variants={staggerContainer}
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: "-100px" }}
               className="w-full flex flex-col items-center"
             >
-              
+
               {/* Step 1: Inputs */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-3xl relative z-10">
                 <motion.div variants={fadeUp} className="feature-card flex flex-col items-center text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:-translate-y-1 transition-transform duration-300">
@@ -272,14 +272,14 @@ export default function LandingPage() {
 
               {/* Connecting Lines Downwards */}
               <div className="flex w-full max-w-md justify-around relative h-20 -my-3 z-0 hidden md:flex">
-                 {/* Left line: Kamera to Engine */}
-                 <div className="w-[4px] h-full rounded-full bg-[var(--color-surface-card-elevated)] border-x border-[var(--color-hairline)] relative overflow-hidden">
-                    <motion.div variants={flowLineVariant} className="absolute left-0 w-full bg-gradient-to-b from-transparent via-[var(--color-primary)] to-[var(--color-primary-glow)] animate-data-flow"></motion.div>
-                 </div>
-                 {/* Right line: Sensor to Engine */}
-                 <div className="w-[4px] h-full rounded-full bg-[var(--color-surface-card-elevated)] border-x border-[var(--color-hairline)] relative overflow-hidden">
-                    <motion.div variants={flowLineVariant} className="absolute left-0 w-full bg-gradient-to-b from-transparent via-[var(--color-accent-violet)] to-[#b084f6] animate-data-flow" style={{ animationDelay: '0.7s' }}></motion.div>
-                 </div>
+                {/* Left line: Kamera to Engine */}
+                <div className="w-[4px] h-full rounded-full bg-[var(--color-surface-card-elevated)] border-x border-[var(--color-hairline)] relative overflow-hidden">
+                  <motion.div variants={flowLineVariant} className="absolute left-0 w-full bg-gradient-to-b from-transparent via-[var(--color-primary)] to-[var(--color-primary-glow)] animate-data-flow"></motion.div>
+                </div>
+                {/* Right line: Sensor to Engine */}
+                <div className="w-[4px] h-full rounded-full bg-[var(--color-surface-card-elevated)] border-x border-[var(--color-hairline)] relative overflow-hidden">
+                  <motion.div variants={flowLineVariant} className="absolute left-0 w-full bg-gradient-to-b from-transparent via-[var(--color-accent-violet)] to-[#b084f6] animate-data-flow" style={{ animationDelay: '0.7s' }}></motion.div>
+                </div>
               </div>
 
               {/* Mobile connecting line */}
@@ -298,17 +298,17 @@ export default function LandingPage() {
                   Sistem AI pusat ini menyatukan dan menganalisis laporan dari <strong>Kamera</strong> dan <strong>Sensor</strong> secara bersamaan. Ia secara cerdas menyaring alarm palsu dan hanya akan membunyikan tanda bahaya jika kedua perangkat memvalidasi ancaman.
                 </p>
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--color-surface-card-elevated)] border border-[var(--color-hairline-strong)]">
-                   <div className="w-2 h-2 rounded-full bg-[var(--color-semantic-success)] animate-pulse shadow-[0_0_8px_var(--color-semantic-success)]"></div>
-                   <span className="caption text-[var(--color-body-strong)] font-code">Validasi silang aktif</span>
+                  <div className="w-2 h-2 rounded-full bg-[var(--color-semantic-success)] animate-pulse shadow-[0_0_8px_var(--color-semantic-success)]"></div>
+                  <span className="caption text-[var(--color-body-strong)] font-code">Validasi silang aktif</span>
                 </div>
               </motion.div>
 
               {/* Connecting Line to Output */}
               <div className="h-20 w-[4px] rounded-full bg-[var(--color-surface-card-elevated)] border-x border-[var(--color-hairline)] relative overflow-hidden -my-3 z-0 hidden md:block">
-                 <motion.div variants={flowLineVariant} className="absolute left-0 w-full bg-gradient-to-b from-transparent via-[var(--color-semantic-success)] to-[#4de393] animate-data-flow" style={{ animationDelay: '1.2s' }}></motion.div>
+                <motion.div variants={flowLineVariant} className="absolute left-0 w-full bg-gradient-to-b from-transparent via-[var(--color-semantic-success)] to-[#4de393] animate-data-flow" style={{ animationDelay: '1.2s' }}></motion.div>
               </div>
               <div className="w-[4px] h-12 rounded-full bg-[var(--color-surface-card-elevated)] border-x border-[var(--color-hairline)] relative overflow-hidden md:hidden my-3 mx-auto z-0">
-                 <motion.div variants={flowLineVariant} className="absolute left-0 w-full bg-gradient-to-b from-transparent via-[var(--color-semantic-success)] to-[#4de393] animate-data-flow"></motion.div>
+                <motion.div variants={flowLineVariant} className="absolute left-0 w-full bg-gradient-to-b from-transparent via-[var(--color-semantic-success)] to-[#4de393] animate-data-flow"></motion.div>
               </div>
 
               {/* Step 3: Result */}
@@ -327,7 +327,7 @@ export default function LandingPage() {
         {/* ─── TEAM SECTION ─── */}
         <section className="py-[96px] border-t border-[var(--color-hairline)] transition-colors duration-500 overflow-hidden">
           <div className="max-w-5xl mx-auto px-6">
-            <motion.div 
+            <motion.div
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: "-100px" }}
@@ -335,18 +335,18 @@ export default function LandingPage() {
               className="mb-16 text-center md:text-left"
             >
               <h2 className="display-lg text-[var(--color-body-strong)] mb-4 transition-colors duration-500">Meet Our Developers</h2>
-              <p className="body-md text-[var(--color-muted)] transition-colors duration-500">Tim pengembang berdedikasi di balik arsitektur BombaFusion.</p>
+              <p className="body-md text-[var(--color-muted)] transition-colors duration-500">Tim pengembang berdedikasi di balik arsitektur BombaAI.</p>
             </motion.div>
 
             {/* Grid 3 Top, 2 Bottom Layout */}
-            <motion.div 
+            <motion.div
               variants={staggerContainer}
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: "-50px" }}
               className="flex flex-col gap-6"
             >
-              
+
               {/* Top 3 */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {[
@@ -360,7 +360,7 @@ export default function LandingPage() {
                     className="feature-card flex flex-col items-center text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-[0_10px_40px_rgb(0,0,0,0.08)]"
                   >
                     <div className="w-[64px] h-[64px] rounded-[9999px] bg-[var(--color-surface-strong)] flex items-center justify-center mb-6 border border-[var(--color-hairline-strong)] transition-colors duration-500 shadow-sm dark:shadow-none">
-                       <User size={24} className="text-[var(--color-muted)]" />
+                      <User size={24} className="text-[var(--color-muted)]" />
                     </div>
                     <h4 className="title-md text-[var(--color-body-strong)] mb-1 transition-colors duration-500">{member.name}</h4>
                     <p className="caption text-[var(--color-muted)] mb-6 font-code transition-colors duration-500">ID: {member.nim}</p>
@@ -383,7 +383,7 @@ export default function LandingPage() {
                     className="feature-card w-full sm:w-[calc(33.333%-1rem)] flex flex-col items-center text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-[0_10px_40px_rgb(0,0,0,0.08)]"
                   >
                     <div className="w-[64px] h-[64px] rounded-[9999px] bg-[var(--color-surface-strong)] flex items-center justify-center mb-6 border border-[var(--color-hairline-strong)] transition-colors duration-500 shadow-sm dark:shadow-none">
-                       <User size={24} className="text-[var(--color-muted)]" />
+                      <User size={24} className="text-[var(--color-muted)]" />
                     </div>
                     <h4 className="title-md text-[var(--color-body-strong)] mb-1 transition-colors duration-500">{member.name}</h4>
                     <p className="caption text-[var(--color-muted)] mb-6 font-code transition-colors duration-500">ID: {member.nim}</p>
@@ -403,28 +403,28 @@ export default function LandingPage() {
       {/* ─── FOOTER ─── */}
       <footer className="bg-[var(--color-canvas)]/80 backdrop-blur-lg border-t border-[var(--color-hairline)] p-[64px_32px] transition-colors duration-500 relative z-10">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start justify-between gap-12">
-          
+
           <div className="flex flex-col items-start gap-4">
             <div className="flex items-center gap-2">
               <Flame size={24} className="text-[var(--color-muted)]" />
-              <span className="font-semibold text-sm text-[var(--color-muted)] transition-colors duration-500">BombaFusion</span>
+              <span className="font-semibold text-sm text-[var(--color-muted)] transition-colors duration-500">BombaAI</span>
             </div>
             <p className="body-sm text-[var(--color-muted)] max-w-xs transition-colors duration-500">
-              &copy; 2026 BombaFusion.<br/>
+              &copy; 2026 BombaAI.<br />
               Developer Infrastructure for Fire Detection.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-12">
-             <div className="flex flex-col gap-3">
-               <span className="title-sm text-[var(--color-body-strong)] transition-colors duration-500">Resources</span>
-               <a href="https://github.com/Tammam" target="_blank" rel="noreferrer" className="body-sm text-[var(--color-muted)] hover:text-[var(--color-body-strong)] transition-colors flex items-center gap-2">
-                  <Database size={14} /> Repository
-               </a>
-               <a href="#" className="body-sm text-[var(--color-muted)] hover:text-[var(--color-body-strong)] transition-colors flex items-center gap-2">
-                  <Cloud size={14} /> Documentation
-               </a>
-             </div>
+            <div className="flex flex-col gap-3">
+              <span className="title-sm text-[var(--color-body-strong)] transition-colors duration-500">Resources</span>
+              <a href="https://github.com/Tammam" target="_blank" rel="noreferrer" className="body-sm text-[var(--color-muted)] hover:text-[var(--color-body-strong)] transition-colors flex items-center gap-2">
+                <Database size={14} /> Repository
+              </a>
+              <a href="#" className="body-sm text-[var(--color-muted)] hover:text-[var(--color-body-strong)] transition-colors flex items-center gap-2">
+                <Cloud size={14} /> Documentation
+              </a>
+            </div>
           </div>
 
         </div>

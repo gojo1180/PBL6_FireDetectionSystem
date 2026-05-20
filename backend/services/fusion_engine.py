@@ -122,11 +122,14 @@ class LateFusionService:
         
         return self.active_models[device_id]
 
-    def process_sensor_data(self, sensor_data: dict) -> bool:
+    def process_sensor_data(self, sensor_data: dict, is_historical: bool = False) -> bool:
         """
         Extract fitur sensor, normalisasi, masukkan ke buffer time-series,
         lalu prediksi anomali menggunakan LSTM Autoencoder spesifik per-device.
         """
+        if is_historical:
+            return False
+            
         device_id = str(sensor_data.get("device_id", "default"))
         artifacts = self.get_device_artifacts(device_id)
         

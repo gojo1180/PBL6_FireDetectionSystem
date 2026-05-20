@@ -62,7 +62,7 @@ def get_sensor_data_paginated(
     # Compute anomaly prediction for each row
     rows = []
     for row in data_response.data:
-        is_anomaly = fusion_service.process_sensor_data(row)
+        is_anomaly = fusion_service.process_sensor_data(row, is_historical=True)
         row["is_anomaly"] = is_anomaly
         rows.append(row)
 
@@ -143,7 +143,7 @@ def export_sensor_data_csv(limit: int = 1000, device_id: Optional[str] = None, c
     
     for row in data:
         # compute prediction
-        is_anomaly = fusion_service.process_sensor_data(row)
+        is_anomaly = fusion_service.process_sensor_data(row, is_historical=True)
         writer.writerow([
             row.get("recorded_at"),
             row.get("device_id"),
