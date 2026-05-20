@@ -22,6 +22,58 @@ def get_sensor_data(limit: int = 50, device_id: Optional[str] = None, current_us
     response = query.order("recorded_at", desc=True).limit(limit).execute()
     return response.data
 
+@router.get("/sensors/paginated")
+def get_sensor_data_paginated(
+    page: int = 1,
+    per_page: int = 50,
+    device_id: Optional[str] = None,
+    search: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Fetch paginated sensor logs with total count. Supports date range filtering."""
+    # Count query
+    count_query = supabase.table("sensor_logs").select("id", count="exact")
+    if device_id:
+        count_query = count_query.eq("device_id", device_id)
+    if date_from:
+        count_query = count_query.gte("recorded_at", date_from)
+    if date_to:
+        count_query = count_query.lte("recorded_at", date_to)
+    count_response = count_query.execute()
+    total = count_response.count or 0
+
+    # Data query with offset
+    offset = (page - 1) * per_page
+    data_query = supabase.table("sensor_logs").select("*")
+    if device_id:
+        data_query = data_query.eq("device_id", device_id)
+    if date_from:
+        data_query = data_query.gte("recorded_at", date_from)
+    if date_to:
+        data_query = data_query.lte("recorded_at", date_to)
+    data_response = (
+        data_query.order("recorded_at", desc=True)
+        .range(offset, offset + per_page - 1)
+        .execute()
+    )
+
+    # Compute anomaly prediction for each row
+    rows = []
+    for row in data_response.data:
+        is_anomaly = fusion_service.process_sensor_data(row)
+        row["is_anomaly"] = is_anomaly
+        rows.append(row)
+
+    return {
+        "data": rows,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": (total + per_page - 1) // per_page if total > 0 else 1,
+    }
+
 @router.get("/sensors/calibration")
 def get_calibration_status(current_user: dict = Depends(get_current_user)):
     """Fetch the current calibration state from the fusion engine."""

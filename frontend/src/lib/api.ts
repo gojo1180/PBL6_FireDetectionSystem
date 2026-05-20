@@ -94,6 +94,28 @@ export async function getDashboardSensors(deviceId: string, limit: number = 15):
   return apiFetch<SensorLog[]>(`/api/v1/sensors?limit=${limit}&device_id=${deviceId}`);
 }
 
+export interface PaginatedSensorResponse {
+  data: (SensorLog & { is_anomaly?: boolean })[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
+export async function getSensorLogsPaginated(
+  page: number = 1,
+  perPage: number = 50,
+  deviceId?: string,
+  dateFrom?: string,
+  dateTo?: string
+): Promise<PaginatedSensorResponse> {
+  let path = `/api/v1/sensors/paginated?page=${page}&per_page=${perPage}`;
+  if (deviceId) path += `&device_id=${deviceId}`;
+  if (dateFrom) path += `&date_from=${dateFrom}`;
+  if (dateTo) path += `&date_to=${dateTo}`;
+  return apiFetch<PaginatedSensorResponse>(path);
+}
+
 export async function getLatestSensor(deviceId: string): Promise<SensorLog | null> {
   return apiFetch<SensorLog | null>(`/api/v1/sensors/latest/${deviceId}`);
 }

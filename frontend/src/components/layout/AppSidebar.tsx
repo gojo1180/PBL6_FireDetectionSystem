@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Cctv, Server, Menu, X, LogOut, Newspaper } from "lucide-react";
+import { LayoutDashboard, Cctv, Server, Menu, X, LogOut, Newspaper, Database } from "lucide-react";
 import { getUser, removeToken } from "@/lib/auth";
 
 export function AppSidebar() {
@@ -32,6 +32,7 @@ export function AppSidebar() {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/cctv", label: "Live CCTV", icon: Cctv },
+    { href: "/sensor-logs", label: "Sensor Logs", icon: Database },
     { href: "/settings", label: "Devices", icon: Server },
   ];
 
