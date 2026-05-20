@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     CCTV_RTSP_URL: Optional[str] = None
     NEWSDATA_API_KEY: Optional[str] = None
     HF_SUMMARY_MODEL_URL: Optional[str] = None
+    HF_EXTRACTIVE_MODEL_URL: Optional[str] = None
     HF_API_KEY: Optional[str] = None
     
     # MLOps GitHub Actions Config

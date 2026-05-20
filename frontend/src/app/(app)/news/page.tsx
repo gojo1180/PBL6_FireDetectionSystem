@@ -166,6 +166,12 @@ export default function FireNewsPage() {
   const [summary, setSummary] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [modelType, setModelType] = useState<"mt5" | "extractive">("mt5");
+  const [entities, setEntities] = useState<{
+    LOKASI: string[];
+    WAKTU: string[];
+    OBJEK: string[];
+  } | null>(null);
 
   const detailScrollRef = useRef<HTMLDivElement>(null);
 
@@ -200,6 +206,7 @@ export default function FireNewsPage() {
     if (mobile) setShowMobileDetail(true);
     
     setSummary(null);
+    setEntities(null);
     setSummaryError(null);
     setFullText(null);
     setLoadingContent(true);
@@ -226,6 +233,7 @@ export default function FireNewsPage() {
 
     setSummarizing(true);
     setSummary("");
+    setEntities(null);
     setSummaryError(null);
 
     try {
@@ -237,20 +245,30 @@ export default function FireNewsPage() {
           "Content-Type": "application/json",
           ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ url: selectedArticle.link, full_text: fullText }),
+        body: JSON.stringify({ 
+          url: selectedArticle.link, 
+          full_text: fullText,
+          model_type: modelType
+        }),
       });
 
       if (!response.ok) throw new Error(`Gagal merangkum: ${response.status}`);
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("Stream not supported");
+      if (modelType === "mt5") {
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("Stream not supported");
 
-      const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        setSummary((prev) => (prev || "") + chunk);
+        const decoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          setSummary((prev) => (prev || "") + chunk);
+        }
+      } else {
+        const data = await response.json();
+        setSummary(data.summary);
+        setEntities(data.entities);
       }
     } catch (err) {
       console.error("[News] Summarize error:", err);
@@ -466,7 +484,7 @@ export default function FireNewsPage() {
                       <Sparkles size={120} className="text-primary" />
                     </div>
 
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-6">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
                           <Sparkles size={24} className={summarizing ? "animate-pulse" : ""} />
@@ -488,6 +506,44 @@ export default function FireNewsPage() {
                       )}
                     </div>
 
+                    {/* Model Selector Toggle */}
+                    <div className="flex bg-canvas-deep p-1 rounded-xl border border-hairline/30 w-fit mb-8 relative z-10">
+                      <button
+                        onClick={() => {
+                          if (modelType !== "mt5") {
+                            setModelType("mt5");
+                            setSummary(null);
+                            setEntities(null);
+                          }
+                        }}
+                        disabled={summarizing}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          modelType === "mt5"
+                            ? "bg-primary text-white shadow-sm"
+                            : "text-muted hover:text-ink hover:bg-surface-card-elevated"
+                        }`}
+                      >
+                        mT5 (Abstraktif)
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (modelType !== "extractive") {
+                            setModelType("extractive");
+                            setSummary(null);
+                            setEntities(null);
+                          }
+                        }}
+                        disabled={summarizing}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          modelType === "extractive"
+                            ? "bg-primary text-white shadow-sm"
+                            : "text-muted hover:text-ink hover:bg-surface-card-elevated"
+                        }`}
+                      >
+                        BiLSTM-CRF & TextRank (Ekstraktif & NER)
+                      </button>
+                    </div>
+
                     <AnimatePresence>
                       {(summarizing || summary) && (
                         <motion.div
@@ -499,7 +555,7 @@ export default function FireNewsPage() {
                           <div className={`p-6 rounded-2xl bg-canvas-deep border border-hairline/30 relative overflow-hidden ${summarizing ? "animate-pulse-slow" : ""}`}>
                             <div className="flex items-center gap-2 mb-4 text-[10px] font-bold text-primary uppercase tracking-widest">
                               <div className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
-                              Wawasan Utama
+                              Wawasan Utama {modelType === "mt5" ? "(mT5 Abstraktif)" : "(BiLSTM-CRF Ekstraktif)"}
                             </div>
                             
                             <p className="text-sm text-ink leading-relaxed whitespace-pre-wrap">
@@ -514,6 +570,84 @@ export default function FireNewsPage() {
                               </div>
                             )}
                           </div>
+
+                          {/* Entities Section (NER) */}
+                          {modelType === "extractive" && entities && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-6 pt-6 border-t border-hairline/30 space-y-4"
+                            >
+                              <h4 className="text-xs font-bold text-muted uppercase tracking-wider">
+                                Entitas Kebakaran Terdeteksi (NER)
+                              </h4>
+                              
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                {/* LOKASI */}
+                                <div className="p-4 rounded-2xl bg-canvas-deep border border-hairline/30 flex flex-col gap-2 shadow-inner">
+                                  <span className="text-[10px] font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
+                                    📍 Lokasi
+                                  </span>
+                                  <div className="flex flex-wrap gap-1.5 mt-1">
+                                    {entities.LOKASI && entities.LOKASI.length > 0 ? (
+                                      entities.LOKASI.map((loc, idx) => (
+                                        <span
+                                          key={idx}
+                                          className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-primary/10 border border-primary/20 text-primary"
+                                        >
+                                          {loc}
+                                        </span>
+                                      ))
+                                    ) : (
+                                      <span className="text-xs text-muted-soft italic">Tidak terdeteksi</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* WAKTU */}
+                                <div className="p-4 rounded-2xl bg-canvas-deep border border-hairline/30 flex flex-col gap-2 shadow-inner">
+                                  <span className="text-[10px] font-bold text-purple flex items-center gap-1.5 uppercase tracking-wider">
+                                    🕒 Waktu
+                                  </span>
+                                  <div className="flex flex-wrap gap-1.5 mt-1">
+                                    {entities.WAKTU && entities.WAKTU.length > 0 ? (
+                                      entities.WAKTU.map((time, idx) => (
+                                        <span
+                                          key={idx}
+                                          className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-500/10 border border-purple-500/20 text-purple-400"
+                                        >
+                                          {time}
+                                        </span>
+                                      ))
+                                    ) : (
+                                      <span className="text-xs text-muted-soft italic">Tidak terdeteksi</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* OBJEK */}
+                                <div className="p-4 rounded-2xl bg-canvas-deep border border-hairline/30 flex flex-col gap-2 shadow-inner">
+                                  <span className="text-[10px] font-bold text-amber-500 flex items-center gap-1.5 uppercase tracking-wider">
+                                    🏷️ Objek Kebakaran
+                                  </span>
+                                  <div className="flex flex-wrap gap-1.5 mt-1">
+                                    {entities.OBJEK && entities.OBJEK.length > 0 ? (
+                                      entities.OBJEK.map((obj, idx) => (
+                                        <span
+                                          key={idx}
+                                          className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400"
+                                        >
+                                          {obj}
+                                        </span>
+                                      ))
+                                    ) : (
+                                      <span className="text-xs text-muted-soft italic">Tidak terdeteksi</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
                           
                           <div className="flex items-center justify-between px-2">
                              <p className="text-[10px] text-muted-soft font-medium">AI can make mistakes. Check important info.</p>

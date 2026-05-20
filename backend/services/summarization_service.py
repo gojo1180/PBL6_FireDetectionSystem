@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 # ── Configuration from .env via pydantic-settings ──────────────────────────
 HF_SPACE_URL = settings.HF_SUMMARY_MODEL_URL  
+HF_EXTRACTIVE_MODEL_URL = settings.HF_EXTRACTIVE_MODEL_URL
 HF_API_KEY = settings.HF_API_KEY
 
 
@@ -172,3 +173,139 @@ def run_summarization_model(
             status_code=500,
             detail="Format respons dari Hugging Face Space tidak sesuai. Tidak ada ringkasan ditemukan.",
         )
+
+
+def run_extractive_ner_model(full_text: str):
+    """
+    Summarize and perform NER on the given text via the HF Space nizu31/summary_NER.
+
+    Uses the two-step Gradio call protocol:
+      1. POST /gradio_api/call/process_news_pipeline  → returns an EVENT_ID
+      2. GET  /gradio_api/call/process_news_pipeline/{EVENT_ID} → returns the result containing [summary_text, entities_dict]
+    """
+    # ── Guard: empty input ──────────────────────────────────────────────
+    if not full_text or not full_text.strip():
+        return {
+            "summary": "Tidak ada konten artikel yang bisa dirangkum.",
+            "entities": {"LOKASI": [], "WAKTU": [], "OBJEK": []}
+        }
+
+    # ── Guard: missing configuration ────────────────────────────────────
+    if not HF_EXTRACTIVE_MODEL_URL or not HF_API_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Konfigurasi Hugging Face Extractive Model belum lengkap. "
+                "Pastikan HF_EXTRACTIVE_MODEL_URL dan HF_API_KEY sudah diatur di file .env."
+            ),
+        )
+
+    headers = {
+        "Authorization": f"Bearer {HF_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    # ── Step 1: Submit the job ──────────────────────────────────────────
+    submit_url = f"{HF_EXTRACTIVE_MODEL_URL.rstrip('/')}/gradio_api/call/process_news_pipeline"
+    payload = {"data": [full_text]}
+
+    try:
+        submit_resp = requests.post(submit_url, headers=headers, json=payload, timeout=30)
+    except requests.exceptions.ConnectionError as exc:
+        logger.error(f"Connection error to Extractive HF Space: {exc}")
+        raise HTTPException(
+            status_code=500,
+            detail="Gagal terhubung ke server Hugging Face Extractive Space. Periksa koneksi internet.",
+        )
+    except requests.exceptions.Timeout as exc:
+        logger.error(f"Timeout submitting to Extractive HF Space: {exc}")
+        raise HTTPException(
+            status_code=500,
+            detail="Request ke Hugging Face Extractive Space timeout. Coba lagi nanti.",
+        )
+    except requests.exceptions.RequestException as exc:
+        logger.error(f"Unexpected request error (submit extractive): {exc}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Terjadi kesalahan jaringan: {str(exc)}",
+        )
+
+    if submit_resp.status_code == 503:
+        logger.warning("Extractive HF Space returned 503 — Space is sleeping / model loading.")
+        return {
+            "summary": "Model AI sedang diaktifkan di server utama, silakan coba lagi dalam 10-20 detik.",
+            "entities": {"LOKASI": [], "WAKTU": [], "OBJEK": []}
+        }
+
+    if submit_resp.status_code == 401:
+        logger.error("Extractive HF Space returned 401 — invalid API key.")
+        raise HTTPException(
+            status_code=500,
+            detail="API Key Hugging Face tidak valid (401 Unauthorized). Periksa HF_API_KEY di .env.",
+        )
+
+    if not submit_resp.ok:
+        logger.error(f"Extractive HF Space submit error {submit_resp.status_code}: {submit_resp.text}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Hugging Face Space error {submit_resp.status_code}: {submit_resp.text}",
+        )
+
+    # Extract event_id from the submit response
+    try:
+        event_id = submit_resp.json().get("event_id")
+        if not event_id:
+            raise ValueError("No event_id in response")
+    except Exception as exc:
+        logger.error(f"Failed to parse extractive event_id: {submit_resp.text} — {exc}")
+        raise HTTPException(
+            status_code=500,
+            detail="Gagal mendapatkan event_id dari Hugging Face Space.",
+        )
+
+    # ── Step 2: Fetch the result ────────────────────────────────────────
+    result_url = f"{HF_EXTRACTIVE_MODEL_URL.rstrip('/')}/gradio_api/call/process_news_pipeline/{event_id}"
+
+    try:
+        result_resp = requests.get(result_url, headers=headers, timeout=120)
+    except requests.exceptions.RequestException as exc:
+        logger.error(f"Error fetching extractive result from HF Space: {exc}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Gagal mengambil hasil dari Hugging Face Space: {str(exc)}",
+        )
+
+    if not result_resp.ok:
+        logger.error(f"Extractive HF Space result error {result_resp.status_code}: {result_resp.text}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Hugging Face Space error saat mengambil hasil: {result_resp.status_code}",
+        )
+
+    # Parse SSE response text
+    try:
+        for line in result_resp.text.split("\n"):
+            line = line.strip()
+            if line.startswith("data:"):
+                data_str = line[len("data:"):].strip()
+                if data_str:
+                    data = json.loads(data_str)
+                    if isinstance(data, list) and len(data) >= 2:
+                        summary_text = data[0]
+                        entities = data[1]
+                        return {
+                            "summary": summary_text,
+                            "entities": entities
+                        }
+    except Exception as exc:
+        logger.error(f"Error parsing extractive SSE: {exc}")
+        raise HTTPException(
+            status_code=500,
+            detail="Gagal memproses respons dari Hugging Face Space.",
+        )
+
+    raise HTTPException(
+        status_code=500,
+        detail="Format respons dari Hugging Face Space tidak sesuai. Tidak ada data ditemukan.",
+    )
+

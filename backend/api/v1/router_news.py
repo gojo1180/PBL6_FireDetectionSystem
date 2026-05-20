@@ -39,6 +39,7 @@ class NewsArticle(BaseModel):
 class SummarizeRequest(BaseModel):
     url: str
     full_text: Optional[str] = None
+    model_type: Optional[str] = "mt5"
 
 
 class SummarizeResponse(BaseModel):
@@ -248,6 +249,19 @@ def summarize_article(
     # To use your trained BERT/IndoBART model, edit:
     #   backend/services/summarization_service.py
     # ════════════════════════════════════════════════════════════════
+    if payload.model_type == "extractive":
+        try:
+            from services.summarization_service import run_extractive_ner_model
+            return run_extractive_ner_model(full_text)
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"[News] Extractive/NER Summarization failed: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Gagal merangkum artikel dengan model Extractive & NER: {str(e)}",
+            )
+
     try:
         from services.summarization_service import run_summarization_model
 
@@ -259,6 +273,8 @@ def summarize_article(
                 "Connection": "keep-alive",
             }
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[News] Summarization failed: {e}")
         raise HTTPException(
