@@ -26,8 +26,8 @@ async def mjpeg_generator():
             # Memory Optimization: explicitly destroy JPEG byte chunk from RAM
             del frame_bytes
             
-        # Rate limit to ~20 FPS using asyncio sleep to free up the event loop!
-        await asyncio.sleep(0.05)
+        # Rate limit to ~30 FPS to match camera framerate
+        await asyncio.sleep(0.033)
 
 @router.get("/vision/stream")
 async def stream_cctv():

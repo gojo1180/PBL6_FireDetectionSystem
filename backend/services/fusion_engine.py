@@ -240,7 +240,16 @@ class LateFusionService:
                 image = image_input
                 image = cv2.resize(image, (640, 480))
             
-            results = self.yolo_model.predict(source=image, conf=0.55, imgsz=640, verbose=False)
+            # Use track() instead of predict() for persistent object tracking
+            # BoTSORT maintains object IDs across frames, eliminating bbox flickering
+            results = self.yolo_model.track(
+                source=image,
+                persist=True,
+                tracker="botsort.yaml",
+                conf=0.35,
+                imgsz=640,
+                verbose=False
+            )
             annotated_frame = results[0].plot()
             result_scores["annotated_frame"] = annotated_frame
             
@@ -253,7 +262,10 @@ class LateFusionService:
                     conf = float(box.conf[0])
                     class_name = self.yolo_model.names[cls_id].lower()
                     
-                    detected_items.append(f"{class_name}: {conf:.3f}")
+                    # Include track ID in log if available
+                    track_id = int(box.id[0]) if box.id is not None else None
+                    label = f"{class_name}(#{track_id}): {conf:.3f}" if track_id else f"{class_name}: {conf:.3f}"
+                    detected_items.append(label)
                     
                     if "fire" in class_name and conf > result_scores["fire_confidence"]:
                         result_scores["fire_confidence"] = conf
@@ -261,7 +273,7 @@ class LateFusionService:
                         result_scores["smoke_confidence"] = conf
                         
             if detected_items:
-                print(f"YOLOv8 Detected: {detected_items}")
+                print(f"YOLOv8 Tracked: {detected_items}")
                         
             del image
             del results
@@ -283,13 +295,13 @@ class LateFusionService:
         import time
         self.last_vision_time = time.time()
         self.latest_vision_conf = fire_conf
-        if fire_conf > 0.6:
+        if fire_conf > 0.45:
             self.last_anomaly_time = self.last_vision_time
         return self.evaluate_late_fusion()
 
     def evaluate_late_fusion(self) -> str:
         sensor_anomaly = self.latest_sensor_anomaly
-        vision_fire = self.latest_vision_conf > 0.6
+        vision_fire = self.latest_vision_conf > 0.45
         
         if sensor_anomaly and vision_fire:
             return 'FIRE_DANGER'

@@ -53,7 +53,6 @@ def frame_reading_loop():
     global latest_frame, cap_reconnect_flag, retry_counter
     
     cap = None
-    last_retrieve_time = 0
 
     while not cctv_stop_event.is_set():
         with frame_lock:
@@ -101,23 +100,20 @@ def frame_reading_loop():
             time.sleep(1)
             continue
         
-        # ── Grab the latest frame from the RTSP buffer ───────────
-        ret = cap.grab()
+        # ── Read the latest frame ─────────────────────────────────
+        # With BUFFERSIZE=1, cap.read() always returns the most recent
+        # frame and naturally blocks at camera FPS (~33ms at 30fps).
+        # No drain loop or throttle needed.
+        ret, frame = cap.read()
         if not ret:
-            print("⚠️ Failed to grab frame from CCTV. Camera might be lagging or offline. Reconnecting...")
+            print("⚠️ Failed to read frame from CCTV. Camera might be offline. Reconnecting...")
             cap.release()
             cap = None
             time.sleep(3)
             continue
 
-        # Decode (retrieve) frame pada ~30 FPS untuk Dashboard & YOLO
-        current_time = time.time()
-        if current_time - last_retrieve_time > 0.033:
-            ret, frame = cap.retrieve()
-            if ret:
-                with frame_lock:
-                    latest_frame = frame
-            last_retrieve_time = current_time
+        with frame_lock:
+            latest_frame = frame
 
     if cap and cap.isOpened():
         cap.release()
@@ -150,13 +146,22 @@ def cctv_inference_loop():
             if annotated_img is None:
                 annotated_img = frame_to_process
 
-            # Streak Counter Logic for False Positive Mitigation
-            if fire_conf > 0.55:
-                fire_streak += 1
+            # ── Tiered Streak Logic ──────────────────────────────────
+            # With BoTSORT tracker providing temporal stability, we use
+            # tiered confidence to balance speed vs false-positive:
+            #   HIGH conf  → +2 streak (instant trigger on single frame)
+            #   MED  conf  → +1 streak (needs 2 consecutive frames)
+            #   below      → reset to 0
+            if fire_conf >= 0.70:
+                fire_streak += 2      # Obvious fire → instant
+            elif fire_conf >= 0.45:
+                fire_streak += 1      # Possible fire → confirm
             else:
                 fire_streak = 0
             
-            if smoke_conf > 0.65:
+            if smoke_conf >= 0.60:
+                smoke_streak += 2
+            elif smoke_conf >= 0.50:
                 smoke_streak += 1
             else:
                 smoke_streak = 0
@@ -169,15 +174,15 @@ def cctv_inference_loop():
             
             # Trigger: Update fusion state
             max_conf = max(fire_conf, smoke_conf)
-            # Threshold vision kita set berdasarkan streak 
-            is_vision_threat = (fire_streak >= 3 or smoke_streak >= 3)
+            # Fire needs streak >= 2, Smoke needs streak >= 3
+            is_vision_threat = (fire_streak >= 2 or smoke_streak >= 3)
             
             # Update fusion engine
             alert_level = fusion_service.update_vision(max_conf if is_vision_threat else 0.0)
             
-            # TRIGGER: ONLY IF streak >= 3 and cooldown fulfilled
+            # TRIGGER: ONLY IF streak confirmed and cooldown fulfilled
             if is_vision_threat and (current_time - last_db_alert_time > 5.0):
-                print(f"🔥 Threat CONFIRMED via CCTV Stability Check! Fire Streak: {fire_streak}, Smoke Streak: {smoke_streak}")
+                print(f"🔥 Threat CONFIRMED via CCTV! Fire Streak: {fire_streak}, Smoke Streak: {smoke_streak}")
                 print(f"Confidence - Fire: {fire_conf:.2f}, Smoke: {smoke_conf:.2f}")
                 
                 public_image_url = None
@@ -272,12 +277,13 @@ def cctv_inference_loop():
                 gc.collect()
                 _last_gc_time = _now
             
-        cctv_stop_event.wait(0.05) # Jalankan YOLO ~20 kali per detik untuk stream smooth
+        cctv_stop_event.wait(0.01) # Minimal wait — inference speed is the natural limiter
     print("🛑 CCTV inference loop shut down.")
 
 def get_latest_frame_jpg():
     with frame_lock:
-        # Prefer the annotated frame (with YOLO bounding boxes from results[0].plot())
+        # Prefer annotated frame (with bounding boxes) if available,
+        # fallback to raw camera frame for smooth display
         if latest_annotated_frame is not None:
             frame_to_encode = latest_annotated_frame.copy()
         elif latest_frame is not None:
@@ -285,7 +291,7 @@ def get_latest_frame_jpg():
         else:
             return None
 
-    ret, buffer = cv2.imencode('.jpg', frame_to_encode, [int(cv2.IMWRITE_JPEG_QUALITY), 65])
+    ret, buffer = cv2.imencode('.jpg', frame_to_encode, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
     
     # Memory Optimization: immediately clear explicitly copied frame data
     del frame_to_encode
