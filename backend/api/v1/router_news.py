@@ -133,74 +133,6 @@ def get_fire_news(
     return {"status": "success", "total": len(articles), "articles": articles}
 
 
-# ─── Shared extraction helpers ──────────────────────────────────────
-_EXTRACT_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/125.0.0.0 Safari/537.36"
-)
-_EXTRACT_TIMEOUT = 30          # seconds per attempt
-_EXTRACT_MAX_RETRIES = 3       # total attempts before giving up
-_EXTRACT_BACKOFF_FACTOR = 2    # seconds: 2, 4, 8 …
-
-
-def _download_with_retry(article, max_retries: int = _EXTRACT_MAX_RETRIES):
-    """Try article.download() up to *max_retries* times with exponential backoff."""
-    import time
-    last_exc: Exception | None = None
-    for attempt in range(1, max_retries + 1):
-        try:
-            article.download()
-            return  # success
-        except Exception as exc:
-            last_exc = exc
-            if attempt < max_retries:
-                wait = _EXTRACT_BACKOFF_FACTOR ** attempt
-                logger.warning(
-                    f"[News] newspaper3k download attempt {attempt}/{max_retries} "
-                    f"failed ({exc}), retrying in {wait}s…"
-                )
-                time.sleep(wait)
-    # all attempts exhausted
-    raise last_exc  # type: ignore[misc]
-
-
-def _bs4_extract(url: str, timeout: int = _EXTRACT_TIMEOUT, max_retries: int = _EXTRACT_MAX_RETRIES) -> str:
-    """Fallback extractor using requests + BeautifulSoup with retry."""
-    import time
-    from requests.adapters import HTTPAdapter
-    from urllib3.util.retry import Retry
-    from bs4 import BeautifulSoup
-
-    session = requests.Session()
-    retries = Retry(
-        total=max_retries,
-        backoff_factor=_EXTRACT_BACKOFF_FACTOR,
-        status_forcelist=[429, 500, 502, 503, 504],
-    )
-    session.mount("https://", HTTPAdapter(max_retries=retries))
-    session.mount("http://", HTTPAdapter(max_retries=retries))
-
-    resp = session.get(
-        url,
-        headers={"User-Agent": _EXTRACT_USER_AGENT},
-        timeout=timeout,
-    )
-    resp.raise_for_status()
-
-    soup = BeautifulSoup(resp.content, "html.parser")
-
-    # Remove noisy elements
-    for tag in soup(["script", "style", "nav", "footer", "header", "aside", "iframe"]):
-        tag.decompose()
-
-    paragraphs = soup.find_all("p")
-    text = "\n\n".join(
-        p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 20
-    )
-    return text
-
-
 # ─── POST /news/extract ─────────────────────────────────────────────
 @router.post("/news/extract", response_model=ExtractResponse)
 def extract_article(
@@ -208,49 +140,50 @@ def extract_article(
     current_user: dict = Depends(get_current_user),
 ):
     """
-    Extract full article text from URL.
-
-    Strategy (in order):
-      1. newspaper3k with retries (timeout 30 s × 3 attempts)
-      2. Direct requests + BeautifulSoup fallback (also with retries)
+    Extract full article text from URL using newspaper3k without summarizing.
     """
-    full_text: str = ""
-
-    # ── Attempt 1: newspaper3k ────────────────────────────────────
     try:
         from newspaper import Article, Config
-
+        
+        # Create a robust configuration to bypass basic bot protections (like 403 Forbidden)
         config = Config()
-        config.browser_user_agent = _EXTRACT_USER_AGENT
-        config.request_timeout = _EXTRACT_TIMEOUT
+        config.browser_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        config.request_timeout = 15
 
         article = Article(payload.url, config=config)
-        _download_with_retry(article)
+        article.download()
         article.parse()
-        full_text = article.text or ""
-        logger.info(f"[News] newspaper3k extracted {len(full_text)} chars from: {payload.url[:80]}")
+        full_text = article.text
+
+        # ─── FALLBACK TO BEAUTIFULSOUP IF NEWSPAPER3K FAILS TO EXTRACT TEXT ───
+        if not full_text or len(full_text.strip()) == 0:
+            logger.warning(f"[News] newspaper3k returned empty for {payload.url}, trying BeautifulSoup fallback...")
+            headers = {"User-Agent": config.browser_user_agent}
+            resp = requests.get(payload.url, headers=headers, timeout=15)
+            resp.raise_for_status()
+            
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(resp.content, "html.parser")
+            paragraphs = soup.find_all('p')
+            full_text = "\n\n".join([p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 20])
+
+        if not full_text or len(full_text.strip()) == 0:
+            raise HTTPException(
+                status_code=422,
+                detail="Konten artikel kosong atau dilindungi oleh sistem keamanan web.",
+            )
+
+        logger.info(f"[News] Extracted {len(full_text)} chars from: {payload.url[:80]}")
+        return ExtractResponse(url=payload.url, full_text=full_text)
+
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.warning(f"[News] newspaper3k completely failed for {payload.url[:80]}: {e}")
-        # fall through to BeautifulSoup
-
-    # ── Attempt 2: BeautifulSoup fallback ─────────────────────────
-    if not full_text.strip():
-        try:
-            logger.info(f"[News] Trying BeautifulSoup fallback for {payload.url[:80]}…")
-            full_text = _bs4_extract(payload.url)
-            logger.info(f"[News] BS4 fallback extracted {len(full_text)} chars")
-        except Exception as e:
-            logger.error(f"[News] BS4 fallback also failed: {e}")
-            # full_text stays empty — handled below
-
-    # ── Final check ───────────────────────────────────────────────
-    if not full_text.strip():
+        logger.error(f"[News] newspaper3k extraction failed: {e}")
         raise HTTPException(
             status_code=422,
-            detail="Konten artikel kosong atau dilindungi oleh sistem keamanan web.",
+            detail=f"Gagal mengekstrak artikel: {str(e)}",
         )
-
-    return ExtractResponse(url=payload.url, full_text=full_text)
 
 
 # ─── POST /news/summarize ───────────────────────────────────────────
@@ -265,36 +198,49 @@ def summarize_article(
     """
     full_text = payload.full_text
 
-    # Step 1: Extract full text if not provided
+    # Step 1: Extract full text with newspaper3k if not provided
     if not full_text:
-        # ── Attempt 1: newspaper3k with retries ──────────────────
         try:
             from newspaper import Article, Config
 
             config = Config()
-            config.browser_user_agent = _EXTRACT_USER_AGENT
-            config.request_timeout = _EXTRACT_TIMEOUT
+            config.browser_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            config.request_timeout = 15
 
             article = Article(payload.url, config=config)
-            _download_with_retry(article)
+            article.download()
             article.parse()
-            full_text = article.text or ""
-            logger.info(f"[News] newspaper3k extracted {len(full_text)} chars from: {payload.url[:80]}")
+            full_text = article.text
+
+            # Fallback to BeautifulSoup
+            if not full_text or len(full_text.strip()) == 0:
+                logger.warning(f"[News] newspaper3k returned empty for {payload.url}, trying BeautifulSoup fallback...")
+                headers = {"User-Agent": config.browser_user_agent}
+                resp = requests.get(payload.url, headers=headers, timeout=15)
+                resp.raise_for_status()
+                
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(resp.content, "html.parser")
+                paragraphs = soup.find_all('p')
+                full_text = "\n\n".join([p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 20])
+
+            if not full_text or len(full_text.strip()) == 0:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Konten artikel kosong atau dilindungi oleh sistem keamanan web.",
+                )
+
+            logger.info(
+                f"[News] Extracted {len(full_text)} chars from: {payload.url[:80]}"
+            )
+
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.warning(f"[News] newspaper3k failed in summarize for {payload.url[:80]}: {e}")
-
-        # ── Attempt 2: BeautifulSoup fallback ────────────────────
-        if not full_text or not full_text.strip():
-            try:
-                logger.info(f"[News] Trying BS4 fallback for summarize: {payload.url[:80]}…")
-                full_text = _bs4_extract(payload.url)
-            except Exception as e:
-                logger.error(f"[News] BS4 fallback also failed in summarize: {e}")
-
-        if not full_text or not full_text.strip():
+            logger.error(f"[News] newspaper3k extraction failed: {e}")
             raise HTTPException(
                 status_code=422,
-                detail="Konten artikel kosong atau dilindungi oleh sistem keamanan web.",
+                detail=f"Gagal mengekstrak artikel: {str(e)}",
             )
 
     # Step 2: Summarize with AI model

@@ -190,8 +190,14 @@ def run_extractive_ner_model(full_text: str):
             "entities": {"LOKASI": [], "WAKTU": [], "OBJEK": []}
         }
 
+    # Read config fresh from settings to avoid stale module-level cache
+    hf_extractive_url = settings.HF_EXTRACTIVE_MODEL_URL
+    hf_api_key = settings.HF_API_KEY
+
     # ── Guard: missing configuration ────────────────────────────────────
-    if not HF_EXTRACTIVE_MODEL_URL or not HF_API_KEY:
+    logger.info(f"[Extractive] HF_EXTRACTIVE_MODEL_URL = {hf_extractive_url}")
+    logger.info(f"[Extractive] HF_API_KEY present = {bool(hf_api_key)}")
+    if not hf_extractive_url or not hf_api_key:
         raise HTTPException(
             status_code=500,
             detail=(
@@ -201,13 +207,15 @@ def run_extractive_ner_model(full_text: str):
         )
 
     headers = {
-        "Authorization": f"Bearer {HF_API_KEY}",
+        "Authorization": f"Bearer {hf_api_key}",
         "Content-Type": "application/json",
     }
 
     # ── Step 1: Submit the job ──────────────────────────────────────────
-    submit_url = f"{HF_EXTRACTIVE_MODEL_URL.rstrip('/')}/gradio_api/call/process_news_pipeline"
+    submit_url = f"{hf_extractive_url.rstrip('/')}/gradio_api/call/process_news_pipeline"
     payload = {"data": [full_text]}
+    logger.info(f"[Extractive] Submit URL: {submit_url}")
+    logger.info(f"[Extractive] Payload text length: {len(full_text)} chars")
 
     try:
         submit_resp = requests.post(submit_url, headers=headers, json=payload, timeout=30)
@@ -251,11 +259,15 @@ def run_extractive_ner_model(full_text: str):
             detail=f"Hugging Face Space error {submit_resp.status_code}: {submit_resp.text}",
         )
 
+    logger.info(f"[Extractive] Submit response status: {submit_resp.status_code}")
+    logger.info(f"[Extractive] Submit response body: {submit_resp.text[:500]}")
+
     # Extract event_id from the submit response
     try:
         event_id = submit_resp.json().get("event_id")
         if not event_id:
             raise ValueError("No event_id in response")
+        logger.info(f"[Extractive] Got event_id: {event_id}")
     except Exception as exc:
         logger.error(f"Failed to parse extractive event_id: {submit_resp.text} — {exc}")
         raise HTTPException(
@@ -264,7 +276,7 @@ def run_extractive_ner_model(full_text: str):
         )
 
     # ── Step 2: Fetch the result ────────────────────────────────────────
-    result_url = f"{HF_EXTRACTIVE_MODEL_URL.rstrip('/')}/gradio_api/call/process_news_pipeline/{event_id}"
+    result_url = f"{hf_extractive_url.rstrip('/')}/gradio_api/call/process_news_pipeline/{event_id}"
 
     try:
         result_resp = requests.get(result_url, headers=headers, timeout=120)
@@ -283,20 +295,27 @@ def run_extractive_ner_model(full_text: str):
         )
 
     # Parse SSE response text
+    logger.info(f"[Extractive] Result response status: {result_resp.status_code}")
+    logger.info(f"[Extractive] Result response body (first 1000 chars): {result_resp.text[:1000]}")
     try:
         for line in result_resp.text.split("\n"):
             line = line.strip()
+            logger.debug(f"[Extractive] SSE line: {line[:200]}")
             if line.startswith("data:"):
                 data_str = line[len("data:"):].strip()
                 if data_str:
                     data = json.loads(data_str)
+                    logger.info(f"[Extractive] Parsed data type={type(data).__name__}, len={len(data) if isinstance(data, list) else 'N/A'}")
                     if isinstance(data, list) and len(data) >= 2:
                         summary_text = data[0]
                         entities = data[1]
+                        logger.info(f"[Extractive] Success! Summary length: {len(str(summary_text))}, Entities: {entities}")
                         return {
                             "summary": summary_text,
                             "entities": entities
                         }
+                    else:
+                        logger.warning(f"[Extractive] Data list too short or not a list: {data}")
     except Exception as exc:
         logger.error(f"Error parsing extractive SSE: {exc}")
         raise HTTPException(
@@ -308,4 +327,3 @@ def run_extractive_ner_model(full_text: str):
         status_code=500,
         detail="Format respons dari Hugging Face Space tidak sesuai. Tidak ada data ditemukan.",
     )
-

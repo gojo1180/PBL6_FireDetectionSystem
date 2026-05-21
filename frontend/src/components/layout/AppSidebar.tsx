@@ -63,9 +63,8 @@ export function AppSidebar() {
 
       {/* Sidebar Content */}
       <aside
-        className={`fixed top-0 left-0 z-50 h-screen w-[260px] flex flex-col bg-white border-r border-slate-100 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed top-0 left-0 z-50 h-screen w-[260px] flex flex-col bg-white border-r border-slate-100 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         {/* Logo Header */}
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-100 shrink-0">
@@ -75,7 +74,7 @@ export function AppSidebar() {
             </div>
             <div>
               <span className="font-bold text-slate-800 tracking-tight">Bomba</span>
-              <span className="font-bold text-indigo-500 tracking-tight">Fusion</span>
+              <span className="font-bold text-indigo-500 tracking-tight">AI</span>
             </div>
           </div>
           {/* Close button for mobile inside sidebar */}
@@ -96,11 +95,10 @@ export function AppSidebar() {
                 key={item.href}
                 href={item.href}
                 onClick={closeSidebar}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-colors ${
-                  isActive
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-colors ${isActive
                     ? "bg-indigo-50 text-indigo-600"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-                }`}
+                  }`}
               >
                 <Icon size={18} />
                 {item.label}
@@ -118,11 +116,10 @@ export function AppSidebar() {
                 key={item.href}
                 href={item.href}
                 onClick={closeSidebar}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-colors ${
-                  isActive
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-colors ${isActive
                     ? "bg-indigo-50 text-indigo-600"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-                }`}
+                  }`}
               >
                 <Icon size={18} />
                 {item.label}
