@@ -61,14 +61,14 @@ function formatShortDate(dateStr: string | null): string {
 // ─── Skeleton Loaders ───────────────────────────────────────────────
 function CardSkeleton() {
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 p-4 animate-pulse shadow-sm">
-      <div className="h-36 rounded-xl bg-slate-100 mb-3" />
+    <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-slate-200/40 p-4 animate-pulse shadow-sm">
+      <div className="h-36 rounded-xl bg-slate-200/30 mb-3" />
       <div className="space-y-2">
-        <div className="h-4 bg-slate-100 rounded-md w-full" />
-        <div className="h-4 bg-slate-100 rounded-md w-2/3" />
+        <div className="h-4 bg-slate-200/30 rounded-md w-full" />
+        <div className="h-4 bg-slate-200/30 rounded-md w-2/3" />
         <div className="flex gap-2 mt-3">
-          <div className="h-5 bg-slate-100 rounded-full w-16" />
-          <div className="h-5 bg-slate-100 rounded-full w-20" />
+          <div className="h-5 bg-slate-200/30 rounded-full w-16" />
+          <div className="h-5 bg-slate-200/30 rounded-full w-20" />
         </div>
       </div>
     </div>
@@ -96,14 +96,13 @@ function NewsCard({
       transition={{ delay: index * 0.04, duration: 0.35 }}
       id={`news-card-${index}`}
       onClick={onClick}
-      className={`w-full text-left rounded-2xl border transition-all duration-300 overflow-hidden group shadow-sm hover:shadow-md ${
-        isSelected
-          ? "border-indigo-300 bg-indigo-50/60 ring-2 ring-indigo-200"
-          : "border-slate-100 bg-white hover:border-slate-200"
-      }`}
+      className={`w-full text-left rounded-2xl border transition-all duration-300 overflow-hidden group shadow-sm hover:shadow-md ${isSelected
+          ? "border-indigo-300 bg-indigo-50/40 backdrop-blur-sm ring-2 ring-indigo-200/50"
+          : "border-slate-200/40 bg-white/50 backdrop-blur-sm hover:border-indigo-300/40 hover:bg-white/65"
+        }`}
     >
       {/* Thumbnail */}
-      <div className="relative aspect-[16/9] w-full bg-slate-100 overflow-hidden">
+      <div className="relative aspect-[16/9] w-full bg-slate-100/20 overflow-hidden">
         {article.image_url && !imgError ? (
           <img
             src={article.image_url}
@@ -112,13 +111,13 @@ function NewsCard({
             onError={() => setImgError(true)}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-50/40 to-slate-100/40">
             <Newspaper size={28} className="text-slate-300" />
           </div>
         )}
         {/* Source badge overlay */}
         {article.source && (
-          <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-white/90 backdrop-blur-sm text-[10px] font-bold text-slate-700 uppercase tracking-wide shadow-sm">
+          <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-white/80 backdrop-blur-md text-[10px] font-bold text-slate-700 uppercase tracking-wide shadow-sm border border-white/20">
             {article.source}
           </div>
         )}
@@ -127,9 +126,8 @@ function NewsCard({
       {/* Content */}
       <div className="p-4">
         <h3
-          className={`text-sm font-semibold line-clamp-2 leading-snug mb-2.5 transition-colors ${
-            isSelected ? "text-indigo-700" : "text-slate-800 group-hover:text-indigo-600"
-          }`}
+          className={`text-sm font-semibold line-clamp-2 leading-snug mb-2.5 transition-colors ${isSelected ? "text-indigo-700" : "text-slate-800 group-hover:text-indigo-600"
+            }`}
         >
           {article.title}
         </h3>
@@ -239,8 +237,8 @@ export default function FireNewsPage() {
           "Content-Type": "application/json",
           ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ 
-          url: selectedArticle.link, 
+        body: JSON.stringify({
+          url: selectedArticle.link,
           full_text: fullText,
           model_type: modelType
         }),
@@ -282,9 +280,9 @@ export default function FireNewsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-canvas">
       {/* ─── Header ──────────────────────────────────────────────── */}
-      <header className="h-16 border-b border-slate-100 bg-white flex items-center justify-between pl-16 lg:pl-6 pr-6 shrink-0 sticky top-0 z-30 shadow-sm">
+      <header className="h-16 border-b border-slate-200/40 bg-white/60 backdrop-blur-md flex items-center justify-between pl-16 lg:pl-6 pr-6 shrink-0 sticky top-0 z-30 shadow-[0_2px_8px_rgba(99,102,241,0.02)]">
         <div className="flex items-center gap-3">
           {selectedArticle && (
             <button
@@ -308,7 +306,7 @@ export default function FireNewsPage() {
         <button
           onClick={fetchNews}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-50 border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 transition-all duration-200 text-slate-600 active:scale-95 disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-white/50 backdrop-blur-sm border border-slate-200/60 hover:border-indigo-300 hover:text-indigo-600 transition-all duration-200 text-slate-600 active:scale-95 disabled:opacity-50"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           <span className="hidden sm:inline">Perbarui</span>
@@ -317,13 +315,12 @@ export default function FireNewsPage() {
 
       {/* ─── Content: 2-Column on Desktop, Stacked on Mobile ────── */}
       <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-64px)]">
-        
+
         {/* ── Left: News Grid ────────────────────────────────────── */}
-        <div className={`lg:w-[480px] xl:w-[520px] lg:border-r border-slate-100 lg:overflow-y-auto bg-slate-50 shrink-0 ${
-          selectedArticle ? "hidden lg:block" : ""
-        }`}>
+        <div className={`lg:w-[480px] xl:w-[520px] lg:border-r border-slate-200/40 lg:overflow-y-auto bg-transparent shrink-0 ${selectedArticle ? "hidden lg:block" : ""
+          }`}>
           {/* Counter bar */}
-          <div className="px-6 py-3 border-b border-slate-100 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+          <div className="px-6 py-3 border-b border-slate-200/40 bg-white/60 backdrop-blur-md sticky top-0 z-10">
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
               {loading ? "Memuat berita..." : `${articles.length} Berita ditemukan`}
             </p>
@@ -373,9 +370,8 @@ export default function FireNewsPage() {
         <div
           id="article-detail"
           ref={detailScrollRef}
-          className={`flex-1 lg:overflow-y-auto bg-white ${
-            !selectedArticle ? "hidden lg:flex" : ""
-          }`}
+          className={`flex-1 lg:overflow-y-auto bg-white/40 backdrop-blur-md lg:border-l border-slate-200/30 ${!selectedArticle ? "hidden lg:flex" : ""
+            }`}
         >
           {selectedArticle ? (
             <motion.div
@@ -398,7 +394,7 @@ export default function FireNewsPage() {
               <header className="mb-8">
                 <div className="flex items-center gap-3 mb-4 flex-wrap">
                   {selectedArticle.source && (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-[11px] font-bold uppercase tracking-wide">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50/60 border border-indigo-100/40 text-indigo-600 text-[11px] font-bold uppercase tracking-wide backdrop-blur-sm">
                       <Globe size={11} />
                       {selectedArticle.source}
                     </span>
@@ -420,7 +416,7 @@ export default function FireNewsPage() {
                   <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="rounded-2xl overflow-hidden border border-slate-100 shadow-sm bg-slate-50"
+                    className="rounded-2xl overflow-hidden border border-slate-200/40 shadow-sm bg-slate-50/20 backdrop-blur-sm"
                   >
                     <img
                       src={selectedArticle.image_url}
@@ -452,9 +448,8 @@ export default function FireNewsPage() {
                       className="space-y-3"
                     >
                       {Array(5).fill(0).map((_, i) => (
-                        <div key={i} className={`h-4 bg-slate-100 rounded-md animate-pulse ${
-                          i === 4 ? "w-3/5" : i === 3 ? "w-4/5" : "w-full"
-                        }`} />
+                        <div key={i} className={`h-4 bg-slate-200/30 rounded-md animate-pulse ${i === 4 ? "w-3/5" : i === 3 ? "w-4/5" : "w-full"
+                          }`} />
                       ))}
                     </motion.div>
                   ) : (
@@ -477,11 +472,11 @@ export default function FireNewsPage() {
               </section>
 
               {/* ─── AI Summarization Section ─────────────────────── */}
-              <section className="bg-slate-50 border border-slate-100 rounded-2xl p-6 lg:p-8">
+              <section className="bg-slate-50/40 border border-slate-200/20 backdrop-blur-sm rounded-2xl p-6 lg:p-8 shadow-sm">
                 {/* Header row */}
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-100/60 border border-indigo-100/40 flex items-center justify-center">
                       <Sparkles size={18} className={`text-indigo-600 ${summarizing ? "animate-pulse" : ""}`} />
                     </div>
                     <div>
@@ -492,17 +487,16 @@ export default function FireNewsPage() {
                 </div>
 
                 {/* Model Selector */}
-                <div className="flex bg-white p-1 rounded-xl border border-slate-150 w-fit mb-5">
+                <div className="flex bg-white/55 backdrop-blur-sm p-1 rounded-xl border border-slate-200/40 w-fit mb-5">
                   <button
                     onClick={() => {
                       if (modelType !== "mt5") { setModelType("mt5"); setSummary(null); setEntities(null); }
                     }}
                     disabled={summarizing}
-                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-                      modelType === "mt5"
+                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${modelType === "mt5"
                         ? "bg-indigo-600 text-white shadow-sm"
-                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
-                    }`}
+                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-50/60"
+                      }`}
                   >
                     mT5 Abstraktif
                   </button>
@@ -511,11 +505,10 @@ export default function FireNewsPage() {
                       if (modelType !== "extractive") { setModelType("extractive"); setSummary(null); setEntities(null); }
                     }}
                     disabled={summarizing}
-                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-                      modelType === "extractive"
+                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${modelType === "extractive"
                         ? "bg-indigo-600 text-white shadow-sm"
-                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
-                    }`}
+                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-50/60"
+                      }`}
                   >
                     Ekstraktif & NER
                   </button>
@@ -551,7 +544,7 @@ export default function FireNewsPage() {
                       className="mt-1"
                     >
                       {/* Summary text */}
-                      <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
+                      <div className="bg-white/60 backdrop-blur-md rounded-xl border border-slate-200/40 p-5 shadow-sm">
                         <div className="flex items-center gap-2 mb-3">
                           <div className={`w-2 h-2 rounded-full ${summarizing ? "bg-indigo-500 animate-pulse" : "bg-emerald-500"}`} />
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
@@ -572,7 +565,7 @@ export default function FireNewsPage() {
                           className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3"
                         >
                           {/* LOKASI */}
-                          <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
+                          <div className="bg-white/60 backdrop-blur-md rounded-xl border border-slate-200/40 p-4 shadow-sm">
                             <div className="flex items-center gap-2 mb-2.5">
                               <MapPin size={13} className="text-indigo-500" />
                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Lokasi</span>
@@ -580,7 +573,7 @@ export default function FireNewsPage() {
                             <div className="flex flex-wrap gap-1.5">
                               {entities.LOKASI && entities.LOKASI.length > 0 ? (
                                 entities.LOKASI.map((loc, idx) => (
-                                  <span key={idx} className="px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                  <span key={idx} className="px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-50/60 text-indigo-700 border border-indigo-100/40">
                                     {loc}
                                   </span>
                                 ))
@@ -591,7 +584,7 @@ export default function FireNewsPage() {
                           </div>
 
                           {/* WAKTU */}
-                          <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
+                          <div className="bg-white/60 backdrop-blur-md rounded-xl border border-slate-200/40 p-4 shadow-sm">
                             <div className="flex items-center gap-2 mb-2.5">
                               <Timer size={13} className="text-violet-500" />
                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Waktu</span>
@@ -599,7 +592,7 @@ export default function FireNewsPage() {
                             <div className="flex flex-wrap gap-1.5">
                               {entities.WAKTU && entities.WAKTU.length > 0 ? (
                                 entities.WAKTU.map((time, idx) => (
-                                  <span key={idx} className="px-2.5 py-1 rounded-lg text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100">
+                                  <span key={idx} className="px-2.5 py-1 rounded-lg text-xs font-medium bg-violet-50/60 text-violet-700 border border-violet-100/40">
                                     {time}
                                   </span>
                                 ))
@@ -610,7 +603,7 @@ export default function FireNewsPage() {
                           </div>
 
                           {/* OBJEK */}
-                          <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
+                          <div className="bg-white/60 backdrop-blur-md rounded-xl border border-slate-200/40 p-4 shadow-sm">
                             <div className="flex items-center gap-2 mb-2.5">
                               <Tag size={13} className="text-amber-500" />
                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Objek</span>
@@ -618,7 +611,7 @@ export default function FireNewsPage() {
                             <div className="flex flex-wrap gap-1.5">
                               {entities.OBJEK && entities.OBJEK.length > 0 ? (
                                 entities.OBJEK.map((obj, idx) => (
-                                  <span key={idx} className="px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-100">
+                                  <span key={idx} className="px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50/60 text-amber-700 border border-amber-100/40">
                                     {obj}
                                   </span>
                                 ))
@@ -667,14 +660,13 @@ export default function FireNewsPage() {
               </section>
             </motion.div>
           ) : (
-            /* Empty State */
             <div className="flex-1 flex flex-col items-center justify-center p-12 text-center min-h-[400px]">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="max-w-xs"
               >
-                <div className="w-20 h-20 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-5">
+                <div className="w-20 h-20 rounded-2xl bg-slate-100/40 border border-slate-200/20 flex items-center justify-center mx-auto mb-5">
                   <Newspaper size={32} className="text-slate-300" />
                 </div>
                 <h3 className="text-base font-bold text-slate-700 mb-2">Pilih Berita</h3>

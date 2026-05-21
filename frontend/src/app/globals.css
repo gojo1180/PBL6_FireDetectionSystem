@@ -12,8 +12,11 @@
   --color-semantic-success: #33d17a;
   --color-semantic-error: #ff4d4d;
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-display: "Linear Display", "SF Pro Display", var(--font-inter), "Inter", -apple-system, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-text: "Linear Text", "SF Pro Text", var(--font-inter), "Inter", -apple-system, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "Linear Mono", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --font-sans: var(--font-text);
 
   --color-canvas: var(--tw-canvas);
   --color-canvas-deep: var(--tw-canvas-deep);
@@ -89,7 +92,7 @@
 
 body {
   font-family: var(--font-sans);
-  background-color: #0f0f0f; /* Default to dark before JS loads */
+  background-color: #f8fafc; /* Default to light before JS loads */
   color: var(--color-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -123,82 +126,138 @@ body {
 
 /* Composio Typography Utils */
 @utility display-mega {
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   font-size: 72px;
   font-weight: 500;
   line-height: 1.05;
   letter-spacing: -2.16px;
 }
 @utility display-xl {
-  font-family: var(--font-sans);
-  font-size: 56px;
-  font-weight: 500;
+  font-family: var(--font-display);
+  font-size: 80px;
+  font-weight: 600;
   line-height: 1.05;
-  letter-spacing: -1.68px;
+  letter-spacing: -3.0px;
 }
 @utility display-lg {
-  font-family: var(--font-sans);
-  font-size: 44px;
-  font-weight: 500;
-  line-height: 1.1;
-  letter-spacing: -1.32px;
+  font-family: var(--font-display);
+  font-size: 56px;
+  font-weight: 600;
+  line-height: 1.10;
+  letter-spacing: -1.8px;
 }
 @utility display-md {
-  font-family: var(--font-sans);
-  font-size: 32px;
-  font-weight: 500;
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 600;
   line-height: 1.15;
-  letter-spacing: -0.96px;
+  letter-spacing: -1.0px;
 }
 @utility display-sm {
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   font-size: 24px;
   font-weight: 500;
   line-height: 1.25;
   letter-spacing: -0.5px;
 }
+@utility headline {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.20;
+  letter-spacing: -0.6px;
+}
+@utility card-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.4px;
+}
+@utility subhead {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.40;
+  letter-spacing: -0.2px;
+}
 @utility title-md {
-  font-family: var(--font-sans);
+  font-family: var(--font-text);
   font-size: 18px;
   font-weight: 600;
   line-height: 1.4;
   letter-spacing: 0;
 }
 @utility title-sm {
-  font-family: var(--font-sans);
+  font-family: var(--font-text);
   font-size: 16px;
   font-weight: 600;
   line-height: 1.4;
   letter-spacing: 0;
 }
+@utility body-lg {
+  font-family: var(--font-text);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.50;
+  letter-spacing: -0.1px;
+}
+@utility body {
+  font-family: var(--font-text);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.50;
+  letter-spacing: -0.05px;
+}
 @utility body-md {
-  font-family: var(--font-sans);
+  font-family: var(--font-text);
   font-size: 16px;
   font-weight: 400;
   line-height: 1.5;
   letter-spacing: 0;
 }
 @utility body-sm {
-  font-family: var(--font-sans);
+  font-family: var(--font-text);
   font-size: 14px;
   font-weight: 400;
-  line-height: 1.5;
-  letter-spacing: 0;
+  line-height: 1.50;
+  letter-spacing: 0px;
 }
 @utility caption {
-  font-family: var(--font-sans);
-  font-size: 13px;
+  font-family: var(--font-text);
+  font-size: 12px;
   font-weight: 400;
-  line-height: 1.4;
-  letter-spacing: 0;
+  line-height: 1.40;
+  letter-spacing: 0px;
 }
 @utility caption-uppercase {
-  font-family: var(--font-sans);
+  font-family: var(--font-text);
   font-size: 11px;
   font-weight: 600;
   line-height: 1.4;
   letter-spacing: 0.88px;
   text-transform: uppercase;
+}
+@utility button {
+  font-family: var(--font-text);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.20;
+  letter-spacing: 0px;
+}
+@utility eyebrow {
+  font-family: var(--font-text);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.30;
+  letter-spacing: 0.4px;
+}
+@utility mono {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.50;
+  letter-spacing: 0px;
 }
 @utility font-code {
   font-family: var(--font-mono);
@@ -208,7 +267,7 @@ body {
   letter-spacing: 0;
 }
 @utility btn-text {
-  font-family: var(--font-sans);
+  font-family: var(--font-text);
   font-size: 14px;
   font-weight: 500;
   line-height: 1.0;

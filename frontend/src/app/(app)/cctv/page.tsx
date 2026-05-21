@@ -147,12 +147,12 @@ export default function CCTVPage() {
 
   const selectedDevice = devices.find(d => d.id === selectedDeviceId);
 
-  if (!mounted) return <div className="flex-1 min-h-screen bg-slate-50" />;
+  if (!mounted) return <div className="flex-1 min-h-screen bg-canvas" />;
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50">
+    <div className="flex flex-col min-h-screen bg-canvas">
       {/* Top Bar */}
-      <header className="h-16 border-b border-slate-100 bg-white flex items-center justify-between pl-16 lg:pl-6 pr-6 shrink-0 sticky top-0 z-20 shadow-sm">
+      <header className="h-16 border-b border-slate-200/40 bg-white/60 backdrop-blur-md flex items-center justify-between pl-16 lg:pl-6 pr-6 shrink-0 sticky top-0 z-20 shadow-[0_2px_8px_rgba(99,102,241,0.02)]">
         <div className="flex items-center gap-3 text-sm">
           <div className="p-2 rounded-lg bg-violet-50">
             <Camera size={18} className="text-violet-500" />
@@ -165,7 +165,7 @@ export default function CCTVPage() {
             <button
               id="device-selector-cctv"
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 hover:border-indigo-300 transition-all duration-200 cursor-pointer group"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/50 backdrop-blur-sm border border-slate-200/60 hover:border-indigo-300/80 transition-all duration-200 cursor-pointer group"
             >
               <Server size={13} className="text-indigo-500" />
               <span className="text-slate-700 font-medium truncate max-w-[180px]">
@@ -228,9 +228,9 @@ export default function CCTVPage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
           {/* Main Video Stream Container (takes up 3 cols on large screens) */}
-          <div className="lg:col-span-3 flex flex-col overflow-hidden relative bg-white border border-slate-100 rounded-2xl shadow-sm">
+          <div className="lg:col-span-3 flex flex-col overflow-hidden relative bg-white/60 backdrop-blur-md border border-slate-200/40 rounded-2xl shadow-sm">
             {/* Header for Panel */}
-            <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center">
+            <div className="px-5 py-3 border-b border-slate-200/40 flex justify-between items-center">
               <div className="flex items-center gap-2.5">
                 <div className="p-1.5 rounded-lg bg-violet-50">
                   <Camera size={14} className="text-violet-500" />
@@ -247,7 +247,7 @@ export default function CCTVPage() {
             </div>
 
             {/* The Video Container */}
-            <div className="relative p-4 flex-1 flex flex-col justify-center items-center bg-slate-50">
+            <div className="relative p-4 flex-1 flex flex-col justify-center items-center bg-slate-50/20">
               <div className="relative w-full max-w-5xl group">
                 {/* The actual stream */}
                 <div className={`transition-opacity duration-500 ${isOffline ? 'opacity-0 absolute inset-0 pointer-events-none' : 'opacity-100'}`}>
@@ -349,7 +349,7 @@ export default function CCTVPage() {
           <div className="lg:col-span-1 space-y-6">
 
             {/* Tech Specs Card */}
-            <div className="bg-white p-5 border border-slate-100 rounded-2xl shadow-sm">
+            <div className="bg-white/60 backdrop-blur-md p-5 border border-slate-200/40 rounded-2xl shadow-sm">
               <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
                 Tech Specs
@@ -357,7 +357,7 @@ export default function CCTVPage() {
 
               <div className="space-y-3">
 
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <div className="p-3 rounded-xl bg-slate-50/40 border border-slate-200/20">
                   <div className="flex items-center gap-2 mb-1">
                     <Network size={14} className={isOffline ? "text-red-400" : "text-indigo-500"} />
                     <span className="text-[11px] font-semibold text-slate-500">Status</span>
@@ -367,7 +367,7 @@ export default function CCTVPage() {
                   </p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <div className="p-3 rounded-xl bg-slate-50/40 border border-slate-200/20">
                   <div className="flex items-center gap-2 mb-1">
                     <Radio size={14} className="text-teal-500" />
                     <span className="text-[11px] font-semibold text-slate-500">Protocol</span>
@@ -375,7 +375,7 @@ export default function CCTVPage() {
                   <p className="text-sm font-mono font-semibold text-slate-700">MJPEG / TCP</p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <div className="p-3 rounded-xl bg-slate-50/40 border border-slate-200/20">
                   <div className="flex items-center gap-2 mb-1">
                     <Frame size={14} className="text-indigo-500" />
                     <span className="text-[11px] font-semibold text-slate-500">Resolution</span>
@@ -383,7 +383,7 @@ export default function CCTVPage() {
                   <p className="text-sm font-mono font-semibold text-slate-700">Sub-stream</p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <div className="p-3 rounded-xl bg-slate-50/40 border border-slate-200/20">
                   <div className="flex items-center gap-2 mb-1">
                     <Cpu size={14} className={isOffline ? "text-slate-300" : "text-violet-500"} />
                     <span className="text-[11px] font-semibold text-slate-500">AI Model</span>
@@ -396,7 +396,7 @@ export default function CCTVPage() {
             </div>
 
             {/* Camera Info Card */}
-            <div className="bg-white p-5 border border-slate-100 rounded-2xl shadow-sm">
+            <div className="bg-white/60 backdrop-blur-md p-5 border border-slate-200/40 rounded-2xl shadow-sm">
               <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
                 Camera Info
@@ -412,7 +412,7 @@ export default function CCTVPage() {
                   <span>{selectedDevice?.location || "No location set"}</span>
                 </div>
                 {selectedDevice?.rtsp_url && (
-                  <div className="px-3 py-2 rounded-lg bg-slate-50 border border-slate-100">
+                  <div className="px-3 py-2 rounded-lg bg-slate-50/40 border border-slate-200/20">
                     <p className="text-[10px] text-slate-400 font-mono truncate">{selectedDevice.rtsp_url}</p>
                   </div>
                 )}

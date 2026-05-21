@@ -30,99 +30,90 @@ const flowLineVariant = {
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
   const [authed, setAuthed] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
 
   useEffect(() => {
     setMounted(true);
     setAuthed(isAuthenticated());
-
-    // Read current theme state
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-    if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
-      setIsDarkMode(false);
-      document.documentElement.classList.remove('dark');
-    } else {
-      setIsDarkMode(true);
-      document.documentElement.classList.add('dark');
-    }
+    document.documentElement.classList.remove('dark');
   }, []);
 
-  const toggleTheme = () => {
-    const newTheme = !isDarkMode;
-    setIsDarkMode(newTheme);
-    if (newTheme) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  };
-
-  if (!mounted) return <div className="min-h-screen bg-[#0f0f0f]" />;
+  if (!mounted) return <div className="min-h-screen bg-[#f8fafc]" />;
 
   return (
     <div className="relative min-h-screen flex flex-col overflow-hidden">
 
       {/* ─── NAVBAR ─── */}
-      <motion.nav
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="fixed top-0 left-0 right-0 h-[64px] z-50 bg-[var(--color-canvas)]/80 backdrop-blur-xl border-b border-[var(--color-hairline)] flex items-center justify-between px-6 md:px-8 transition-colors duration-500"
-      >
-        <div className="flex items-center gap-2 cursor-pointer">
-          <Flame size={24} className="text-[var(--color-primary)] drop-shadow-sm" />
-          <div className="font-semibold text-[16px] tracking-tight text-[var(--color-body-strong)] transition-colors duration-500">
-            BombaAI
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-full text-[var(--color-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface-card-elevated)] transition-all duration-300 focus:outline-none"
-            aria-label="Toggle Theme"
-          >
-            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-
-          <div className="w-px h-6 bg-[var(--color-hairline-strong)] mx-1"></div>
-
-          {authed ? (
-            <Link
-              href="/dashboard"
-              className="button-primary btn-text"
+      <div className="fixed top-4 left-0 right-0 z-50 px-4 md:px-8 flex justify-center">
+        <motion.nav
+          initial={{ y: -100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          className="w-full max-w-6xl h-[64px] bg-white/75 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_rgba(99,102,241,0.06)] rounded-2xl flex items-center justify-between px-6 md:px-8"
+        >
+          <Link href="/" className="flex items-center gap-2.5 cursor-pointer group">
+            <motion.div
+              whileHover={{ scale: 1.1, rotate: [0, -10, 10, 0] }}
+              transition={{ duration: 0.4 }}
+              className="p-1.5 rounded-xl bg-indigo-50 border border-indigo-100/50 flex items-center justify-center animate-pulse"
             >
-              Dashboard
-            </Link>
-          ) : (
-            <>
+              <Flame size={20} className="text-indigo-600 drop-shadow-[0_2px_8px_rgba(99,102,241,0.3)]" />
+            </motion.div>
+            <span className="font-extrabold text-[17px] tracking-tight bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-800 bg-clip-text text-transparent group-hover:opacity-85 transition-opacity">
+              BombaAI
+            </span>
+          </Link>
+          
+          {/* Navigation Links */}
+          <div className="hidden md:flex items-center gap-8">
+            <a href="#features" className="text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors relative py-1.5 group">
+              Fitur
+              <span className="absolute bottom-0 left-1/2 w-0 h-0.5 bg-indigo-500 transition-all duration-300 group-hover:w-full group-hover:left-0"></span>
+            </a>
+            <a href="#architecture" className="text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors relative py-1.5 group">
+              Arsitektur
+              <span className="absolute bottom-0 left-1/2 w-0 h-0.5 bg-indigo-500 transition-all duration-300 group-hover:w-full group-hover:left-0"></span>
+            </a>
+            <a href="#team" className="text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors relative py-1.5 group">
+              Tim
+              <span className="absolute bottom-0 left-1/2 w-0 h-0.5 bg-indigo-500 transition-all duration-300 group-hover:w-full group-hover:left-0"></span>
+            </a>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {authed ? (
               <Link
-                href="/login"
-                className="button-secondary-dark btn-text hidden sm:inline-flex"
+                href="/dashboard"
+                className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-[0_4px_14px_rgba(99,102,241,0.2)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.3)] transition-all hover:scale-105 active:scale-95"
               >
-                Masuk
+                Dashboard
               </Link>
-              <Link
-                href="/register"
-                className="button-primary btn-text shadow-sm hover:shadow-md"
-              >
-                Daftar
-              </Link>
-            </>
-          )}
-        </div>
-      </motion.nav>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="px-4 py-2 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-xl transition-all"
+                >
+                  Masuk
+                </Link>
+                <Link
+                  href="/register"
+                  className="px-5 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-[0_4px_14px_rgba(99,102,241,0.2)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.3)] transition-all hover:scale-105 active:scale-95 rounded-xl"
+                >
+                  Daftar
+                </Link>
+              </>
+            )}
+          </div>
+        </motion.nav>
+      </div>
 
-      <main className="relative z-10 flex-grow pt-[64px]">
+      <main className="relative z-10 flex-grow pt-[96px] md:pt-[112px]">
         {/* ─── HERO SECTION ─── */}
         <section className="relative px-6 py-[96px] md:py-[120px] flex flex-col items-center justify-center">
           {/* Spotlight Glow Backdrop */}
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: isDarkMode ? 0.2 : 0.4, scale: 1 }}
+            animate={{ opacity: 0.4, scale: 1 }}
             transition={{ duration: 1.5, ease: "easeOut" }}
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[var(--color-primary-glow)] rounded-full blur-[150px] pointer-events-none z-0 transition-colors duration-700"
           ></motion.div>
@@ -167,7 +158,7 @@ export default function LandingPage() {
         </section>
 
         {/* ─── COMPARISON SECTION ─── */}
-        <section className="px-6 pb-[96px] pt-[32px]">
+        <section id="features" className="px-6 pb-[96px] pt-[32px] scroll-mt-28">
           <div className="max-w-5xl mx-auto">
             <motion.div
               initial="hidden"
@@ -229,7 +220,7 @@ export default function LandingPage() {
         </section>
 
         {/* ─── ARCHITECTURE SECTION ─── */}
-        <section id="architecture" className="px-6 py-[96px] border-t border-[var(--color-hairline)] transition-colors duration-500 overflow-hidden">
+        <section id="architecture" className="px-6 py-[96px] border-t border-[var(--color-hairline)] transition-colors duration-500 overflow-hidden scroll-mt-28">
           <div className="max-w-5xl mx-auto">
             <motion.div
               initial="hidden"
@@ -325,7 +316,7 @@ export default function LandingPage() {
         </section>
 
         {/* ─── TEAM SECTION ─── */}
-        <section className="py-[96px] border-t border-[var(--color-hairline)] transition-colors duration-500 overflow-hidden">
+        <section id="team" className="py-[96px] border-t border-[var(--color-hairline)] transition-colors duration-500 overflow-hidden scroll-mt-28">
           <div className="max-w-5xl mx-auto px-6">
             <motion.div
               initial="hidden"

@@ -37,8 +37,8 @@ export function IncidentLog({ alertsList, onClearAlert }: { alertsList: FusionAl
   };
 
   return (
-    <div className="bg-white border border-slate-100 rounded-2xl shadow-sm flex flex-col max-h-[380px]">
-      <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between shrink-0">
+    <div className="bg-white/60 backdrop-blur-md border border-slate-200/40 rounded-2xl shadow-sm flex flex-col max-h-[380px]">
+      <div className="px-5 py-3 border-b border-slate-200/40 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-amber-50">
             <Bell size={14} className="text-amber-500" />
@@ -132,7 +132,7 @@ export function IncidentLog({ alertsList, onClearAlert }: { alertsList: FusionAl
       {/* CONFIRMATION MODAL */}
       {confirmingAlertId && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 backdrop-blur-sm px-4">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white/80 backdrop-blur-md p-6 rounded-2xl border border-slate-200/50 shadow-2xl max-w-md w-full animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
                 <ShieldCheck size={20} className="text-red-500" />

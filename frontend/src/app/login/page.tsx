@@ -13,29 +13,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     if (isAuthenticated()) router.replace("/dashboard");
-    
-    // Read current theme state
-    const isDark = document.documentElement.classList.contains('dark');
-    setIsDarkMode(isDark);
+    document.documentElement.classList.remove('dark');
   }, [router]);
-
-  const toggleTheme = () => {
-    const newTheme = !isDarkMode;
-    setIsDarkMode(newTheme);
-    if (newTheme) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,14 +54,6 @@ export default function LoginPage() {
             </span>
           </Link>
         </div>
-        
-        <button
-          onClick={toggleTheme}
-          className="p-2 rounded-full text-[var(--color-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface-card-elevated)] transition-all duration-300 focus:outline-none backdrop-blur-md"
-          aria-label="Toggle Theme"
-        >
-          {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
       </div>
 
       {/* Centered card */}

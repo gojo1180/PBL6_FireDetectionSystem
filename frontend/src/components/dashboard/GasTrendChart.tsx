@@ -15,7 +15,7 @@ export interface ChartPoint {
 
 export const GasTrendChart = memo(function GasTrendChart({ chartData }: { chartData: ChartPoint[] }) {
   return (
-    <div className="lg:col-span-2 bg-white border border-slate-100 rounded-2xl shadow-sm p-6">
+    <div className="lg:col-span-2 bg-white/60 backdrop-blur-md border border-slate-200/40 rounded-2xl shadow-sm p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-sm font-bold text-slate-700">Gas Concentration Trend</h3>
@@ -33,8 +33,9 @@ export const GasTrendChart = memo(function GasTrendChart({ chartData }: { chartD
             <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} tickLine={false} axisLine={{ stroke: "#e2e8f0" }} width={40} />
             <Tooltip
               contentStyle={{
-                background: "#ffffff",
-                border: "1px solid #e2e8f0",
+                background: "rgba(255, 255, 255, 0.8)",
+                backdropFilter: "blur(8px)",
+                border: "1px solid rgba(255, 255, 255, 0.3)",
                 borderRadius: "12px",
                 fontSize: "12px",
                 color: "#334155",

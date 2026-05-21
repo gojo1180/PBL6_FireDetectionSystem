@@ -17,15 +17,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                let theme = localStorage.getItem('theme');
-                if (!theme) {
-                  theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                }
-                if (theme === 'dark') {
-                  document.documentElement.classList.add('dark');
-                } else {
-                  document.documentElement.classList.remove('dark');
-                }
+                document.documentElement.classList.remove('dark');
+                localStorage.removeItem('theme');
               } catch (_) {}
             `,
           }}
@@ -34,8 +27,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="h-full bg-transparent text-[var(--color-body)] transition-colors duration-500 selection:bg-[var(--color-primary)]/30">
         
         {/* Global Dynamic Background */}
-        <div className="fixed inset-0 pointer-events-none z-[-2] bg-[#f8fafc] dark:bg-[#0f0f0f] transition-colors duration-700"></div>
-        <div className="fixed inset-0 pointer-events-none z-[-1] transition-opacity duration-1000 opacity-100 dark:opacity-0">
+        <div className="fixed inset-0 pointer-events-none z-[-2] bg-[#f8fafc] transition-colors duration-700"></div>
+        <div className="fixed inset-0 pointer-events-none z-[-1] transition-opacity duration-1000 opacity-100">
           <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[radial-gradient(circle,_rgba(224,231,255,1)_0%,_rgba(255,255,255,0)_70%)] opacity-80 blur-3xl"></div>
           <div className="absolute top-[20%] right-[-10%] w-[40%] h-[60%] bg-[radial-gradient(circle,_rgba(236,254,255,1)_0%,_rgba(255,255,255,0)_70%)] opacity-70 blur-3xl"></div>
           <div className="absolute bottom-[-20%] left-[20%] w-[60%] h-[50%] bg-[radial-gradient(circle,_rgba(243,232,255,1)_0%,_rgba(255,255,255,0)_70%)] opacity-60 blur-3xl"></div>

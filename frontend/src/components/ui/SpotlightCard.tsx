@@ -36,8 +36,8 @@ export function SpotlightCard({
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`relative overflow-hidden transition-all duration-300 bg-white border ${
-        warn ? "border-red-200 shadow-[0_0_15px_rgba(239,68,68,0.15)]" : "border-slate-100 shadow-sm"
+      className={`relative overflow-hidden transition-all duration-300 bg-white/60 backdrop-blur-md border ${
+        warn ? "border-red-200/50 shadow-[0_0_15px_rgba(239,68,68,0.15)]" : "border-slate-200/40 shadow-sm"
       } ${className}`}
     >
       {/* Background Spotlight - Always Visible */}

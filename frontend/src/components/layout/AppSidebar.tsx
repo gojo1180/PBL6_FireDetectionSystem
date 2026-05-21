@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Cctv, Server, Menu, X, LogOut, Newspaper, Database } from "lucide-react";
+import { LayoutDashboard, Cctv, Server, Menu, X, LogOut, Newspaper, Database, Flame } from "lucide-react";
 import { getUser, removeToken } from "@/lib/auth";
+import { motion } from "framer-motion";
 
 export function AppSidebar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -37,55 +38,72 @@ export function AppSidebar() {
   ];
 
   const initials = userName
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+    ? userName
+        .split(" ")
+        .filter(Boolean)
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "U";
 
   return (
     <>
       {/* Mobile Hamburger Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="lg:hidden fixed top-3 left-4 z-40 p-2 rounded-lg bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
+        className="lg:hidden fixed top-3 left-4 z-40 p-2.5 rounded-xl bg-white/80 backdrop-blur-md border border-slate-200/50 text-slate-700 shadow-sm hover:bg-slate-50 hover:scale-105 active:scale-95 transition-all cursor-pointer"
       >
-        <Menu size={20} />
+        <Menu size={20} className="text-slate-600" />
       </button>
 
       {/* Mobile Overlay */}
       {isOpen && (
         <div
-          className="lg:hidden fixed inset-0 z-40 bg-black/30 backdrop-blur-sm transition-opacity"
+          className="lg:hidden fixed inset-0 z-40 bg-black/20 backdrop-blur-sm transition-opacity duration-300"
           onClick={closeSidebar}
         />
       )}
 
       {/* Sidebar Content */}
       <aside
-        className={`fixed top-0 left-0 z-50 h-screen w-[260px] flex flex-col bg-white border-r border-slate-100 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
+        className={`fixed top-0 left-0 z-50 h-screen w-[270px] flex flex-col bg-white/75 backdrop-blur-xl border-r border-slate-200/40 shadow-[0_8px_32px_rgba(99,102,241,0.02)] transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
         {/* Logo Header */}
-        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-100 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" /></svg>
+        <div className="h-20 flex items-center justify-between px-6 border-b border-slate-100/50 shrink-0">
+          <Link href="/" onClick={closeSidebar} className="flex items-center gap-2.5 group">
+            <motion.div
+              whileHover={{ scale: 1.1, rotate: [0, -10, 10, 0] }}
+              transition={{ duration: 0.4 }}
+              className="p-1.5 rounded-xl bg-indigo-50 border border-indigo-100/50 flex items-center justify-center shadow-sm"
+            >
+              <Flame size={20} className="text-indigo-600 drop-shadow-[0_2px_8px_rgba(99,102,241,0.3)]" />
+            </motion.div>
+            <div className="flex flex-col">
+              <span className="font-extrabold text-[17px] tracking-tight bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-800 bg-clip-text text-transparent group-hover:opacity-85 transition-opacity">
+                BombaAI
+              </span>
+              <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest -mt-0.5">
+                Fire Detection
+              </span>
             </div>
-            <div>
-              <span className="font-bold text-slate-800 tracking-tight">Bomba</span>
-              <span className="font-bold text-indigo-500 tracking-tight">AI</span>
-            </div>
-          </div>
+          </Link>
           {/* Close button for mobile inside sidebar */}
-          <button onClick={closeSidebar} className="lg:hidden text-slate-400 hover:text-slate-700">
-            <X size={20} />
+          <button
+            onClick={closeSidebar}
+            className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100/50 transition-colors"
+          >
+            <X size={18} />
           </button>
         </div>
 
         {/* Nav Links */}
-        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-          <span className="px-3 text-[10px] uppercase tracking-widest font-semibold text-slate-400 mb-2 block">Monitoring</span>
+        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+          <span className="px-3 text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2.5 block">
+            Monitoring
+          </span>
 
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -95,19 +113,43 @@ export function AppSidebar() {
                 key={item.href}
                 href={item.href}
                 onClick={closeSidebar}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-colors ${isActive
-                    ? "bg-indigo-50 text-indigo-600"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-                  }`}
+                className={`relative flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 group ${
+                  isActive
+                    ? "text-indigo-600 font-bold"
+                    : "text-slate-500 hover:text-slate-800 hover:pl-5"
+                }`}
               >
-                <Icon size={18} />
-                {item.label}
+                {isActive && (
+                  <motion.div
+                    layoutId="active-pill"
+                    className="absolute inset-0 bg-gradient-to-r from-indigo-50/80 to-violet-50/50 rounded-xl border border-indigo-100/30 z-0"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+                {isActive && (
+                  <motion.div
+                    layoutId="active-indicator"
+                    className="absolute left-0 top-3 bottom-3 w-1 bg-indigo-600 rounded-r-full z-10"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-3 w-full">
+                  <Icon
+                    size={18}
+                    className={`transition-transform duration-300 group-hover:scale-110 ${
+                      isActive ? "text-indigo-600" : "text-slate-400 group-hover:text-indigo-500"
+                    }`}
+                  />
+                  <span className="flex-1">{item.label}</span>
+                </span>
               </Link>
             );
           })}
 
           {/* Intelligence Section */}
-          <span className="px-3 pt-5 text-[10px] uppercase tracking-widest font-semibold text-slate-400 mb-2 block">Intelligence</span>
+          <span className="px-3 pt-6 text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2.5 block">
+            Intelligence
+          </span>
           {[{ href: "/news", label: "Fire News", icon: Newspaper }].map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -116,33 +158,55 @@ export function AppSidebar() {
                 key={item.href}
                 href={item.href}
                 onClick={closeSidebar}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-colors ${isActive
-                    ? "bg-indigo-50 text-indigo-600"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-                  }`}
+                className={`relative flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 group ${
+                  isActive
+                    ? "text-indigo-600 font-bold"
+                    : "text-slate-500 hover:text-slate-800 hover:pl-5"
+                }`}
               >
-                <Icon size={18} />
-                {item.label}
+                {isActive && (
+                  <motion.div
+                    layoutId="active-pill"
+                    className="absolute inset-0 bg-gradient-to-r from-indigo-50/80 to-violet-50/50 rounded-xl border border-indigo-100/30 z-0"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+                {isActive && (
+                  <motion.div
+                    layoutId="active-indicator"
+                    className="absolute left-0 top-3 bottom-3 w-1 bg-indigo-600 rounded-r-full z-10"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-3 w-full">
+                  <Icon
+                    size={18}
+                    className={`transition-transform duration-300 group-hover:scale-110 ${
+                      isActive ? "text-indigo-600" : "text-slate-400 group-hover:text-indigo-500"
+                    }`}
+                  />
+                  <span className="flex-1">{item.label}</span>
+                </span>
               </Link>
             );
           })}
         </nav>
 
         {/* Footer — User + Logout */}
-        <div className="px-4 py-4 border-t border-slate-100 shrink-0 space-y-3">
-          <div className="flex items-center gap-3 px-2">
-            <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
+        <div className="px-4 py-5 border-t border-slate-100/50 shrink-0 space-y-4">
+          <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-slate-50/40 border border-slate-100/30 shadow-[0_2px_8px_rgba(0,0,0,0.01)]">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-[0_4px_12px_rgba(99,102,241,0.2)]">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-700 truncate">{userName}</p>
-              <p className="text-[11px] text-slate-400 truncate">{userEmail}</p>
+              <p className="text-xs font-bold text-slate-800 truncate">{userName}</p>
+              <p className="text-[10px] font-medium text-slate-400 truncate">{userEmail}</p>
             </div>
           </div>
           <button
             id="logout-btn"
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-red-500 text-sm font-medium hover:bg-red-50 transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-red-500 hover:text-red-600 text-sm font-bold bg-red-50/30 hover:bg-red-50 border border-red-100/20 hover:border-red-200/50 active:scale-[0.98] transition-all duration-200 cursor-pointer"
           >
             <LogOut size={16} />
             Sign Out

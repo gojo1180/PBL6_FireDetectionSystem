@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { getDevices, getDashboardSensors, getLatestVision, getAlerts, getCalibrationStatus, CalibrationStatus, setCalibrationConfig } from "@/lib/api";
-import { Activity, Bell, Flame, Gauge, Wind, Droplets, ChevronDown, MapPin, Server, Download, BrainCircuit, Settings2, Thermometer, Zap } from "lucide-react";
+import { Activity, Bell, Flame, Gauge, Wind, Droplets, ChevronDown, MapPin, Server, BrainCircuit, Settings2, Thermometer, Zap } from "lucide-react";
 
 import { SensorLog, VisionLog, FusionAlert, Device } from "@/types";
 import { fmtTime } from "@/lib/utils";
@@ -245,33 +245,7 @@ export default function DashboardPage() {
     LPG: Number(s.lpg_level.toFixed(2)),
   })), [sensorHistory, mounted]);
 
-  const downloadCSV = async () => {
-    if (!selectedDeviceId) return;
-    try {
-      const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const token = getToken();
 
-      const res = await fetch(`${BASE_URL}/api/v1/sensors/export/csv?device_id=${selectedDeviceId}`, {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
-
-      if (!res.ok) throw new Error("Failed to download CSV");
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `sensor_logs_${selectedDeviceId}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (err) {
-      console.error("Download failed", err);
-    }
-  };
 
   const selectedDevice = useMemo(() => devices.find(d => d.id === selectedDeviceId), [devices, selectedDeviceId]);
 
@@ -303,8 +277,8 @@ export default function DashboardPage() {
   const memoizedSensorCards = useMemo(() => (
     <div className="relative">
       {isBuffering && (
-        <div className="absolute inset-0 z-10 bg-white/70 backdrop-blur-[2px] rounded-xl flex items-center justify-center border border-amber-200/50 shadow-sm animate-in fade-in duration-300">
-          <div className="flex flex-col items-center gap-3 bg-white px-6 py-5 rounded-2xl border border-slate-100 shadow-lg">
+        <div className="absolute inset-0 z-10 bg-white/40 backdrop-blur-sm rounded-xl flex items-center justify-center border border-amber-200/30 shadow-sm animate-in fade-in duration-300">
+          <div className="flex flex-col items-center gap-3 bg-white/80 backdrop-blur-md px-6 py-5 rounded-2xl border border-slate-200/50 shadow-lg">
             <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
             <div className="text-center">
               <p className="text-sm font-bold text-indigo-600 tracking-widest uppercase mb-1">Connection Interrupted</p>
@@ -406,11 +380,11 @@ export default function DashboardPage() {
     </div>
   ), [latestSensor, isBuffering, checkFeatureWarn, getFeatureProgress]);
 
-  if (!mounted) return <div className="flex-1 min-h-screen bg-slate-50" />;
+  if (!mounted) return <div className="flex-1 min-h-screen bg-canvas" />;
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50">
-      <header className="h-16 border-b border-slate-100 bg-white flex items-center justify-between pl-16 lg:pl-6 pr-6 shrink-0 sticky top-0 z-20 shadow-sm">
+    <div className="flex flex-col min-h-screen bg-canvas">
+      <header className="h-16 border-b border-slate-200/40 bg-white/60 backdrop-blur-md flex items-center justify-between pl-16 lg:pl-6 pr-6 shrink-0 sticky top-0 z-20 shadow-[0_2px_8px_rgba(99,102,241,0.02)]">
         <div className="flex items-center gap-3 text-sm">
           <div className="p-2 rounded-lg bg-indigo-50">
             <Activity size={18} className="text-indigo-500" />
@@ -423,7 +397,7 @@ export default function DashboardPage() {
             <button
               id="device-selector-dashboard"
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 hover:border-indigo-300 transition-all duration-200 cursor-pointer group"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/50 backdrop-blur-sm border border-slate-200/60 hover:border-indigo-300/80 transition-all duration-200 cursor-pointer group"
             >
               <Server size={13} className="text-indigo-500" />
               <span className="text-slate-700 font-medium truncate max-w-[180px]">
@@ -476,14 +450,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={downloadCSV}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-indigo-300 text-slate-700 text-sm transition-all duration-200"
-            title="Download CSV Data"
-          >
-            <Download size={16} className="text-indigo-500" />
-            <span className="hidden md:inline font-semibold">Export CSV</span>
-          </button>
+
 
           {/* ─── Settings Popover (AI Sensitivity) — Prominent ─── */}
           <div className="relative" ref={settingsRef}>
@@ -492,7 +459,7 @@ export default function DashboardPage() {
               onClick={() => setIsSettingsOpen(!isSettingsOpen)}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-lg border transition-all duration-200 text-sm font-semibold ${isSettingsOpen
                   ? "bg-indigo-50 border-indigo-200 text-indigo-600"
-                  : "bg-slate-50 border-slate-200 hover:border-indigo-300 text-slate-600"
+                  : "bg-white/50 backdrop-blur-sm border border-slate-200/60 hover:border-indigo-300/80 text-slate-600"
                 }`}
               title="AI Sensitivity Settings"
             >

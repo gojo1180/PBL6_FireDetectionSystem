@@ -131,9 +131,9 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
     : "";
 
   return (
-    <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+    <div className="bg-white/60 backdrop-blur-md border border-slate-200/40 rounded-2xl shadow-sm overflow-hidden flex flex-col">
       {/* ── Header ───────────────────────────────────────────────── */}
-      <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+      <div className="px-5 py-3 border-b border-slate-200/40 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-violet-50">
             <Camera size={14} className="text-violet-500" />
@@ -166,7 +166,7 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
 
       {/* ── Stream / Fallback ────────────────────────────────────── */}
       <div
-        className={`relative aspect-video bg-slate-50 overflow-hidden transition-all duration-300 ${dangerRing}`}
+        className={`relative aspect-video bg-slate-50/20 overflow-hidden transition-all duration-300 ${dangerRing}`}
       >
         {/* Video Element for WebRTC */}
         <video
@@ -181,7 +181,7 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
 
         {/* Skeleton Loading - Connecting */}
         <div
-          className={`absolute inset-0 flex items-center justify-center bg-slate-50 transition-opacity duration-500 ${
+          className={`absolute inset-0 flex items-center justify-center bg-slate-50/10 backdrop-blur-sm transition-opacity duration-500 ${
             connectionState === "connecting" ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
         >
@@ -193,7 +193,7 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
 
         {/* Error / Offline fallback */}
         <div
-          className={`absolute inset-0 flex flex-col items-center justify-center bg-slate-50 transition-opacity duration-500 ${
+          className={`absolute inset-0 flex flex-col items-center justify-center bg-slate-50/10 backdrop-blur-sm transition-opacity duration-500 ${
             connectionState === "error" ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
         >
