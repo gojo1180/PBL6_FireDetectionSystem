@@ -48,7 +48,7 @@ export default function LoginPage() {
             <ArrowLeft size={20} />
           </Link>
           <Link href="/" className="inline-flex items-center gap-2">
-            <Flame size={20} className="text-[var(--color-primary)]" />
+            <img src="/img/logo.png" alt="BombaAI Logo" className="w-5 h-5 object-contain" />
             <span className="font-semibold text-[16px] tracking-tight text-[var(--color-body-strong)]">
               BombaFusion
             </span>

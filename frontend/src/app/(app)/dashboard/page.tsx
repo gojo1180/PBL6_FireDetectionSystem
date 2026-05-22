@@ -371,7 +371,7 @@ export default function DashboardPage() {
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
             Environment
           </h3>
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-2 gap-3 md:gap-5">
             <MetricCard
               label="Temperature"
               value={latestSensor?.temperature}
@@ -399,7 +399,7 @@ export default function DashboardPage() {
             <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
             Gas & Fire Sensors
           </h3>
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-5">
             <MetricCard
               label="Smoke"
               value={latestSensor?.smoke_detected}
@@ -460,12 +460,12 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-canvas">
-      <header className="h-16 border-b border-slate-200/40 bg-white/60 backdrop-blur-md flex items-center justify-between pl-16 lg:pl-6 pr-6 shrink-0 sticky top-0 z-20 shadow-[0_2px_8px_rgba(99,102,241,0.02)]">
+      <header className="h-16 border-b border-slate-200/40 bg-white/60 backdrop-blur-md flex items-center justify-between pl-16 lg:pl-6 px-4 lg:px-6 shrink-0 sticky top-0 z-20 shadow-[0_2px_8px_rgba(99,102,241,0.02)]">
         <div className="flex items-center gap-3 text-sm">
           <div className="p-2 rounded-lg bg-indigo-50">
             <Activity size={18} className="text-indigo-500" />
           </div>
-          <span className="font-bold text-base text-slate-800">Control Center</span>
+          <span className="font-bold text-base text-slate-800 hidden sm:inline">Control Center</span>
           <span className="text-slate-300 text-lg">/</span>
 
           {/* ─── Device Selector Dropdown ─────────────────────────── */}
@@ -489,7 +489,7 @@ export default function DashboardPage() {
 
             {/* Dropdown Menu */}
             {isDropdownOpen && (
-              <div className="absolute top-full left-0 mt-1.5 w-72 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-xl shadow-2xl shadow-slate-200/50 overflow-hidden z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="absolute top-full left-0 md:left-auto mt-1.5 w-[calc(100vw-2rem)] sm:w-72 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-xl shadow-2xl shadow-slate-200/50 overflow-hidden z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                 <div className="px-3 py-2 border-b border-slate-100">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Select Device</p>
                 </div>
@@ -544,7 +544,7 @@ export default function DashboardPage() {
             </button>
 
             {isSettingsOpen && (
-              <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl shadow-slate-300/40 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="absolute top-full right-0 origin-top-right mt-2 w-[calc(100vw-2rem)] sm:w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl shadow-slate-300/40 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3 bg-gradient-to-r from-indigo-50 to-violet-50">
                   <div className="p-2 rounded-xl bg-indigo-100">
                     <BrainCircuit size={18} className="text-indigo-600" />
@@ -603,7 +603,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="flex-1 p-6 lg:p-8 space-y-6">
+      <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6 overflow-x-hidden">
         <StatusBanner latestAlert={latestAlert} devices={devices} onClearAlert={fetchDashboardData} />
 
         {/* ── Sensor Metric Cards (Environment + Gas Groups) ── */}

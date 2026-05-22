@@ -41,6 +41,7 @@ def config_polling_loop():
                         current_rtsp_url = db_url
                         current_device_id = db_id
                         cap_reconnect_flag = True
+                        retry_counter = 0
         except Exception as e:
             print(f"❌ Error polling CCTV config from DB: {e}")
             
@@ -60,7 +61,7 @@ def frame_reading_loop():
             url_to_use = current_rtsp_url
 
         # ── Reconnect / initial connect ──────────────────────────
-        if need_reconnect or (cap is None and url_to_use):
+        if need_reconnect:
             if cap: 
                 cap.release()
                 cap = None
@@ -95,9 +96,8 @@ def frame_reading_loop():
                         retry_counter += 1 # prevent printing again
                     
                     cap = None
-                    # Wait indefinitely until cap_reconnect_flag is set manually
-                    while not cctv_stop_event.is_set() and not cap_reconnect_flag:
-                        time.sleep(0.5)
+                    with frame_lock:
+                        cap_reconnect_flag = False # Stop trying until user manually triggers retry
                 continue
 
         # ── No URL configured yet — wait ─────────────────────────
@@ -114,6 +114,9 @@ def frame_reading_loop():
             print("⚠️ Failed to read frame from CCTV. Camera might be offline. Reconnecting...")
             cap.release()
             cap = None
+            with frame_lock:
+                cap_reconnect_flag = True
+                retry_counter = 0
             time.sleep(3)
             continue
 

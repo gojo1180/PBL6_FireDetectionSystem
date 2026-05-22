@@ -79,7 +79,7 @@ export function AppSidebar() {
               transition={{ duration: 0.4 }}
               className="p-1.5 rounded-xl bg-indigo-50 border border-indigo-100/50 flex items-center justify-center shadow-sm"
             >
-              <Flame size={20} className="text-indigo-600 drop-shadow-[0_2px_8px_rgba(99,102,241,0.3)]" />
+              <img src="/img/logo.png" alt="BombaAI Logo" className="w-5 h-5 object-contain drop-shadow-[0_2px_8px_rgba(99,102,241,0.3)]" />
             </motion.div>
             <div className="flex flex-col">
               <span className="font-extrabold text-[17px] tracking-tight bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-800 bg-clip-text text-transparent group-hover:opacity-85 transition-opacity">

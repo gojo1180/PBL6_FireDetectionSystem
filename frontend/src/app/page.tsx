@@ -56,7 +56,7 @@ export default function LandingPage() {
               transition={{ duration: 0.4 }}
               className="p-1.5 rounded-xl bg-indigo-50 border border-indigo-100/50 flex items-center justify-center animate-pulse"
             >
-              <Flame size={20} className="text-indigo-600 drop-shadow-[0_2px_8px_rgba(99,102,241,0.3)]" />
+              <img src="/img/logo.png" alt="BombaAI Logo" className="w-5 h-5 object-contain drop-shadow-[0_2px_8px_rgba(99,102,241,0.3)]" />
             </motion.div>
             <span className="font-extrabold text-[17px] tracking-tight bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-800 bg-clip-text text-transparent group-hover:opacity-85 transition-opacity">
               BombaAI
@@ -397,7 +397,7 @@ export default function LandingPage() {
 
           <div className="flex flex-col items-start gap-4">
             <div className="flex items-center gap-2">
-              <Flame size={24} className="text-[var(--color-muted)]" />
+              <img src="/img/logo.png" alt="BombaAI Logo" className="w-6 h-6 object-contain" />
               <span className="font-semibold text-sm text-[var(--color-muted)] transition-colors duration-500">BombaAI</span>
             </div>
             <p className="body-sm text-[var(--color-muted)] max-w-xs transition-colors duration-500">

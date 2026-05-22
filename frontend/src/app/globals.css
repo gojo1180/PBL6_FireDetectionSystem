@@ -97,6 +97,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.5s ease, color 0.5s ease;
+  overscroll-behavior-y: none; /* Prevent pull-to-refresh bounce on mobile */
+  -webkit-tap-highlight-color: transparent; /* Remove blue tap highlight on mobile */
 }
 
 /* Scrollbar */
@@ -120,6 +122,15 @@ body {
   display: none;
 }
 .scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Hide scrollbar completely (PWA native feel) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }

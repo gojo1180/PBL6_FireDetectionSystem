@@ -168,7 +168,7 @@ export default function SensorLogsPage() {
       {/* ═══════════════════════════════════════════════════════════════
           HEADER
       ═══════════════════════════════════════════════════════════════ */}
-      <header className="px-6 lg:px-12 pt-10 pb-8 border-b border-hairline/60">
+      <header className="px-4 md:px-6 lg:px-12 pt-6 md:pt-10 pb-5 md:pb-8 border-b border-hairline/60 overflow-x-hidden">
         <div className="max-w-[1400px] mx-auto flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
           {/* Left: Title + Description */}
           <div className="space-y-2">
@@ -180,7 +180,7 @@ export default function SensorLogsPage() {
                 Sensor Logs &amp; Archive
               </span>
             </div>
-            <h1 className="display-lg text-ink">Telemetry Analytics</h1>
+            <h1 className="display-sm md:display-lg text-ink">Telemetry Analytics</h1>
             <p className="body-md text-muted max-w-2xl">
               Visualisasi tren dan riwayat data sensor lingkungan (MQ series, DHT22)
               untuk analisis lanjutan.
@@ -188,7 +188,7 @@ export default function SensorLogsPage() {
           </div>
 
           {/* Right: Device selector + Export */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 md:gap-3 shrink-0 flex-wrap">
             {/* Device Dropdown */}
             <div className="relative">
               <button
@@ -208,7 +208,7 @@ export default function SensorLogsPage() {
               </button>
 
               {isDeviceDropdownOpen && (
-                <div className="absolute top-full left-0 mt-1.5 w-64 bg-surface-card border border-hairline rounded-lg overflow-hidden z-50">
+                <div className="absolute top-full left-0 mt-1.5 w-[calc(100vw-2rem)] sm:w-64 bg-surface-card border border-hairline rounded-lg overflow-hidden z-50">
                   <div className="px-3 py-2 border-b border-hairline">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted">
                       Pilih Perangkat
@@ -254,10 +254,10 @@ export default function SensorLogsPage() {
       {/* ═══════════════════════════════════════════════════════════════
           MAIN CONTENT
       ═══════════════════════════════════════════════════════════════ */}
-      <main className="flex-1 px-6 lg:px-12 py-8">
-        <div className="max-w-[1400px] mx-auto space-y-6">
+      <main className="flex-1 px-4 md:px-6 lg:px-12 py-4 md:py-8 overflow-x-hidden">
+        <div className="max-w-[1400px] mx-auto space-y-4 md:space-y-6">
           {/* ── Time-Range Toolbar ──────────────────────────────────── */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 px-5 py-4 rounded-xl bg-surface-card-elevated border border-hairline">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 md:gap-4 px-3 md:px-5 py-3 md:py-4 rounded-xl bg-surface-card-elevated border border-hairline">
             {/* Left: Preset Toggles */}
             <div className="flex items-center gap-1 bg-canvas rounded-lg p-1">
               {presets.map((preset) => (
@@ -276,7 +276,7 @@ export default function SensorLogsPage() {
             </div>
 
             {/* Right: Custom Date Range */}
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-2">
                 <label className="text-[11px] font-semibold text-muted uppercase tracking-wider">
                   From
@@ -331,7 +331,7 @@ export default function SensorLogsPage() {
           {/* ── Chart Area ─────────────────────────────────────────── */}
           <div className="feature-card !p-0 overflow-hidden !rounded-2xl">
             {/* Chart Header */}
-            <div className="flex items-center justify-between px-6 pt-6 pb-2">
+            <div className="flex flex-col md:flex-row md:items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-2 gap-2">
               <div>
                 <h2 className="text-sm font-semibold text-ink flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-primary" />
@@ -341,7 +341,7 @@ export default function SensorLogsPage() {
                   {dateFrom} → {dateTo}
                 </p>
               </div>
-              <div className="flex items-center gap-4 text-[11px] font-mono text-muted">
+              <div className="hidden md:flex items-center gap-4 text-[11px] font-mono text-muted">
                 <span className="flex items-center gap-1.5">
                   <span className="w-3 h-[2px] rounded-full bg-[#5e6ad2]" /> Temperature
                 </span>
@@ -358,9 +358,9 @@ export default function SensorLogsPage() {
             </div>
 
             {/* Chart Body */}
-            <div className="px-4 pb-6">
+            <div className="px-2 md:px-4 pb-4 md:pb-6">
               {error ? (
-                <div className="h-[480px] flex flex-col items-center justify-center gap-4">
+                <div className="h-[300px] md:h-[480px] flex flex-col items-center justify-center gap-4">
                   <div className="w-14 h-14 rounded-2xl bg-semantic-error/10 flex items-center justify-center">
                     <AlertCircle size={28} className="text-semantic-error" />
                   </div>
@@ -373,7 +373,7 @@ export default function SensorLogsPage() {
                   </button>
                 </div>
               ) : chartRows.length === 0 && !loading ? (
-                <div className="h-[480px] flex flex-col items-center justify-center gap-3">
+                <div className="h-[300px] md:h-[480px] flex flex-col items-center justify-center gap-3">
                   <Database size={40} className="text-muted-soft" />
                   <p className="text-sm text-muted">
                     Tidak ada data sensor dalam rentang waktu ini.
