@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { getDevices, getDashboardSensors, getLatestVision, getAlerts, getCalibrationStatus, CalibrationStatus, setCalibrationConfig } from "@/lib/api";
+import { apiFetch, getDevices, getDashboardSensors, getLatestVision, getAlerts, getCalibrationStatus, CalibrationStatus, setCalibrationConfig } from "@/lib/api";
 import { Activity, Bell, Flame, Gauge, Wind, Droplets, ChevronDown, MapPin, Server, BrainCircuit, Settings2, Thermometer, Zap } from "lucide-react";
 
 import { SensorLog, VisionLog, FusionAlert, Device } from "@/types";
@@ -25,19 +25,30 @@ const GasTrendChart = dynamic(
 // Maximum number of data points in the sliding window for the chart
 const MAX_HISTORY = 15;
 
+// ─── VAPID Public Key (loaded from environment variable) ────────────────────
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "";
+
+/**
+ * Convert a Base64-URL-encoded string (used by VAPID keys) to a Uint8Array
+ * that the PushManager.subscribe() API expects for applicationServerKey.
+ */
+function urlBase64ToUint8Array(base64String: string): BufferSource {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray.buffer as ArrayBuffer;
+}
+
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [currentTime, setCurrentTime] = useState<number>(Date.now());
-
-  useEffect(() => {
-    const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
   const [latestSensor, setLatestSensor] = useState<SensorLog | null>(null);
   const [latestVision, setLatestVision] = useState<VisionLog | null>(null);
   const [latestAlert, setLatestAlert] = useState<FusionAlert | null>(null);
@@ -45,6 +56,24 @@ export default function DashboardPage() {
   const [alertsList, setAlertsList] = useState<FusionAlert[]>([]);
   const [calibration, setCalibration] = useState<CalibrationStatus | null>(null);
   const [isUpdatingToleransi, setIsUpdatingToleransi] = useState(false);
+  
+  // Track buffering state efficiently without global intervals
+  const [isBuffering, setIsBuffering] = useState(true);
+
+  useEffect(() => {
+    if (!latestSensor) {
+      setIsBuffering(true);
+      return;
+    }
+    
+    // We just received a new sensor reading! Remove buffering state.
+    setIsBuffering(false);
+    
+    // If we don't get another reading in 10 seconds, show buffering again.
+    // This avoids clock-sync issues between frontend and backend.
+    const timeout = setTimeout(() => setIsBuffering(true), 10000);
+    return () => clearTimeout(timeout);
+  }, [latestSensor]);
 
   const handleToleransiChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = parseFloat(e.target.value);
@@ -80,6 +109,55 @@ export default function DashboardPage() {
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // ─── Register Service Worker & Subscribe to Web Push ────────────────
+  useEffect(() => {
+    async function registerServiceWorkerAndSubscribe() {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        console.log("[Push] Service Worker or Push API not supported in this browser.");
+        return;
+      }
+
+      try {
+        // 1. Register the Service Worker
+        const registration = await navigator.serviceWorker.register("/sw.js");
+        console.log("[Push] Service Worker registered successfully:", registration);
+
+        // 2. Request notification permission
+        const permission = await Notification.requestPermission();
+        console.log("[Push] Notification permission:", permission);
+
+        if (permission === "granted") {
+          // 3. Subscribe to PushManager
+          const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+          });
+          console.log("[Push] PushSubscription object:", JSON.stringify(subscription));
+
+          // 4. Send subscription to backend to save it
+          try {
+            const result = await apiFetch<{ message: string; success: boolean }>(
+              "/api/v1/test-push",
+              {
+                method: "POST",
+                body: subscription.toJSON(),
+              }
+            );
+            console.log("[Push] Subscription saved to backend:", result.message);
+          } catch (pushErr) {
+            console.error("[Push] Failed to send subscription to backend:", pushErr);
+          }
+        } else {
+          console.log("[Push] Notification permission was denied or dismissed.");
+        }
+      } catch (err) {
+        console.error("[Push] Failed to register SW or subscribe:", err);
+      }
+    }
+
+    registerServiceWorkerAndSubscribe();
   }, []);
 
   // ─── Fetch devices on mount ─────────────────────────────────────────
@@ -270,9 +348,7 @@ export default function DashboardPage() {
     return Math.min((err / thr) * 100, 100);
   }, [calibration]);
 
-  const isBuffering = latestSensor
-    ? (currentTime - new Date(latestSensor.recorded_at + 'Z').getTime() > 10000)
-    : true;
+  // (isBuffering is now managed via state)
 
   const memoizedSensorCards = useMemo(() => (
     <div className="relative">

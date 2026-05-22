@@ -8,13 +8,7 @@ import { resolveAlert, markAlertFeedback } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function IncidentLog({ alertsList, onClearAlert }: { alertsList: FusionAlert[], onClearAlert?: () => void }) {
-  const [now, setNow] = useState(new Date().getTime());
   const [confirmingAlertId, setConfirmingAlertId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const interval = setInterval(() => setNow(new Date().getTime()), 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleClear = async () => {
     if (!confirmingAlertId) return;
@@ -63,68 +57,14 @@ export function IncidentLog({ alertsList, onClearAlert }: { alertsList: FusionAl
               <p className="text-sm text-slate-400">No incidents recorded.</p>
             </motion.div>
           ) : (
-            alertsList.map((a) => {
-              const age = now - new Date(a.triggered_at).getTime();
-              const isLingering = !a.is_resolved && age >= 10000;
-              const isBlinking = !a.is_resolved && !isLingering;
-              const displayMessage = isLingering ? "Menunggu Verifikasi Keamanan..." : a.alert_message;
-
-              return (
-                <motion.div
-                  key={a.id}
-                  layout
-                  initial={{ scale: 0.8, opacity: 0, x: 20 }}
-                  whileInView={{ scale: 1, opacity: 1, x: 0 }}
-                  viewport={{ once: true, margin: "10px" }}
-                  exit={{ scale: 0.8, opacity: 0, x: -20, transition: { duration: 0.2 } }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 350,
-                    damping: 25
-                  }}
-                  className={`p-3.5 rounded-xl border transition-colors ${
-                    isBlinking ? 'animate-pulse ' : ''
-                  }${
-                    a.risk_level === "FIRE_DANGER" || a.risk_level === "DANGER" ? "border-red-200 bg-red-50/60"
-                      : a.risk_level === "CCTV_ALERT" || a.risk_level === "WARNING" ? "border-amber-200 bg-amber-50/60"
-                        : a.risk_level === "SENSOR_ALERT" ? "border-yellow-200 bg-yellow-50/60"
-                          : "border-slate-100 bg-slate-50/50"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${a.risk_level === "FIRE_DANGER" || a.risk_level === "DANGER" ? "bg-red-500 text-white"
-                          : a.risk_level === "CCTV_ALERT" || a.risk_level === "WARNING" ? "bg-amber-500 text-white"
-                            : "bg-yellow-100 text-yellow-700"
-                        }`}>{a.risk_level}</span>
-                      <span className="text-[10px] font-mono text-slate-400">{fmtTime(a.triggered_at)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {a.is_false_positive == null && (
-                        <button
-                          onClick={() => handleMarkFalseAlarm(a.id)}
-                          title="Mark as False Alarm (Used for retraining)"
-                          className="text-[10px] text-amber-600 hover:text-white bg-amber-50 hover:bg-amber-500 px-2 py-0.5 rounded-full transition-colors"
-                        >
-                          False Alarm
-                        </button>
-                      )}
-                      {!a.is_resolved && (
-                        <button
-                          onClick={() => setConfirmingAlertId(a.id)}
-                          className="text-[10px] text-slate-500 hover:text-white bg-slate-100 hover:bg-slate-500 px-2 py-0.5 rounded-full transition-colors"
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <p className={`text-xs leading-relaxed line-clamp-2 ${isLingering ? 'text-slate-400 italic' : 'text-slate-600'}`}>
-                    {displayMessage}
-                  </p>
-                </motion.div>
-              );
-            })
+            alertsList.map((a) => (
+              <AlertItem 
+                key={a.id} 
+                a={a} 
+                handleMarkFalseAlarm={handleMarkFalseAlarm}
+                setConfirmingAlertId={setConfirmingAlertId}
+              />
+            ))
           )}
         </AnimatePresence>
       </div>
@@ -162,3 +102,84 @@ export function IncidentLog({ alertsList, onClearAlert }: { alertsList: FusionAl
     </div>
   );
 }
+
+// ─── Extracted AlertItem Component ──────────────────────────────────────────
+// Using React.memo prevents the item from re-rendering unless its props change.
+// This localizes the "lingering" timeout state, eliminating the need for a global interval.
+const AlertItem = React.memo(({ 
+  a, 
+  handleMarkFalseAlarm, 
+  setConfirmingAlertId 
+}: { 
+  a: FusionAlert, 
+  handleMarkFalseAlarm: (id: string) => void, 
+  setConfirmingAlertId: (id: string) => void 
+}) => {
+  const initialAge = Date.now() - new Date(a.triggered_at).getTime();
+  const [isLingering, setIsLingering] = useState(() => !a.is_resolved && initialAge >= 10000);
+
+  useEffect(() => {
+    if (a.is_resolved || isLingering) return;
+
+    const age = Date.now() - new Date(a.triggered_at).getTime();
+    if (age >= 10000) {
+      setIsLingering(true);
+    } else {
+      const timeout = setTimeout(() => setIsLingering(true), 10000 - age);
+      return () => clearTimeout(timeout);
+    }
+  }, [a.is_resolved, a.triggered_at, isLingering]);
+
+  const isBlinking = !a.is_resolved && !isLingering;
+  const displayMessage = isLingering ? "Menunggu Verifikasi Keamanan..." : a.alert_message;
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
+      transition={{ duration: 0.2 }}
+      className={`p-3.5 rounded-xl border transition-colors ${
+        isBlinking ? 'animate-pulse ' : ''
+      }${
+        a.risk_level === "FIRE_DANGER" || a.risk_level === "DANGER" ? "border-red-200 bg-red-50/60"
+          : a.risk_level === "CCTV_ALERT" || a.risk_level === "WARNING" ? "border-amber-200 bg-amber-50/60"
+            : a.risk_level === "SENSOR_ALERT" ? "border-yellow-200 bg-yellow-50/60"
+              : "border-slate-100 bg-slate-50/50"
+      }`}
+    >
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2">
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${a.risk_level === "FIRE_DANGER" || a.risk_level === "DANGER" ? "bg-red-500 text-white"
+              : a.risk_level === "CCTV_ALERT" || a.risk_level === "WARNING" ? "bg-amber-500 text-white"
+                : "bg-yellow-100 text-yellow-700"
+            }`}>{a.risk_level}</span>
+          <span className="text-[10px] font-mono text-slate-400">{fmtTime(a.triggered_at)}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {a.is_false_positive == null && (
+            <button
+              onClick={() => handleMarkFalseAlarm(a.id)}
+              title="Mark as False Alarm (Used for retraining)"
+              className="text-[10px] text-amber-600 hover:text-white bg-amber-50 hover:bg-amber-500 px-2 py-0.5 rounded-full transition-colors"
+            >
+              False Alarm
+            </button>
+          )}
+          {!a.is_resolved && (
+            <button
+              onClick={() => setConfirmingAlertId(a.id)}
+              className="text-[10px] text-slate-500 hover:text-white bg-slate-100 hover:bg-slate-500 px-2 py-0.5 rounded-full transition-colors"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
+      <p className={`text-xs leading-relaxed line-clamp-2 ${isLingering ? 'text-slate-400 italic' : 'text-slate-600'}`}>
+        {displayMessage}
+      </p>
+    </motion.div>
+  );
+});

@@ -53,7 +53,7 @@ export async function apiFetch<T = unknown>(
 // ─── API Wrapper Functions ─────────────────────────────────────────
 
 export async function getDevices(): Promise<Device[]> {
-  return apiFetch<Device[]>("/api/v1/devices");
+  return apiFetch<Device[]>("/api/v1/devices/");
 }
 
 export async function createDevice(device: Partial<Device>): Promise<Device> {

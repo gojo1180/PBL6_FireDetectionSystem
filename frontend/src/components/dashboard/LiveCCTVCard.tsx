@@ -27,7 +27,7 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
   const videoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
   // ── WebRTC Setup ──────────────────────────────────────────────────────
   const connectWebRTC = useCallback(async () => {
@@ -111,8 +111,15 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
     };
   }, [connectWebRTC]);
 
-  const handleRetry = () => {
-    // Cleanup old connection before retrying
+  const handleRetry = async () => {
+    // 1. Beri tahu backend untuk melakukan reconnect RTSP (jika mati)
+    try {
+      await fetch(`${API_BASE}/api/v1/vision/rtsp/retry`, { method: "POST" });
+    } catch (err) {
+      console.warn("RTSP retry notification failed", err);
+    }
+
+    // 2. Cleanup old connection before retrying
     if (pcRef.current) {
       pcRef.current.close();
       pcRef.current = null;

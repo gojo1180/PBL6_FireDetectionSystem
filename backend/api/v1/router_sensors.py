@@ -201,4 +201,12 @@ def add_sensor_data(sensor: SensorLogCreate):
             supabase.table("fusion_alerts").insert(alert_data).execute()
             print(f"⚠️ Fusion Alert Triggered via HTTP: {alert_level}")
             
+            # Send Push Notification
+            from services.push_service import send_push_to_all
+            send_push_to_all(
+                title=f"⚠️ {alert_level.replace('_', ' ')} (HTTP)",
+                body="Sensor mendeteksi anomali berbahaya!",
+                url="/dashboard"
+            )
+            
     return {"message": "Sensor data processed successfully", "data": response.data}

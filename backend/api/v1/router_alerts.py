@@ -1,10 +1,13 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 import uuid
 import os
+import json
 import requests
 from datetime import datetime
+
+from pywebpush import webpush, WebPushException
 
 from core.database import supabase
 from core.security import get_current_user
@@ -116,3 +119,37 @@ async def provide_feedback(alert_id: str, feedback: FeedbackUpdate):
                     print("⚠️ GITHUB_PAT belum di-set di environment variables, MLOps tidak di-trigger.")
 
     return {"message": "Feedback recorded", "data": response.data}
+
+
+# ─── Web Push Notification Models & Endpoint ─────────────────────────
+
+class PushSubscriptionKeys(BaseModel):
+    p256dh: str
+    auth: str
+
+class PushSubscriptionRequest(BaseModel):
+    endpoint: str
+    expirationTime: Optional[int] = None
+    keys: PushSubscriptionKeys
+
+
+@router.post("/test-push")
+async def register_push_subscription(subscription: PushSubscriptionRequest):
+    """
+    Receive a PushSubscription from the frontend browser and save it.
+    """
+    # Konversi subscription Pydantic model ke dict untuk pywebpush
+    subscription_info = {
+        "endpoint": subscription.endpoint,
+        "keys": {
+            "p256dh": subscription.keys.p256dh,
+            "auth": subscription.keys.auth,
+        },
+    }
+
+    # Save subscription for real alerts
+    from services.push_service import save_subscription
+    save_subscription(subscription_info)
+
+    print("✅ Subscription web push berhasil disimpan!")
+    return {"message": "Subscription disimpan!", "success": True}

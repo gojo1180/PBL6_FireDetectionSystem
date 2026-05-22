@@ -85,14 +85,19 @@ def frame_reading_loop():
                 retry_counter += 1
                 if retry_counter <= 3:
                     print(f"❌ Failed to connect to RTSP stream. Retrying in 5s... (Attempt {retry_counter})")
-                elif retry_counter == 4:
-                    print("🔇 RTSP connection failed repeatedly. Muting further logs to prevent spam. Will silently keep trying...")
-                
-                cap = None
-                wait_time = 5 if retry_counter < 5 else 10
-                for _ in range(wait_time * 2):
-                    if cctv_stop_event.is_set() or cap_reconnect_flag: break
-                    time.sleep(0.5)
+                    cap = None
+                    for _ in range(10): # 5s wait
+                        if cctv_stop_event.is_set() or cap_reconnect_flag: break
+                        time.sleep(0.5)
+                else:
+                    if retry_counter == 4:
+                        print("🔇 RTSP connection failed repeatedly. Stopping auto-retry. Waiting for user to manually retry.")
+                        retry_counter += 1 # prevent printing again
+                    
+                    cap = None
+                    # Wait indefinitely until cap_reconnect_flag is set manually
+                    while not cctv_stop_event.is_set() and not cap_reconnect_flag:
+                        time.sleep(0.5)
                 continue
 
         # ── No URL configured yet — wait ─────────────────────────
@@ -236,6 +241,14 @@ def cctv_inference_loop():
                             alert_data["triggered_at"] = datetime.utcnow().isoformat()
                             supabase.table("fusion_alerts").insert(alert_data).execute()
                             print(f"⚠️ Fusion Alert Triggered via CCTV: {alert_level}")
+                            
+                            # Send Push Notification
+                            from services.push_service import send_push_to_all
+                            send_push_to_all(
+                                title=f"⚠️ {alert_level.replace('_', ' ')} (CCTV)",
+                                body="Kamera mendeteksi indikasi api/asap!",
+                                url="/cctv"
+                            )
                     
                     # Reset streaks and timer after successful trigger to prevent spam
                     fire_streak = 0
@@ -337,3 +350,10 @@ def stop_cctv_service():
         frame_reader_thread.join(timeout=3.0)
     if inference_thread and inference_thread.is_alive():
         inference_thread.join(timeout=3.0)
+
+def force_reconnect():
+    """Manually trigger RTSP reconnection."""
+    global cap_reconnect_flag, retry_counter
+    with frame_lock:
+        cap_reconnect_flag = True
+        retry_counter = 0

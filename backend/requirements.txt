@@ -32,6 +32,9 @@ beautifulsoup4
 lxml
 lxml_html_clean
 
+# Push Notifications
+pywebpush
+
 # WebRTC
 aiortc
 av

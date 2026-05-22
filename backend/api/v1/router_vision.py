@@ -176,3 +176,12 @@ async def webrtc_offer(offer: WebRTCOffer):
         "sdp": pc.localDescription.sdp,
         "type": pc.localDescription.type
     }
+
+@router.post("/vision/rtsp/retry")
+def retry_rtsp_connection():
+    """
+    Endpoint untuk me-restart koneksi RTSP secara manual dari frontend.
+    """
+    from services.vision_service import force_reconnect
+    force_reconnect()
+    return {"message": "Manual RTSP reconnect triggered."}

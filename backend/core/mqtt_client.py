@@ -105,6 +105,14 @@ def on_message(client, userdata, msg):
                 alert_data["triggered_at"] = datetime.utcnow().isoformat()
                 supabase.table("fusion_alerts").insert(alert_data).execute()
                 print(f"⚠️ Fusion Alert Triggered: {alert_level}")
+                
+                # Send Push Notification
+                from services.push_service import send_push_to_all
+                send_push_to_all(
+                    title=f"⚠️ {alert_level.replace('_', ' ')} (MQTT)",
+                    body="Sensor IoT mendeteksi anomali berbahaya!",
+                    url="/dashboard"
+                )
         elif alert_level == 'SAFE':
             # Jika SAFE dan tidak ada deteksi api dari vision, tidak perlu buat alert baru
             pass
