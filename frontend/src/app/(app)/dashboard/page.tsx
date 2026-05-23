@@ -121,8 +121,9 @@ export default function DashboardPage() {
 
       try {
         // 1. Register the Service Worker
-        const registration = await navigator.serviceWorker.register("/sw.js");
-        console.log("[Push] Service Worker registered successfully:", registration);
+        await navigator.serviceWorker.register("/sw.js");
+        const registration = await navigator.serviceWorker.ready;
+        console.log("[Push] Service Worker registered and ready:", registration);
 
         // 2. Request notification permission
         const permission = await Notification.requestPermission();

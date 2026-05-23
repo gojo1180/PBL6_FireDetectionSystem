@@ -9,19 +9,20 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#ffffff",
+  themeColor: "#0f172a",
 };
 
 export const metadata: Metadata = {
   title: "BombaAI",
   description: "Real-time IoT monitoring dashboard for fire and smoke detection using late-fusion AI.",
+  manifest: "/manifest.webmanifest",
   icons: {
     icon: "/img/logo.png",
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
-    title: "BombaAI",
+    statusBarStyle: "black-translucent",
+    title: "PBL6 Fire",
   },
   formatDetection: {
     telephone: false,
