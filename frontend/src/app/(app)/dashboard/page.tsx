@@ -56,7 +56,7 @@ export default function DashboardPage() {
   const [alertsList, setAlertsList] = useState<FusionAlert[]>([]);
   const [calibration, setCalibration] = useState<CalibrationStatus | null>(null);
   const [isUpdatingToleransi, setIsUpdatingToleransi] = useState(false);
-  
+
   // Track buffering state efficiently without global intervals
   const [isBuffering, setIsBuffering] = useState(true);
 
@@ -65,10 +65,10 @@ export default function DashboardPage() {
       setIsBuffering(true);
       return;
     }
-    
+
     // We just received a new sensor reading! Remove buffering state.
     setIsBuffering(false);
-    
+
     // If we don't get another reading in 10 seconds, show buffering again.
     // This avoids clock-sync issues between frontend and backend.
     const timeout = setTimeout(() => setIsBuffering(true), 10000);
@@ -322,6 +322,8 @@ export default function DashboardPage() {
     time: mounted ? fmtTime(s.recorded_at) : "",
     CO: Number(s.co_level.toFixed(2)),
     LPG: Number(s.lpg_level.toFixed(2)),
+    Smoke: Number(s.smoke_detected.toFixed(2)),
+    CNG: Number(s.cng_level.toFixed(2)),
   })), [sensorHistory, mounted]);
 
 
@@ -535,8 +537,8 @@ export default function DashboardPage() {
               id="settings-popover-btn"
               onClick={() => setIsSettingsOpen(!isSettingsOpen)}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-lg border transition-all duration-200 text-sm font-semibold ${isSettingsOpen
-                  ? "bg-indigo-50 border-indigo-200 text-indigo-600"
-                  : "bg-white/50 backdrop-blur-sm border border-slate-200/60 hover:border-indigo-300/80 text-slate-600"
+                ? "bg-indigo-50 border-indigo-200 text-indigo-600"
+                : "bg-white/50 backdrop-blur-sm border border-slate-200/60 hover:border-indigo-300/80 text-slate-600"
                 }`}
               title="AI Sensitivity Settings"
             >

@@ -11,6 +11,8 @@ export interface ChartPoint {
   time: string;
   CO: number;
   LPG: number;
+  Smoke: number;
+  CNG: number;
 }
 
 export const GasTrendChart = memo(function GasTrendChart({ chartData }: { chartData: ChartPoint[] }) {
@@ -45,6 +47,8 @@ export const GasTrendChart = memo(function GasTrendChart({ chartData }: { chartD
             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "12px", color: "#64748b" }} />
             <Line type="monotone" dataKey="CO" stroke="#f59e0b" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: "#f59e0b", stroke: "#fff", strokeWidth: 2 }} />
             <Line type="monotone" dataKey="LPG" stroke="#14b8a6" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: "#14b8a6", stroke: "#fff", strokeWidth: 2 }} />
+            <Line type="monotone" dataKey="Smoke" stroke="#8b5cf6" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: "#8b5cf6", stroke: "#fff", strokeWidth: 2 }} />
+            <Line type="monotone" dataKey="CNG" stroke="#6366f1" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: "#6366f1", stroke: "#fff", strokeWidth: 2 }} />
           </LineChart>
         </ResponsiveContainer>
       ) : (
