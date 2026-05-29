@@ -38,7 +38,7 @@ def create_device(device: DeviceCreate):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-@router.get("", response_model=List[dict])
+@router.get("/", response_model=List[dict])
 def get_devices(user_id: Optional[str] = None):
     query = supabase.table("devices").select("*")
     if user_id:

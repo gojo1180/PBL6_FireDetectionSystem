@@ -7,12 +7,59 @@ import {
 import { getDevices, createDevice, updateDevice, deleteDevice } from "@/lib/api";
 import { getUser } from "@/lib/auth";
 import { Device } from "@/types";
+import { TutorialTour, TourStep } from "@/components/ui/TutorialTour";
 
 export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const [isTourActive, setIsTourActive] = useState(false);
+
+  useEffect(() => {
+    const isTourActiveStr = localStorage.getItem("bomba_tutorial_active");
+    const tourPage = localStorage.getItem("bomba_tutorial_page");
+    if (isTourActiveStr === "true" && tourPage === "settings") {
+      setIsTourActive(true);
+      localStorage.removeItem("bomba_tutorial_active");
+      localStorage.removeItem("bomba_tutorial_page");
+    }
+  }, []);
+
+  const handleTourComplete = () => {
+    setIsTourActive(false);
+    localStorage.setItem("bomba_tutorial_active", "true");
+    localStorage.setItem("bomba_tutorial_page", "news");
+    window.location.href = "/news";
+  };
+
+  const handleTourClose = () => {
+    setIsTourActive(false);
+    localStorage.removeItem("bomba_tutorial_active");
+    localStorage.removeItem("bomba_tutorial_page");
+  };
+
+  const tourSteps: TourStep[] = [
+    {
+      targetId: "add-device-btn",
+      title: "Tambah Perangkat Baru",
+      description: "Klik tombol ini untuk mendaftarkan sensor fisik IoT baru atau kamera CCTV ke sistem Bomba AI.",
+      type: "button",
+    },
+    {
+      targetId: "tour-devices-section",
+      title: "Daftar Perangkat dan Konfigurasi",
+      description: "Semua perangkat IoT dan CCTV terdaftar ditampilkan di sini. Anda dapat menyalin ID perangkat untuk dipasang di ESP32 firmware, atau mengedit detail serta menghapus perangkat yang tidak aktif.",
+      type: "section",
+    },
+    {
+      targetId: "sidebar-link-news",
+      title: "Halaman Berita Kebakaran",
+      description: "Mari kita lanjut ke halaman Fire News untuk melihat kabar terbaru seputar insiden kebakaran yang dideteksi & dirangkum oleh AI.",
+      type: "button",
+    }
+  ];
 
   // Add modal
   const [showAdd, setShowAdd] = useState(false);
@@ -152,100 +199,102 @@ export default function SettingsPage() {
         )}
 
         {/* Devices Grid */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 size={32} className="animate-spin text-indigo-500" />
-          </div>
-        ) : devices.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center bg-white/60 backdrop-blur-md rounded-2xl border border-slate-200/40 shadow-sm">
-            <div className="w-16 h-16 rounded-2xl bg-slate-50/40 border border-slate-200/20 flex items-center justify-center mb-4">
-              <Server size={28} className="text-slate-300" />
+        <div id="tour-devices-section">
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 size={32} className="animate-spin text-indigo-500" />
             </div>
-            <p className="text-lg font-semibold text-slate-600">No Devices Found</p>
-            <p className="text-sm text-slate-400 mt-1 max-w-xs">Click &quot;Add Device&quot; to register your first hardware.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {devices.map((d) => (
-              <div
-                key={d.id}
-                className="group bg-white/60 backdrop-blur-md p-5 rounded-2xl border border-slate-200/40 hover:border-indigo-200/80 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-300 flex flex-col justify-between shadow-sm"
-              >
-                <div>
-                  {/* Device Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-sm ${d.device_type === "CCTV" ? "bg-violet-50 border border-violet-100" : "bg-teal-50 border border-teal-100"}`}>
-                        {d.device_type === "CCTV" ? (
-                          <Camera size={20} className="text-violet-500" />
-                        ) : (
-                          <Server size={20} className="text-teal-500" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-800 text-sm">{d.device_name}</p>
-                        <p className="text-[11px] text-slate-400 font-mono uppercase tracking-wider">{d.device_type}</p>
-                      </div>
-                    </div>
-                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${d.status === "active" ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-red-50 text-red-500 border border-red-100"}`}>
-                      {d.status === "active" ? <Wifi size={10} /> : <WifiOff size={10} />}
-                      {d.status}
-                    </div>
-                  </div>
-
-                  {/* Location */}
-                  {d.location && (
-                    <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
-                      <MapPin size={12} className="text-indigo-400" />
-                      {d.location}
-                    </div>
-                  )}
-
-                  {/* Device ID */}
-                  <div className="space-y-2">
-                    <div className="px-3 py-2.5 rounded-xl bg-slate-50/40 border border-slate-200/20 flex items-center justify-between group/id hover:border-indigo-200/40 transition-colors">
-                      <p className="text-[11px] text-slate-400 font-mono truncate" title={d.id}>ID: <span className="text-slate-600 font-semibold">{d.id.split("-")[0]}...</span></p>
-                      <button
-                        onClick={() => handleCopyId(d.id)}
-                        className="text-slate-400 hover:text-indigo-500 transition-colors flex items-center justify-center w-6 h-6 rounded-md hover:bg-indigo-50/60"
-                        title="Copy complete Device ID"
-                      >
-                        {copiedId === d.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* RTSP URL */}
-                  {d.rtsp_url && (
-                    <div className="mt-2 px-3 py-2.5 rounded-xl bg-slate-50/40 border border-slate-200/20">
-                      <p className="text-[11px] text-slate-400 font-mono truncate">{d.rtsp_url}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-200/40">
-                  <button
-                    onClick={() => {
-                      setEditDevice(d);
-                      setEditForm({ device_name: d.device_name, rtsp_url: d.rtsp_url || "", location: d.location || "" });
-                    }}
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-indigo-50/60 text-indigo-600 text-xs font-semibold hover:bg-indigo-100 hover:shadow-sm transition-all duration-200 border border-transparent hover:border-indigo-200/60"
-                  >
-                    <Pencil size={12} />
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(d.id)}
-                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-red-50/60 text-red-500 text-xs font-semibold hover:bg-red-100 hover:shadow-sm transition-all duration-200 border border-transparent hover:border-red-200/60"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </div>
+          ) : devices.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center bg-white/60 backdrop-blur-md rounded-2xl border border-slate-200/40 shadow-sm">
+              <div className="w-16 h-16 rounded-2xl bg-slate-50/40 border border-slate-200/20 flex items-center justify-center mb-4">
+                <Server size={28} className="text-slate-300" />
               </div>
-            ))}
-          </div>
-        )}
+              <p className="text-lg font-semibold text-slate-600">No Devices Found</p>
+              <p className="text-sm text-slate-400 mt-1 max-w-xs">Click &quot;Add Device&quot; to register your first hardware.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              {devices.map((d) => (
+                <div
+                  key={d.id}
+                  className="group bg-white/60 backdrop-blur-md p-5 rounded-2xl border border-slate-200/40 hover:border-indigo-200/80 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-300 flex flex-col justify-between shadow-sm"
+                >
+                  <div>
+                    {/* Device Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-sm ${d.device_type === "CCTV" ? "bg-violet-50 border border-violet-100" : "bg-teal-50 border border-teal-100"}`}>
+                          {d.device_type === "CCTV" ? (
+                            <Camera size={20} className="text-violet-500" />
+                          ) : (
+                            <Server size={20} className="text-teal-500" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-800 text-sm">{d.device_name}</p>
+                          <p className="text-[11px] text-slate-400 font-mono uppercase tracking-wider">{d.device_type}</p>
+                        </div>
+                      </div>
+                      <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${d.status === "active" ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-red-50 text-red-500 border border-red-100"}`}>
+                        {d.status === "active" ? <Wifi size={10} /> : <WifiOff size={10} />}
+                        {d.status}
+                      </div>
+                    </div>
+
+                    {/* Location */}
+                    {d.location && (
+                      <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
+                        <MapPin size={12} className="text-indigo-400" />
+                        {d.location}
+                      </div>
+                    )}
+
+                    {/* Device ID */}
+                    <div className="space-y-2">
+                      <div className="px-3 py-2.5 rounded-xl bg-slate-50/40 border border-slate-200/20 flex items-center justify-between group/id hover:border-indigo-200/40 transition-colors">
+                        <p className="text-[11px] text-slate-400 font-mono truncate" title={d.id}>ID: <span className="text-slate-600 font-semibold">{d.id.split("-")[0]}...</span></p>
+                        <button
+                          onClick={() => handleCopyId(d.id)}
+                          className="text-slate-400 hover:text-indigo-500 transition-colors flex items-center justify-center w-6 h-6 rounded-md hover:bg-indigo-50/60"
+                          title="Copy complete Device ID"
+                        >
+                          {copiedId === d.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* RTSP URL */}
+                    {d.rtsp_url && (
+                      <div className="mt-2 px-3 py-2.5 rounded-xl bg-slate-50/40 border border-slate-200/20">
+                        <p className="text-[11px] text-slate-400 font-mono truncate">{d.rtsp_url}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-200/40">
+                    <button
+                      onClick={() => {
+                        setEditDevice(d);
+                        setEditForm({ device_name: d.device_name, rtsp_url: d.rtsp_url || "", location: d.location || "" });
+                      }}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-indigo-50/60 text-indigo-600 text-xs font-semibold hover:bg-indigo-100 hover:shadow-sm transition-all duration-200 border border-transparent hover:border-indigo-200/60"
+                    >
+                      <Pencil size={12} />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(d.id)}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-red-50/60 text-red-500 text-xs font-semibold hover:bg-red-100 hover:shadow-sm transition-all duration-200 border border-transparent hover:border-red-200/60"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </main>
 
       {/* ─── ADD DEVICE MODAL ─── */}
@@ -334,6 +383,12 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+      <TutorialTour
+        active={isTourActive}
+        steps={tourSteps}
+        onClose={handleTourClose}
+        onComplete={handleTourComplete}
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { Activity, Camera, ShieldAlert, Cpu, Network, Frame, WifiOff, ChevronDown, MapPin, Server, RefreshCw, ShieldCheck, Radio } from "lucide-react";
 import { getDevices } from "@/lib/api";
 import { Device } from "@/types";
+import { TutorialTour, TourStep } from "@/components/ui/TutorialTour";
 
 // How long to wait for stream to load before considering it dead (ms)
 const STREAM_TIMEOUT = 12000;
@@ -23,6 +24,58 @@ export default function CCTVPage() {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const [isTourActive, setIsTourActive] = useState(false);
+
+  useEffect(() => {
+    const isTourActiveStr = localStorage.getItem("bomba_tutorial_active");
+    const tourPage = localStorage.getItem("bomba_tutorial_page");
+    if (isTourActiveStr === "true" && tourPage === "cctv") {
+      setIsTourActive(true);
+      localStorage.removeItem("bomba_tutorial_active");
+      localStorage.removeItem("bomba_tutorial_page");
+    }
+  }, []);
+
+  const handleTourComplete = () => {
+    setIsTourActive(false);
+    localStorage.setItem("bomba_tutorial_active", "true");
+    localStorage.setItem("bomba_tutorial_page", "sensor-logs");
+    window.location.href = "/sensor-logs";
+  };
+
+  const handleTourClose = () => {
+    setIsTourActive(false);
+    localStorage.removeItem("bomba_tutorial_active");
+    localStorage.removeItem("bomba_tutorial_page");
+  };
+
+  const tourSteps: TourStep[] = [
+    {
+      targetId: "device-selector-cctv",
+      title: "Pilih Kamera CCTV",
+      description: "Pilih kamera CCTV pemantau ruangan yang ingin dilihat visualisasinya.",
+      type: "button",
+    },
+    {
+      targetId: "tour-cctv-feed",
+      title: "Feed Kamera Real-time dan Deteksi AI",
+      description: "Feed video dari ruangan yang dipilih. Sistem AI (YOLOv8) secara otomatis menganalisis citra visual untuk mendeteksi api dan asap.",
+      type: "section",
+    },
+    {
+      targetId: "tour-cctv-specs",
+      title: "Spesifikasi dan Informasi Kamera",
+      description: "Lihat informasi detail seperti protokol koneksi, resolusi, model AI yang aktif, serta alamat stream RTSP kamera.",
+      type: "section",
+    },
+    {
+      targetId: "sidebar-link-sensor-logs",
+      title: "Halaman Telemetri Sensor",
+      description: "Mari kita lanjut ke halaman Sensor Logs untuk melihat tren telemetri lingkungan secara berkala.",
+      type: "button",
+    }
+  ];
 
   // Stream health timers
   const streamTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -248,7 +301,7 @@ export default function CCTVPage() {
 
             {/* The Video Container */}
             <div className="relative p-4 flex-1 flex flex-col justify-center items-center bg-slate-50/20">
-              <div className="relative w-full max-w-5xl group">
+              <div id="tour-cctv-feed" className="relative w-full max-w-5xl group">
                 {/* The actual stream */}
                 <div className={`transition-opacity duration-500 ${isOffline ? 'opacity-0 absolute inset-0 pointer-events-none' : 'opacity-100'}`}>
                   {streamUrl && (
@@ -346,7 +399,7 @@ export default function CCTVPage() {
           </div>
 
           {/* Camera Info Panel (Aside) */}
-          <div className="lg:col-span-1 space-y-6">
+          <div id="tour-cctv-specs" className="lg:col-span-1 space-y-6">
 
             {/* Tech Specs Card */}
             <div className="bg-white/60 backdrop-blur-md p-5 border border-slate-200/40 rounded-2xl shadow-sm">
@@ -421,6 +474,12 @@ export default function CCTVPage() {
           </div>
         </div>
       </main>
+      <TutorialTour
+        active={isTourActive}
+        steps={tourSteps}
+        onClose={handleTourClose}
+        onComplete={handleTourComplete}
+      />
     </div>
   );
 }

@@ -51,6 +51,7 @@ export function AppSidebar() {
     <>
       {/* Mobile Hamburger Button */}
       <button
+        id="mobile-sidebar-toggle"
         onClick={() => setIsOpen(true)}
         className="lg:hidden fixed top-3 left-4 z-40 p-2.5 rounded-xl bg-white/80 backdrop-blur-md border border-slate-200/50 text-slate-700 shadow-sm hover:bg-slate-50 hover:scale-105 active:scale-95 transition-all cursor-pointer"
       >
@@ -60,6 +61,7 @@ export function AppSidebar() {
       {/* Mobile Overlay */}
       {isOpen && (
         <div
+          id="mobile-sidebar-overlay"
           className="lg:hidden fixed inset-0 z-40 bg-black/20 backdrop-blur-sm transition-opacity duration-300"
           onClick={closeSidebar}
         />
@@ -92,6 +94,7 @@ export function AppSidebar() {
           </Link>
           {/* Close button for mobile inside sidebar */}
           <button
+            id="mobile-sidebar-close"
             onClick={closeSidebar}
             className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100/50 transition-colors"
           >
@@ -112,6 +115,7 @@ export function AppSidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                id={`sidebar-link-${item.href.replace("/", "")}`}
                 onClick={closeSidebar}
                 className={`relative flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 group ${
                   isActive
@@ -157,6 +161,7 @@ export function AppSidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                id={`sidebar-link-${item.href.replace("/", "")}`}
                 onClick={closeSidebar}
                 className={`relative flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 group ${
                   isActive

@@ -2,6 +2,18 @@
 
 import React from 'react';
 import { SpotlightCard } from './SpotlightCard';
+import { Info, X } from 'lucide-react';
+
+// ─── Sensor Information Mapping (K3/OSHA) ──────────────────────────────────
+const infoMap: Record<string, { desc: string }> = {
+  "Smoke": { desc: "Konsentrasi partikel asap di udara akibat adanya pembakaran." },
+  "CO": { desc: "Karbon Monoksida (CO), gas beracun hasil pembakaran yang tidak sempurna." },
+  "LPG": { desc: "Liquid Petroleum Gas (Propana/Butana), campuran gas mudah terbakar." },
+  "CNG (Metana)": { desc: "Compressed Natural Gas (Metana murni), gas alam yang mudah meledak." },
+  "Flame": { desc: "Sensor pendeteksi radiasi inframerah dari keberadaan nyala api." },
+  "Temperature": { desc: "Suhu ruangan lingkungan terpantau di sekitar area pemantauan." },
+  "Humidity": { desc: "Tingkat kelembapan relatif udara di sekitar sensor." }
+};
 
 // ─── Semantic Status Colors ─────────────────────────────────────────────────
 // Determines the status color based on value thresholds or warn flag.
@@ -106,6 +118,8 @@ export function MetricCard({
   progress,
   variant = 'gas',
 }: MetricCardProps) {
+  const [isInfoHovered, setIsInfoHovered] = React.useState(false);
+
   // Determine status-based color scheme for gas cards; env cards use accent
   const isGas = variant === 'gas';
   const status = isGas ? getStatusLevel(warn, progress) : 'neutral';
@@ -131,38 +145,92 @@ export function MetricCard({
       warn={warn}
       spotlightColor={spotlightColor}
       className={`
-        p-5 flex flex-col justify-between min-h-[148px]
+        flex flex-col min-h-[148px]
         rounded-xl
         hover:-translate-y-1 hover:shadow-lg
         transition-all duration-300 ease-out
         ${className}
       `}
     >
-      {/* Header: Icon + Label */}
-      <div className="flex items-center justify-between mb-3">
-        <div className={`p-2.5 rounded-xl ${iconBgClass} transition-colors duration-300`}>
-          {icon}
+      {/* Main card content wrapped in padding container */}
+      <div className="p-5 flex flex-col justify-between flex-1 w-full h-full">
+        {/* Header: Icon + Label */}
+        <div className="flex items-center justify-between mb-3">
+          <div className={`p-2.5 rounded-xl ${iconBgClass} transition-colors duration-300`}>
+            {icon}
+          </div>
+          <div className="flex items-center gap-1.5 group relative">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              {label}
+            </span>
+            {infoMap[label] && (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsInfoHovered(true);
+                }}
+                className="relative flex items-center justify-center p-0.5 -m-0.5 cursor-pointer outline-none animate-pulse hover:animate-none"
+                aria-label="Info Keterangan"
+              >
+                <Info 
+                  size={12} 
+                  className="text-slate-400 hover:text-indigo-500 transition-colors" 
+                />
+              </button>
+            )}
+          </div>
         </div>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-          {label}
-        </span>
+
+        {/* Value */}
+        <div className="flex items-baseline gap-1.5">
+          <span className={`text-3xl font-extrabold tabular-nums ${valueColorClass} transition-colors duration-300`}>
+            {value !== undefined ? value.toFixed(1) : "—"}
+          </span>
+          <span className="text-xs font-medium text-slate-400">{unit}</span>
+        </div>
+
+        {/* Progress bar */}
+        <div className="mt-3 w-full h-1.5 rounded-full bg-slate-100 overflow-hidden flex items-center">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ease-out ${barColorClass}`}
+            style={{ width: `${progress !== undefined ? progress : Math.min((value ?? 0) * 5, 100)}%` }}
+          />
+        </div>
       </div>
 
-      {/* Value */}
-      <div className="flex items-baseline gap-1.5">
-        <span className={`text-3xl font-extrabold tabular-nums ${valueColorClass} transition-colors duration-300`}>
-          {value !== undefined ? value.toFixed(1) : "—"}
-        </span>
-        <span className="text-xs font-medium text-slate-400">{unit}</span>
-      </div>
+      {/* Dynamic Info Overlay (Light Glassmorphism, absolute overlay matching outer borders) */}
+      {infoMap[label] && (
+        <div 
+          onClick={() => setIsInfoHovered(false)}
+          className={`absolute inset-0 z-20 bg-white/90 backdrop-blur-md p-6 rounded-xl flex flex-col justify-center items-center transition-all duration-300 border border-white/60 shadow-[0_8px_32px_0_rgba(99,102,241,0.05)] text-center cursor-pointer ${
+            isInfoHovered ? "opacity-100 scale-100 pointer-events-auto" : "opacity-0 scale-95 pointer-events-none"
+          }`}
+        >
+          {/* Close Button */}
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsInfoHovered(false);
+            }}
+            className="absolute top-3 right-3 p-1 rounded-full text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all duration-200"
+            aria-label="Tutup"
+          >
+            <X size={14} />
+          </button>
 
-      {/* Progress bar */}
-      <div className="mt-3 w-full h-1.5 rounded-full bg-slate-100 overflow-hidden flex items-center">
-        <div
-          className={`h-full rounded-full transition-all duration-700 ease-out ${barColorClass}`}
-          style={{ width: `${progress !== undefined ? progress : Math.min((value ?? 0) * 5, 100)}%` }}
-        />
-      </div>
+          <div className="flex flex-col items-center justify-center gap-3 w-full">
+            <div className="p-2 rounded-xl bg-indigo-50/80 border border-indigo-100/50 text-indigo-500 shadow-sm flex items-center justify-center">
+              <Info size={16} className="animate-pulse" />
+            </div>
+            <p className="text-[11px] font-black text-indigo-600/90 uppercase tracking-[0.25em]">
+              {label}
+            </p>
+            <p className="text-xs text-slate-600 leading-relaxed font-bold px-1 max-w-[90%]">
+              {infoMap[label].desc}
+            </p>
+          </div>
+        </div>
+      )}
     </SpotlightCard>
   );
 }

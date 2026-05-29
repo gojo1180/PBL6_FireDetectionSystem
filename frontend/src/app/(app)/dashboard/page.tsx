@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { apiFetch, getDevices, getDashboardSensors, getLatestVision, getAlerts, getCalibrationStatus, CalibrationStatus, setCalibrationConfig } from "@/lib/api";
-import { Activity, Bell, Flame, Gauge, Wind, Droplets, ChevronDown, MapPin, Server, BrainCircuit, Settings2, Thermometer, Zap } from "lucide-react";
+import { Activity, Bell, Flame, Gauge, Wind, Droplets, ChevronDown, MapPin, Server, BrainCircuit, Settings2, Thermometer, Zap, Sparkles } from "lucide-react";
+import { TutorialTour, TourStep } from "@/components/ui/TutorialTour";
 
 import { SensorLog, VisionLog, FusionAlert, Device } from "@/types";
 import { fmtTime } from "@/lib/utils";
@@ -56,9 +57,62 @@ export default function DashboardPage() {
   const [alertsList, setAlertsList] = useState<FusionAlert[]>([]);
   const [calibration, setCalibration] = useState<CalibrationStatus | null>(null);
   const [isUpdatingToleransi, setIsUpdatingToleransi] = useState(false);
+  const [isTourActive, setIsTourActive] = useState(false);
 
   // Track buffering state efficiently without global intervals
   const [isBuffering, setIsBuffering] = useState(true);
+
+  const handleTourComplete = () => {
+    setIsTourActive(false);
+    localStorage.setItem("bomba_tutorial_active", "true");
+    localStorage.setItem("bomba_tutorial_page", "cctv");
+    window.location.href = "/cctv";
+  };
+
+  const handleTourClose = () => {
+    setIsTourActive(false);
+    localStorage.removeItem("bomba_tutorial_active");
+    localStorage.removeItem("bomba_tutorial_page");
+  };
+
+  const tourSteps: TourStep[] = [
+    {
+      targetId: "device-selector-dashboard",
+      title: "Pilih Node Perangkat",
+      description: "Pilih node sensor ESP32 IoT aktif yang ingin dipantau. Setiap node mewakili area ruangan yang berbeda.",
+      type: "button",
+    },
+    {
+      targetId: "tour-sensor-metrics",
+      title: "Metrik Sensor Real-time",
+      description: "Panel ini menampilkan data lingkungan (suhu, kelembapan) serta kadar gas (Smoke, CO, LPG, Flame, CNG) lengkap dengan status toleransi AI.",
+      type: "section",
+    },
+    {
+      targetId: "settings-popover-btn",
+      title: "Sensitivitas AI (LSTM Autoencoder)",
+      description: "Sesuaikan sensitivitas pendeteksian anomali secara dinamis. Anda dapat mengatur tingkat High, Balanced, atau Low sesuai kebutuhan lingkungan.",
+      type: "button",
+    },
+    {
+      targetId: "tour-charts-cctv",
+      title: "Grafik Tren dan Video CCTV",
+      description: "Di sini Anda bisa memantau grafik kenaikan gas secara berkala, bersanding dengan siaran langsung CCTV yang mendeteksi api/asap menggunakan YOLOv8.",
+      type: "section",
+    },
+    {
+      targetId: "tour-incident-log",
+      title: "Log Insiden Kebakaran",
+      description: "Semua riwayat peringatan bahaya yang terpicu secara otomatis oleh gabungan sensor & visi akan tersimpan di tabel log ini.",
+      type: "section",
+    },
+    {
+      targetId: "sidebar-link-cctv",
+      title: "Halaman CCTV Live",
+      description: "Mari kita pindah ke halaman CCTV Live untuk memantau visualisasi feed kamera AI secara penuh.",
+      type: "button",
+    }
+  ];
 
   useEffect(() => {
     if (!latestSensor) {
@@ -354,8 +408,8 @@ export default function DashboardPage() {
   // (isBuffering is now managed via state)
 
   const memoizedSensorCards = useMemo(() => (
-    <div className="relative">
-      {isBuffering && (
+    <div id="tour-sensor-metrics" className="relative">
+      {isBuffering && !isTourActive && (
         <div className="absolute inset-0 z-10 bg-white/40 backdrop-blur-sm rounded-xl flex items-center justify-center border border-amber-200/30 shadow-sm animate-in fade-in duration-300">
           <div className="flex flex-col items-center gap-3 bg-white/80 backdrop-blur-md px-6 py-5 rounded-2xl border border-slate-200/50 shadow-lg">
             <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
@@ -367,7 +421,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className={`space-y-6 ${isBuffering ? 'opacity-40 grayscale-[0.5] pointer-events-none' : 'transition-all duration-500'}`}>
+      <div className={`space-y-6 ${(isBuffering && !isTourActive) ? 'opacity-40 grayscale-[0.5] pointer-events-none' : 'transition-all duration-500'}`}>
         {/* ── Group 1: Environment — Temperature & Humidity (2 columns) ── */}
         <div>
           <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-2">
@@ -457,7 +511,7 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
-  ), [latestSensor, isBuffering, checkFeatureWarn, getFeatureProgress]);
+  ), [latestSensor, isBuffering, isTourActive, checkFeatureWarn, getFeatureProgress]);
 
   if (!mounted) return <div className="flex-1 min-h-screen bg-canvas" />;
 
@@ -529,7 +583,15 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
-
+          {/* Start Tutorial Button */}
+          <button
+            onClick={() => setIsTourActive(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-600 text-xs font-bold transition-all duration-200 shadow-sm"
+            title="Mulai Tutorial"
+          >
+            <Sparkles size={14} className="text-indigo-500 animate-pulse" />
+            <span className="hidden sm:inline">Mulai Tutorial</span>
+          </button>
 
           {/* ─── Settings Popover (AI Sensitivity) — Prominent ─── */}
           <div className="relative" ref={settingsRef}>
@@ -613,14 +675,23 @@ export default function DashboardPage() {
         {memoizedSensorCards}
 
         {/* ── Gas Trend + Vision Feed (side by side) ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div id="tour-charts-cctv" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <GasTrendChart chartData={chartData} />
           <LiveCCTVCard latestVision={latestVision} isDanger={isSystemInDanger} />
         </div>
 
         {/* ── Incident Log (full width) ── */}
-        <IncidentLog alertsList={alertsList} onClearAlert={fetchDashboardData} />
+        <div id="tour-incident-log">
+          <IncidentLog alertsList={alertsList} onClearAlert={fetchDashboardData} />
+        </div>
       </main>
+
+      <TutorialTour
+        active={isTourActive}
+        steps={tourSteps}
+        onClose={handleTourClose}
+        onComplete={handleTourComplete}
+      />
     </div>
   );
 }

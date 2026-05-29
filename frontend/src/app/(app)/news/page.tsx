@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { getNews, extractNews, NewsArticle } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { motion, AnimatePresence } from "framer-motion";
+import { TutorialTour, TourStep } from "@/components/ui/TutorialTour";
 import {
   Newspaper,
   Sparkles,
@@ -153,6 +154,76 @@ export default function FireNewsPage() {
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [isTourActive, setIsTourActive] = useState(false);
+
+  useEffect(() => {
+    const isTourActiveStr = localStorage.getItem("bomba_tutorial_active");
+    const tourPage = localStorage.getItem("bomba_tutorial_page");
+    if (isTourActiveStr === "true" && tourPage === "news") {
+      setIsTourActive(true);
+      localStorage.removeItem("bomba_tutorial_active");
+      localStorage.removeItem("bomba_tutorial_page");
+    }
+  }, []);
+
+  // Auto-select first article once articles are loaded when tour is active
+  useEffect(() => {
+    if (isTourActive && articles.length > 0 && !selectedArticle) {
+      handleSelectArticle(articles[0]);
+    }
+  }, [isTourActive, articles, selectedArticle]);
+
+  const handleTourComplete = () => {
+    setIsTourActive(false);
+    localStorage.removeItem("bomba_tutorial_active");
+    localStorage.removeItem("bomba_tutorial_page");
+  };
+
+  const handleTourClose = () => {
+    setIsTourActive(false);
+    localStorage.removeItem("bomba_tutorial_active");
+    localStorage.removeItem("bomba_tutorial_page");
+  };
+
+  const tourSteps: TourStep[] = [
+    {
+      targetId: "tour-news-section",
+      title: "Daftar Berita Kebakaran",
+      description: "Halaman ini mengumpulkan berita-berita terbaru terkait insiden kebakaran dari berbagai sumber portal berita online secara otomatis.",
+      type: "section",
+    },
+    {
+      targetId: "article-detail",
+      title: "Detail Berita",
+      description: "Pilih berita dari daftar untuk membaca isi artikel lengkap secara detail di panel kanan ini.",
+      type: "section",
+    },
+    {
+      targetId: "tour-read-original",
+      title: "Baca Berita Asli",
+      description: "Gunakan tautan ini untuk membuka dan membaca berita selengkapnya langsung di situs web sumber aslinya.",
+      type: "button",
+    },
+    {
+      targetId: "tour-summary-selector",
+      title: "Pilihan Model Ringkasan AI",
+      description: "Anda dapat memilih antara dua model AI: mT5 Abstraktif untuk menghasilkan ringkasan naratif baru, atau Ekstraktif untuk mengambil kalimat kunci dan mendeteksi entitas nama lokasi, objek, dan waktu (NER).",
+      type: "section",
+    },
+    {
+      targetId: "logout-btn",
+      title: "Keluar dari Sistem",
+      description: "Jika Anda ingin keluar dari dashboard dan mengakhiri sesi pemantauan secara aman, klik tombol 'Sign Out' ini.",
+      type: "button",
+    },
+    {
+      targetId: "center",
+      title: "Tutorial Selesai",
+      description: "Selamat! Anda telah mempelajari seluruh fitur utama platform Bomba AI dari Landing Page hingga logout. Sekarang Anda siap menggunakannya secara penuh.",
+      type: "center",
+    }
+  ];
 
   // Full content & Summary state
   const [fullText, setFullText] = useState<string | null>(null);
@@ -317,7 +388,7 @@ export default function FireNewsPage() {
       <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-64px)]">
 
         {/* ── Left: News Grid ────────────────────────────────────── */}
-        <div className={`lg:w-[480px] xl:w-[520px] lg:border-r border-slate-200/40 lg:overflow-y-auto bg-transparent shrink-0 ${selectedArticle ? "hidden lg:block" : ""
+        <div id="tour-news-section" className={`lg:w-[480px] xl:w-[520px] lg:border-r border-slate-200/40 lg:overflow-y-auto bg-transparent shrink-0 ${selectedArticle ? "hidden lg:block" : ""
           }`}>
           {/* Counter bar */}
           <div className="px-6 py-3 border-b border-slate-200/40 bg-white/60 backdrop-blur-md sticky top-0 z-10">
@@ -458,6 +529,7 @@ export default function FireNewsPage() {
                         {fullText || selectedArticle.description}
                       </p>
                       <a
+                        id="tour-read-original"
                         href={selectedArticle.link}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -487,7 +559,7 @@ export default function FireNewsPage() {
                 </div>
 
                 {/* Model Selector */}
-                <div className="flex bg-white/55 backdrop-blur-sm p-1 rounded-xl border border-slate-200/40 w-fit mb-5">
+                <div id="tour-summary-selector" className="flex bg-white/55 backdrop-blur-sm p-1 rounded-xl border border-slate-200/40 w-fit mb-5">
                   <button
                     onClick={() => {
                       if (modelType !== "mt5") { setModelType("mt5"); setSummary(null); setEntities(null); }
@@ -678,6 +750,12 @@ export default function FireNewsPage() {
           )}
         </div>
       </div>
+      <TutorialTour
+        active={isTourActive}
+        steps={tourSteps}
+        onClose={handleTourClose}
+        onComplete={handleTourComplete}
+      />
     </div>
   );
 }

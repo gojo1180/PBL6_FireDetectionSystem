@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Flame, Shield, Cpu, AlertTriangle, Eye, ArrowRight, User, Terminal, Database, Cloud, Sun, Moon } from "lucide-react";
+import { Flame, Shield, Cpu, AlertTriangle, Eye, ArrowRight, User, Terminal, Database, Cloud, Sun, Moon, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isAuthenticated } from "@/lib/auth";
 import { motion } from "framer-motion";
@@ -26,7 +26,6 @@ const flowLineVariant = {
   hidden: { height: 0, opacity: 0 },
   visible: { height: "100%", opacity: 1, transition: { duration: 0.8, ease: "easeInOut" } }
 } as const;
-
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
   const [authed, setAuthed] = useState(false);
@@ -124,7 +123,7 @@ export default function LandingPage() {
             animate="visible"
             className="max-w-5xl w-full space-y-10 relative z-10 flex flex-col items-center text-center"
           >
-            <div className="flex flex-col items-center gap-6">
+            <div id="tour-welcome" className="flex flex-col items-center gap-6">
               <motion.span variants={fadeUp} className="inline-flex items-center justify-center px-2.5 py-1 rounded-full bg-[var(--color-surface-card-elevated)] border border-[var(--color-hairline-strong)] text-[var(--color-body-strong)] caption-uppercase transition-colors duration-500 shadow-sm">
                 System Architecture v2.0
               </motion.span>
@@ -139,6 +138,7 @@ export default function LandingPage() {
 
               <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link
+                  id="tour-dashboard-btn"
                   href={authed ? "/dashboard" : "/login"}
                   className="button-primary flex items-center gap-2 shadow-sm hover:shadow-md"
                 >
@@ -167,7 +167,7 @@ export default function LandingPage() {
               variants={fadeUp}
               className="mb-16 text-center md:text-left"
             >
-              <h2 className="display-lg text-[var(--color-body-strong)] mb-4 transition-colors duration-500">Kendala Produk Kami Dibanding Yang Lainnya</h2>
+              <h2 id="tour-problems" className="display-lg text-[var(--color-body-strong)] mb-4 transition-colors duration-500">Kendala Produk Kami Dibanding Yang Lainnya</h2>
               <p className="body-md text-[var(--color-muted)] transition-colors duration-500">Mengapa pendekatan tunggal seringkali gagal, dan bagaimana kami mengatasinya.</p>
             </motion.div>
 
@@ -202,7 +202,7 @@ export default function LandingPage() {
               </div>
 
               {/* Bottom: 1 Full Card */}
-              <motion.div variants={fadeUp} className="feature-card flex flex-col md:flex-row items-center gap-8 relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:-translate-y-1 transition-transform duration-300">
+              <motion.div id="tour-late-fusion" variants={fadeUp} className="feature-card flex flex-col md:flex-row items-center gap-8 relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:-translate-y-1 transition-transform duration-300">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-primary-glow)] rounded-full blur-[100px] opacity-[0.15] dark:opacity-10 pointer-events-none transition-opacity duration-500"></div>
 
                 <div className="shrink-0 w-16 h-16 rounded-[8px] bg-[var(--color-primary)] text-[var(--color-on-primary)] flex items-center justify-center relative z-10 transition-colors duration-500 shadow-md">
@@ -279,7 +279,7 @@ export default function LandingPage() {
               </div>
 
               {/* Step 2: Engine */}
-              <motion.div variants={fadeUp} className="feature-card w-full max-w-3xl relative z-10 flex flex-col items-center text-center border-[var(--color-primary)]/50 shadow-[0_0_40px_var(--color-primary-glow)] dark:shadow-none hover:-translate-y-1 transition-transform duration-300">
+              <motion.div id="tour-architecture" variants={fadeUp} className="feature-card w-full max-w-3xl relative z-10 flex flex-col items-center text-center border-[var(--color-primary)]/50 shadow-[0_0_40px_var(--color-primary-glow)] dark:shadow-none hover:-translate-y-1 transition-transform duration-300">
                 <div className="absolute inset-0 bg-[var(--color-primary-glow)]/5 dark:bg-[var(--color-primary-glow)]/10 rounded-[16px] pointer-events-none"></div>
                 <div className="w-16 h-16 rounded-full bg-[var(--color-surface-strong)] text-[var(--color-body-strong)] flex items-center justify-center mb-4 shadow-md border border-[var(--color-hairline-strong)]">
                   <Cpu size={32} />
@@ -325,7 +325,7 @@ export default function LandingPage() {
               variants={fadeUp}
               className="mb-16 text-center md:text-left"
             >
-              <h2 className="display-lg text-[var(--color-body-strong)] mb-4 transition-colors duration-500">Meet Our Developers</h2>
+              <h2 id="tour-team" className="display-lg text-[var(--color-body-strong)] mb-4 transition-colors duration-500">Meet Our Developers</h2>
               <p className="body-md text-[var(--color-muted)] transition-colors duration-500">Tim pengembang berdedikasi di balik arsitektur BombaAI.</p>
             </motion.div>
 

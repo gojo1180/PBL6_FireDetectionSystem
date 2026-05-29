@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { getDevices, getSensorLogsPaginated } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { Device, SensorLog } from "@/types";
+import { TutorialTour, TourStep } from "@/components/ui/TutorialTour";
 import {
   Download,
   Database,
@@ -72,6 +73,64 @@ export default function SensorLogsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalRecords, setTotalRecords] = useState(0);
+
+  const [isTourActive, setIsTourActive] = useState(false);
+
+  useEffect(() => {
+    const isTourActiveStr = localStorage.getItem("bomba_tutorial_active");
+    const tourPage = localStorage.getItem("bomba_tutorial_page");
+    if (isTourActiveStr === "true" && tourPage === "sensor-logs") {
+      setIsTourActive(true);
+      localStorage.removeItem("bomba_tutorial_active");
+      localStorage.removeItem("bomba_tutorial_page");
+    }
+  }, []);
+
+  const handleTourComplete = () => {
+    setIsTourActive(false);
+    localStorage.setItem("bomba_tutorial_active", "true");
+    localStorage.setItem("bomba_tutorial_page", "settings");
+    window.location.href = "/settings";
+  };
+
+  const handleTourClose = () => {
+    setIsTourActive(false);
+    localStorage.removeItem("bomba_tutorial_active");
+    localStorage.removeItem("bomba_tutorial_page");
+  };
+
+  const tourSteps: TourStep[] = [
+    {
+      targetId: "device-selector-logs",
+      title: "Pilih Perangkat Sensor",
+      description: "Pilih node sensor IoT yang ingin dianalisis riwayat datanya.",
+      type: "button",
+    },
+    {
+      targetId: "tour-sensor-logs-filters",
+      title: "Filter Waktu dan Rentang Data",
+      description: "Anda bisa memilih rentang waktu preset (1 Hari, 1 Minggu, 1 Bulan) atau mengatur tanggal kustom (From / To) untuk membatasi data yang ditarik.",
+      type: "section",
+    },
+    {
+      targetId: "tour-sensor-logs-section",
+      title: "Grafik Telemetri Interaktif",
+      description: "Grafik ini memvisualisasikan data runtun waktu (time-series) untuk suhu, gas MQ-4, MQ-9, dan sensor Flame secara bersamaan.",
+      type: "section",
+    },
+    {
+      targetId: "export-csv-btn",
+      title: "Ekspor Data ke CSV",
+      description: "Unduh seluruh riwayat telemetri perangkat dalam format CSV untuk analisis offline atau pelaporan.",
+      type: "button",
+    },
+    {
+      targetId: "sidebar-link-settings",
+      title: "Halaman Manajemen Perangkat",
+      description: "Mari kita beralih ke halaman Devices untuk mengelola dan menambahkan sensor atau kamera baru.",
+      type: "button",
+    }
+  ];
 
   useEffect(() => setMounted(true), []);
 
@@ -257,7 +316,7 @@ export default function SensorLogsPage() {
       <main className="flex-1 px-4 md:px-6 lg:px-12 py-4 md:py-8 overflow-x-hidden">
         <div className="max-w-[1400px] mx-auto space-y-4 md:space-y-6">
           {/* ── Time-Range Toolbar ──────────────────────────────────── */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 md:gap-4 px-3 md:px-5 py-3 md:py-4 rounded-xl bg-surface-card-elevated border border-hairline">
+          <div id="tour-sensor-logs-filters" className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 md:gap-4 px-3 md:px-5 py-3 md:py-4 rounded-xl bg-surface-card-elevated border border-hairline">
             {/* Left: Preset Toggles */}
             <div className="flex items-center gap-1 bg-canvas rounded-lg p-1">
               {presets.map((preset) => (
@@ -329,7 +388,7 @@ export default function SensorLogsPage() {
           </div>
 
           {/* ── Chart Area ─────────────────────────────────────────── */}
-          <div className="feature-card !p-0 overflow-hidden !rounded-2xl">
+          <div id="tour-sensor-logs-section" className="feature-card !p-0 overflow-hidden !rounded-2xl">
             {/* Chart Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-2 gap-2">
               <div>
@@ -386,6 +445,12 @@ export default function SensorLogsPage() {
           </div>
         </div>
       </main>
+      <TutorialTour
+        active={isTourActive}
+        steps={tourSteps}
+        onClose={handleTourClose}
+        onComplete={handleTourComplete}
+      />
     </div>
   );
 }
