@@ -193,9 +193,16 @@ export default function CCTVPage() {
     setIsOffline(true);
   };
 
-  const handleRetry = () => {
+  const handleRetry = async () => {
     setReconnectCount(0);
-    connectStream();
+    try {
+      await fetch(`${API_BASE}/api/v1/vision/rtsp/retry`, { method: 'POST' });
+    } catch (e) {
+      console.error("Failed to trigger RTSP retry", e);
+    }
+    setTimeout(() => {
+      connectStream();
+    }, 1000);
   };
 
   const selectedDevice = devices.find(d => d.id === selectedDeviceId);
@@ -450,10 +457,18 @@ export default function CCTVPage() {
 
             {/* Camera Info Card */}
             <div className="bg-white/60 backdrop-blur-md p-5 border border-slate-200/40 rounded-2xl shadow-sm">
-              <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
-                Camera Info
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                  Camera Info
+                </h3>
+                <button 
+                  onClick={handleRetry}
+                  className="px-2.5 py-1 text-[10px] font-mono text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded flex items-center gap-1.5 transition-colors"
+                >
+                  <RefreshCw size={10} /> RETRY RTSP
+                </button>
+              </div>
 
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm text-slate-700">

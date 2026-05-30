@@ -150,25 +150,34 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
           </span>
         </div>
 
-        {/* LIVE / OFFLINE / CONNECTING indicator */}
-        {connectionState === "error" && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 font-semibold">
-            <span className="w-2 h-2 rounded-full bg-slate-300" />
-            OFFLINE
-          </div>
-        )}
-        {connectionState === "connecting" && (
-          <div className="flex items-center gap-1.5 text-xs text-indigo-500 font-semibold">
-            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-            CONNECTING
-          </div>
-        )}
-        {connectionState === "live" && (
-          <div className={`flex items-center gap-1.5 text-xs font-semibold ${liveLabelColor}`}>
-            <span className={`w-2 h-2 rounded-full ${liveDotColor} animate-pulse`} />
-            LIVE
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleRetry}
+            className="px-2 py-1 text-[10px] font-mono text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded flex items-center gap-1 transition-colors"
+          >
+            <RefreshCw size={10} /> RETRY RTSP
+          </button>
+
+          {/* LIVE / OFFLINE / CONNECTING indicator */}
+          {connectionState === "error" && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-400 font-semibold">
+              <span className="w-2 h-2 rounded-full bg-slate-300" />
+              OFFLINE
+            </div>
+          )}
+          {connectionState === "connecting" && (
+            <div className="flex items-center gap-1.5 text-xs text-indigo-500 font-semibold">
+              <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+              CONNECTING
+            </div>
+          )}
+          {connectionState === "live" && (
+            <div className={`flex items-center gap-1.5 text-xs font-semibold ${liveLabelColor}`}>
+              <span className={`w-2 h-2 rounded-full ${liveDotColor} animate-pulse`} />
+              LIVE
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Stream / Fallback ────────────────────────────────────── */}

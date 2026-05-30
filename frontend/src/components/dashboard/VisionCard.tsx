@@ -1,6 +1,6 @@
 import React, { useState, useEffect, memo } from 'react';
 import Image from 'next/image';
-import { Camera, Flame, Eye, ImageOff } from 'lucide-react';
+import { Camera, Flame, Eye, ImageOff, RefreshCw } from 'lucide-react';
 import { VisionLog } from '@/types';
 import { ConfidenceBar } from '@/components/ui/ConfidenceBar';
 import { fmtTime } from '@/lib/utils';
@@ -13,6 +13,15 @@ export const VisionCard = memo(function VisionCard({ latestVision }: { latestVis
     setImgError(false);
   }, [latestVision?.image_url]);
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const handleRetry = async () => {
+    try {
+      await fetch(`${API_BASE}/api/v1/vision/rtsp/retry`, { method: "POST" });
+    } catch (err) {
+      console.warn("RTSP retry notification failed", err);
+    }
+  };
+
   return (
     <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden flex flex-col">
       <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
@@ -22,9 +31,17 @@ export const VisionCard = memo(function VisionCard({ latestVision }: { latestVis
           </div>
           <span className="text-sm font-semibold text-slate-700">Vision Feed</span>
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-emerald-500 font-semibold">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          LIVE
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleRetry}
+            className="px-2 py-1 text-[10px] font-mono text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded flex items-center gap-1 transition-colors"
+          >
+            <RefreshCw size={10} /> RETRY RTSP
+          </button>
+          <div className="flex items-center gap-1.5 text-xs text-emerald-500 font-semibold">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            LIVE
+          </div>
         </div>
       </div>
       

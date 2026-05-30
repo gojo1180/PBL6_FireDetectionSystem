@@ -143,11 +143,12 @@ class LateFusionService:
             
         try:
             co_raw = float(sensor_data.get("co_level", 0.0))
+            cng_raw = float(sensor_data.get("cng_level", 0.0))
             flame_raw = float(sensor_data.get("flame_detected", 0.0))
             lpg_raw = float(sensor_data.get("lpg_level", 0.0))
             smoke_raw = float(sensor_data.get("smoke_detected", 0.0))
 
-            current_data = np.array([co_raw, lpg_raw, smoke_raw])
+            current_data = np.array([co_raw, cng_raw, lpg_raw, smoke_raw])
             
             import time
             current_time = time.time()
@@ -163,7 +164,7 @@ class LateFusionService:
 
             # Hitung Delta (Selisih dari detik sebelumnya)
             if artifacts["previous_data"] is None:
-                delta_features = np.zeros(3)
+                delta_features = np.zeros(4)
             else:
                 delta_features = current_data - artifacts["previous_data"]
                 
@@ -202,14 +203,16 @@ class LateFusionService:
             self.THRESHOLD_DINAMIS = float(np.mean(threshold_dinamis_array))
             self.latest_error_per_fitur = {
                 "co": float(error_per_fitur[0]),
-                "lpg": float(error_per_fitur[1]),
-                "smoke": float(error_per_fitur[2]),
+                "cng": float(error_per_fitur[1]),
+                "lpg": float(error_per_fitur[2]),
+                "smoke": float(error_per_fitur[3]),
                 "flame": 0.0  # Flame tidak dinilai oleh model
             }
             self.threshold_per_fitur = {
                 "co": float(threshold_dinamis_array[0]),
-                "lpg": float(threshold_dinamis_array[1]),
-                "smoke": float(threshold_dinamis_array[2]),
+                "cng": float(threshold_dinamis_array[1]),
+                "lpg": float(threshold_dinamis_array[2]),
+                "smoke": float(threshold_dinamis_array[3]),
                 "flame": 999.0  # Threshold dibuat tinggi agar tidak merah di dashboard
             }
             
