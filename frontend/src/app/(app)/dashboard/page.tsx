@@ -165,13 +165,54 @@ export default function DashboardPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ─── Register Service Worker & Subscribe to Web Push ────────────────
+  // ─── Push Notification State & Registration ─────────────────────────
+  const [pushStatus, setPushStatus] = useState<"default" | "granted" | "denied" | "unsupported">("default");
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setPushStatus(Notification.permission as any);
+    } else {
+      setPushStatus("unsupported");
+    }
+  }, []);
+
+  const handleEnablePush = async () => {
+    if (pushStatus === "unsupported" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      alert("Browser Anda tidak mendukung notifikasi push.");
+      return;
+    }
+    try {
+      const permission = await window.Notification.requestPermission();
+      setPushStatus(permission as any);
+      
+      if (permission === "granted") {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+        
+        await apiFetch<{ message: string; success: boolean }>(
+          "/api/v1/test-push",
+          {
+            method: "POST",
+            body: subscription.toJSON(),
+          }
+        );
+        console.log("[Push] Subscription saved via user interaction");
+        alert("Notifikasi berhasil diaktifkan!");
+      } else {
+        alert("Izin notifikasi ditolak. Anda bisa mengubahnya di pengaturan browser.");
+      }
+    } catch (err) {
+      console.error("[Push] Failed to subscribe:", err);
+      alert("Gagal mengaktifkan notifikasi.");
+    }
+  };
+
   useEffect(() => {
     async function registerServiceWorkerAndSubscribe() {
-      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-        console.log("[Push] Service Worker or Push API not supported in this browser.");
-        return;
-      }
+      if (!("serviceWorker" in navigator)) return;
 
       try {
         // 1. Register the Service Worker
@@ -179,33 +220,26 @@ export default function DashboardPage() {
         const registration = await navigator.serviceWorker.ready;
         console.log("[Push] Service Worker registered and ready:", registration);
 
-        // 2. Request notification permission
-        const permission = await Notification.requestPermission();
-        console.log("[Push] Notification permission:", permission);
-
-        if (permission === "granted") {
-          // 3. Subscribe to PushManager
+        // 2. Only auto-subscribe if permission is already granted
+        if ("Notification" in window && Notification.permission === "granted" && "PushManager" in window) {
           const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
           });
-          console.log("[Push] PushSubscription object:", JSON.stringify(subscription));
 
-          // 4. Send subscription to backend to save it
+          // 3. Send subscription to backend to save it
           try {
-            const result = await apiFetch<{ message: string; success: boolean }>(
+            await apiFetch<{ message: string; success: boolean }>(
               "/api/v1/test-push",
               {
                 method: "POST",
                 body: subscription.toJSON(),
               }
             );
-            console.log("[Push] Subscription saved to backend:", result.message);
+            console.log("[Push] Subscription auto-saved to backend");
           } catch (pushErr) {
             console.error("[Push] Failed to send subscription to backend:", pushErr);
           }
-        } else {
-          console.log("[Push] Notification permission was denied or dismissed.");
         }
       } catch (err) {
         console.error("[Push] Failed to register SW or subscribe:", err);
@@ -517,23 +551,23 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-canvas">
-      <header className="h-16 border-b border-slate-200/40 bg-white/60 backdrop-blur-md flex items-center justify-between pl-16 lg:pl-6 px-4 lg:px-6 shrink-0 sticky top-0 z-20 shadow-[0_2px_8px_rgba(99,102,241,0.02)]">
-        <div className="flex items-center gap-3 text-sm">
-          <div className="p-2 rounded-lg bg-indigo-50">
-            <Activity size={18} className="text-indigo-500" />
+      <header className="h-16 border-b border-slate-200/40 bg-white/60 backdrop-blur-md flex items-center justify-between pl-14 sm:pl-16 lg:pl-6 px-2 sm:px-4 lg:px-6 shrink-0 sticky top-0 z-20 shadow-[0_2px_8px_rgba(99,102,241,0.02)] gap-1 sm:gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-3 text-sm min-w-0">
+          <div className="p-1.5 sm:p-2 rounded-lg bg-indigo-50 shrink-0">
+            <Activity size={18} className="text-indigo-500 w-[14px] h-[14px] sm:w-[18px] sm:h-[18px]" />
           </div>
-          <span className="font-bold text-base text-slate-800 hidden sm:inline">Control Center</span>
-          <span className="text-slate-300 text-lg">/</span>
+          <span className="font-bold text-base text-slate-800 hidden sm:inline shrink-0">Control Center</span>
+          <span className="text-slate-300 text-lg hidden sm:inline shrink-0">/</span>
 
           {/* ─── Device Selector Dropdown ─────────────────────────── */}
-          <div className="relative" ref={dropdownRef}>
+          <div className="relative min-w-0 shrink-0" ref={dropdownRef}>
             <button
               id="device-selector-dashboard"
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/50 backdrop-blur-sm border border-slate-200/60 hover:border-indigo-300/80 transition-all duration-200 cursor-pointer group"
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg bg-white/50 backdrop-blur-sm border border-slate-200/60 hover:border-indigo-300/80 transition-all duration-200 cursor-pointer group min-w-0"
             >
-              <Server size={13} className="text-indigo-500" />
-              <span className="text-slate-700 font-medium truncate max-w-[180px]">
+              <Server size={13} className="text-indigo-500 shrink-0" />
+              <span className="text-slate-700 font-medium truncate max-w-[70px] sm:max-w-[180px]">
                 {selectedDevice?.device_name || "Select Device"}
               </span>
               {selectedDevice?.location && (
@@ -541,7 +575,7 @@ export default function DashboardPage() {
                   — {selectedDevice.location}
                 </span>
               )}
-              <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 shrink-0 ${isDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Dropdown Menu */}
@@ -582,29 +616,29 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {/* Start Tutorial Button */}
           <button
             onClick={() => setIsTourActive(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-600 text-xs font-bold transition-all duration-200 shadow-sm"
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-600 text-xs font-bold transition-all duration-200 shadow-sm shrink-0"
             title="Mulai Tutorial"
           >
-            <Sparkles size={14} className="text-indigo-500 animate-pulse" />
+            <Sparkles size={14} className="text-indigo-500 animate-pulse shrink-0" />
             <span className="hidden sm:inline">Mulai Tutorial</span>
           </button>
 
           {/* ─── Settings Popover (AI Sensitivity) — Prominent ─── */}
-          <div className="relative" ref={settingsRef}>
+          <div className="relative shrink-0" ref={settingsRef}>
             <button
               id="settings-popover-btn"
               onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg border transition-all duration-200 text-sm font-semibold ${isSettingsOpen
+              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3.5 py-1.5 sm:py-2 rounded-lg border transition-all duration-200 text-sm font-semibold shrink-0 ${isSettingsOpen
                 ? "bg-indigo-50 border-indigo-200 text-indigo-600"
                 : "bg-white/50 backdrop-blur-sm border border-slate-200/60 hover:border-indigo-300/80 text-slate-600"
                 }`}
               title="AI Sensitivity Settings"
             >
-              <Settings2 size={16} />
+              <Settings2 size={16} className="shrink-0" />
               <span className="hidden md:inline">Settings</span>
             </button>
 
@@ -656,12 +690,19 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="relative p-1.5">
-            <Bell size={20} className="text-slate-400" />
+          <button 
+            onClick={handleEnablePush}
+            title={pushStatus === 'granted' ? "Notifikasi Aktif" : "Aktifkan Notifikasi"}
+            className="relative p-1.5 rounded-full hover:bg-slate-100 transition-colors group cursor-pointer"
+          >
+            <Bell size={20} className={pushStatus === 'granted' ? "text-indigo-500" : "text-slate-400 group-hover:text-indigo-400"} />
             {alertsList.filter(a => !a.is_resolved).length > 0 && (
               <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
             )}
-          </div>
+            {pushStatus === 'default' && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full border-2 border-white animate-bounce" title="Aktifkan notifikasi" />
+            )}
+          </button>
           <span className="text-xs text-slate-400 font-mono tabular-nums hidden lg:inline">
             {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </span>
