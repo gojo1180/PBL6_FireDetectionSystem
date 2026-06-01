@@ -108,8 +108,8 @@ self.addEventListener('push', function (event) {
 
   const options = {
     body: data.body,
-    icon: '/window.svg',
-    badge: '/window.svg',
+    icon: '/img/logo.png',
+    badge: '/img/logo.png',
     vibrate: [200, 100, 200, 100, 200],
     tag: uniqueTag,
     requireInteraction: true,
