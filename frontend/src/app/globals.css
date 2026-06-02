@@ -67,23 +67,23 @@
 }
 
 .dark {
-  /* DARK MODE (COMPOSIO Monolithic) */
-  --tw-canvas: #0f0f0f;
+  /* DARK MODE (Elegant Indigo & Zinc) */
+  --tw-canvas: #09090b; /* Deep Zinc 950 for background */
   --tw-canvas-deep: #000000;
-  --tw-surface-card: #181818;
-  --tw-surface-card-elevated: #222222;
-  --tw-surface-strong: #2a2a2a;
+  --tw-surface-card: rgba(24, 24, 27, 0.7); /* Zinc 900 with some transparency */
+  --tw-surface-card-elevated: rgba(39, 39, 42, 0.9); /* Zinc 800 */
+  --tw-surface-strong: rgba(63, 63, 70, 1);
   
-  --tw-hairline: #222222;
-  --tw-hairline-soft: #1a1a1a;
-  --tw-hairline-strong: #333333;
+  --tw-hairline: rgba(255, 255, 255, 0.1);
+  --tw-hairline-soft: rgba(255, 255, 255, 0.05);
+  --tw-hairline-strong: rgba(255, 255, 255, 0.2);
 
-  --tw-ink: #ffffff;
-  --tw-body: #a8a8a8;
-  --tw-body-strong: #ffffff;
-  --tw-muted: #888888;
-  --tw-muted-soft: #666666;
-  --tw-primary-glow: #1a26ff;
+  --tw-ink: #f8fafc;
+  --tw-body: #94a3b8; /* Slate 400 */
+  --tw-body-strong: #f1f5f9; /* Slate 100 */
+  --tw-muted: #64748b;
+  --tw-muted-soft: #475569;
+  --tw-primary-glow: #818cf8; /* Soft Indigo for glowing parts */
 }
 
 * {

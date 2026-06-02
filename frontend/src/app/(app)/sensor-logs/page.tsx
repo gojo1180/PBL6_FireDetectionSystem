@@ -60,6 +60,7 @@ function fromInputDate(dateStr: string, endOfDay = false): string {
 export default function SensorLogsPage() {
   const [mounted, setMounted] = useState(false);
   const [devices, setDevices] = useState<Device[]>([]);
+  const [isDevicesLoading, setIsDevicesLoading] = useState(true);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
   const [isDeviceDropdownOpen, setIsDeviceDropdownOpen] = useState(false);
 
@@ -148,13 +149,15 @@ export default function SensorLogsPage() {
     (async () => {
       try {
         const devs = await getDevices();
-        setDevices(devs);
-        if (devs.length > 0) {
+        setDevices(devs || []);
+        if (devs && devs.length > 0) {
           const sensorDev = devs.find((d) => d.device_type === "IOT") || devs[0];
           setSelectedDeviceId(sensorDev.id);
         }
       } catch (err) {
         console.error("[SensorLogs] Devices error:", err);
+      } finally {
+        setIsDevicesLoading(false);
       }
     })();
   }, []);
@@ -221,6 +224,36 @@ export default function SensorLogsPage() {
   const presets: RangePreset[] = ["1D", "1W", "1M"];
 
   if (!mounted) return <div className="flex-1 min-h-screen bg-canvas" />;
+
+  if (!isDevicesLoading && devices.length === 0) {
+    return (
+      <div className="flex flex-col min-h-screen bg-canvas">
+        <header className="px-4 md:px-6 lg:px-12 pt-6 md:pt-10 pb-5 md:pb-8 border-b border-hairline/60">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <TrendingUp size={20} className="text-primary" />
+            </div>
+            <span className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">
+              Sensor Logs &amp; Archive
+            </span>
+          </div>
+          <h1 className="display-sm md:display-lg text-ink">Telemetry Analytics</h1>
+        </header>
+        <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-20 h-20 bg-surface-card border border-hairline rounded-2xl shadow-xl flex items-center justify-center mb-6">
+            <Database size={32} className="text-muted" />
+          </div>
+          <h2 className="text-2xl font-bold text-ink mb-2">No Devices Connected</h2>
+          <p className="text-body max-w-md mx-auto mb-8">
+            You haven't added any sensors to your account yet. Please add an IoT device to view telemetry logs.
+          </p>
+          <a href="/settings" className="px-6 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/30 hover:bg-primary/90 transition-all flex items-center gap-2">
+            Go to Device Settings
+          </a>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-canvas">
