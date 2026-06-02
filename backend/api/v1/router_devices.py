@@ -41,11 +41,14 @@ def create_device(device: DeviceCreate, current_user: dict = Depends(get_current
 
 @router.get("/", response_model=List[dict])
 def get_devices(current_user: dict = Depends(get_current_user)):
+    print(f"DEBUG: get_devices called for current_user={current_user}")
     query = supabase.table("devices").select("*").eq("user_id", current_user["user_id"])
     try:
         res = query.execute()
+        print(f"DEBUG: database returned {len(res.data)} devices: {res.data}")
         return res.data
     except Exception as e:
+        print(f"DEBUG: database error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/{device_id}", response_model=dict)

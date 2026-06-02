@@ -37,14 +37,36 @@ async def stream_cctv():
 
 @router.get("/vision", response_model=List[dict])
 def get_vision_logs(limit: int = 50, current_user: dict = Depends(get_current_user)):
-    """Fetch the latest vision logs from Supabase."""
-    response = supabase.table("vision_logs").select("*").order("recorded_at", desc=True).limit(limit).execute()
+    """Fetch the latest vision logs from Supabase belonging to the current user's devices."""
+    devices_res = supabase.table("devices").select("id").eq("user_id", current_user["user_id"]).execute()
+    device_ids = [d["id"] for d in devices_res.data]
+    if not device_ids:
+        return []
+    response = (
+        supabase.table("vision_logs")
+        .select("*")
+        .in_("device_id", device_ids)
+        .order("recorded_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
     return response.data
 
 @router.get("/vision/latest", response_model=Optional[dict])
 def get_latest_vision_log(current_user: dict = Depends(get_current_user)):
-    """Fetch the single most recent vision log."""
-    response = supabase.table("vision_logs").select("*").order("recorded_at", desc=True).limit(1).execute()
+    """Fetch the single most recent vision log belonging to the current user's devices."""
+    devices_res = supabase.table("devices").select("id").eq("user_id", current_user["user_id"]).execute()
+    device_ids = [d["id"] for d in devices_res.data]
+    if not device_ids:
+        return None
+    response = (
+        supabase.table("vision_logs")
+        .select("*")
+        .in_("device_id", device_ids)
+        .order("recorded_at", desc=True)
+        .limit(1)
+        .execute()
+    )
     data = response.data
     if data:
         return data[0]

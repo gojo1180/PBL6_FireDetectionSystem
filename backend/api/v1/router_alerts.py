@@ -18,14 +18,36 @@ router = APIRouter(tags=["Alerts"])
 
 @router.get("/alerts", response_model=List[dict])
 def get_fusion_alerts(limit: int = 50, current_user: dict = Depends(get_current_user)):
-    """Fetch all history of alerts."""
-    response = supabase.table("fusion_alerts").select("*").order("triggered_at", desc=True).limit(limit).execute()
+    """Fetch all history of alerts belonging to the current user's devices."""
+    devices_res = supabase.table("devices").select("id").eq("user_id", current_user["user_id"]).execute()
+    device_ids = [d["id"] for d in devices_res.data]
+    if not device_ids:
+        return []
+    response = (
+        supabase.table("fusion_alerts")
+        .select("*")
+        .in_("device_id", device_ids)
+        .order("triggered_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
     return response.data
 
 @router.get("/alerts/active", response_model=List[dict])
 def get_active_alerts(current_user: dict = Depends(get_current_user)):
-    """Fetch only unresolved active alerts."""
-    response = supabase.table("fusion_alerts").select("*").eq("is_resolved", False).order("triggered_at", desc=True).execute()
+    """Fetch only unresolved active alerts belonging to the current user's devices."""
+    devices_res = supabase.table("devices").select("id").eq("user_id", current_user["user_id"]).execute()
+    device_ids = [d["id"] for d in devices_res.data]
+    if not device_ids:
+        return []
+    response = (
+        supabase.table("fusion_alerts")
+        .select("*")
+        .eq("is_resolved", False)
+        .in_("device_id", device_ids)
+        .order("triggered_at", desc=True)
+        .execute()
+    )
     return response.data
 
 @router.post("/alerts")

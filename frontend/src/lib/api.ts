@@ -1,7 +1,21 @@
 import { getToken, removeToken } from "./auth";
 import { Device, SensorLog, VisionLog, FusionAlert } from "@/types";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
+const getBaseUrl = (): string => {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== "undefined") {
+    const hn = window.location.hostname;
+    if (hn === "localhost" || hn === "127.0.0.1" || hn.startsWith("192.168.")) {
+      // Connect directly to backend FastAPI running on port 8000
+      return `http://${hn}:8000`;
+    }
+  }
+  return "";
+};
+
+const BASE_URL = getBaseUrl();
 
 interface RequestOptions {
   method?: string;

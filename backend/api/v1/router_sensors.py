@@ -19,6 +19,12 @@ def get_sensor_data(limit: int = 50, device_id: Optional[str] = None, current_us
     query = supabase.table("sensor_logs").select("*")
     if device_id:
         query = query.eq("device_id", device_id)
+    else:
+        devices_res = supabase.table("devices").select("id").eq("user_id", current_user["user_id"]).execute()
+        device_ids = [d["id"] for d in devices_res.data]
+        if not device_ids:
+            return []
+        query = query.in_("device_id", device_ids)
     response = query.order("recorded_at", desc=True).limit(limit).execute()
     return response.data
 
@@ -33,10 +39,24 @@ def get_sensor_data_paginated(
     current_user: dict = Depends(get_current_user)
 ):
     """Fetch paginated sensor logs with total count. Supports date range filtering."""
+    devices_res = supabase.table("devices").select("id").eq("user_id", current_user["user_id"]).execute()
+    device_ids = [d["id"] for d in devices_res.data]
+    if not device_ids:
+        return {
+            "data": [],
+            "total": 0,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": 1,
+        }
+
     # Count query
     count_query = supabase.table("sensor_logs").select("id", count="exact")
     if device_id:
         count_query = count_query.eq("device_id", device_id)
+    else:
+        count_query = count_query.in_("device_id", device_ids)
+        
     if date_from:
         count_query = count_query.gte("recorded_at", date_from)
     if date_to:
@@ -49,6 +69,9 @@ def get_sensor_data_paginated(
     data_query = supabase.table("sensor_logs").select("*")
     if device_id:
         data_query = data_query.eq("device_id", device_id)
+    else:
+        data_query = data_query.in_("device_id", device_ids)
+        
     if date_from:
         data_query = data_query.gte("recorded_at", date_from)
     if date_to:
@@ -100,8 +123,19 @@ def set_calibration_config(config: CalibrationConfig, current_user: dict = Depen
 
 @router.get("/sensors/latest", response_model=Optional[dict])
 def get_latest_sensor_data(current_user: dict = Depends(get_current_user)):
-    """Fetch only the single latest sensor log."""
-    response = supabase.table("sensor_logs").select("*").order("recorded_at", desc=True).limit(1).execute()
+    """Fetch only the single latest sensor log belonging to the current user's devices."""
+    devices_res = supabase.table("devices").select("id").eq("user_id", current_user["user_id"]).execute()
+    device_ids = [d["id"] for d in devices_res.data]
+    if not device_ids:
+        return None
+    response = (
+        supabase.table("sensor_logs")
+        .select("*")
+        .in_("device_id", device_ids)
+        .order("recorded_at", desc=True)
+        .limit(1)
+        .execute()
+    )
     data = response.data
     if data:
         return data[0]
