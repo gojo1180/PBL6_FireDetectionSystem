@@ -15,8 +15,13 @@ export default function OneSignalProvider({ children }: { children: React.ReactN
         await OneSignal.init({
           appId: process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID as string,
           safari_web_id: process.env.NEXT_PUBLIC_ONESIGNAL_SAFARI_ID as string,
-          allowLocalhostAsSecureOrigin: true, // Useful for testing in local environment
+          allowLocalhostAsSecureOrigin: true, // Berguna untuk testing di local environment
+          serviceWorkerParam: { scope: "/" },
+          serviceWorkerPath: "sw.js"
         });
+        
+        // Meminta izin push notification dari user
+        OneSignal.Slidedown.promptPush();
       } catch (error) {
         console.error("OneSignal Initialization Error:", error);
       }

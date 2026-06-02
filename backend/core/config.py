@@ -19,11 +19,16 @@ class Settings(BaseSettings):
     GITHUB_OWNER: str = "gojo1180"
     GITHUB_REPO: str = "PBL6_FireDetectionSystem"
 
-    # Web Push Notification (VAPID)
+    # Web Push Notification (OneSignal)
+    ONESIGNAL_APP_ID: Optional[str] = None
+    ONESIGNAL_REST_API_KEY: Optional[str] = None
+    
+    # Old VAPID
     VAPID_PRIVATE_KEY: Optional[str] = None
     VAPID_SUBJECT: Optional[str] = None
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 settings = Settings()
