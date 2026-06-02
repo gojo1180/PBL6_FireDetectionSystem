@@ -16,6 +16,40 @@ import tensorflow as tf
 # Abaikan warning sklearn scaler
 warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
+def patch_keras_h5_quantization(filepath):
+    """
+    Removes 'quantization_config' from a Keras H5 model file to prevent
+    deserialization errors when loading Keras 3 models in older Keras versions
+    or vice versa.
+    """
+    if not os.path.exists(filepath):
+        return
+    try:
+        import h5py
+        import json
+        with h5py.File(filepath, 'r+') as f:
+            if 'model_config' in f.attrs:
+                config_str = f.attrs['model_config']
+                if isinstance(config_str, bytes):
+                    config_str = config_str.decode('utf-8')
+                
+                if 'quantization_config' in config_str:
+                    config_dict = json.loads(config_str)
+                    
+                    def remove_qc(d):
+                        if isinstance(d, dict):
+                            d.pop('quantization_config', None)
+                            for k, v in d.items():
+                                remove_qc(v)
+                        elif isinstance(d, list):
+                            for item in d:
+                                remove_qc(item)
+                                
+                    remove_qc(config_dict)
+                    f.attrs['model_config'] = json.dumps(config_dict).encode('utf-8')
+    except Exception as e:
+        print(f"Failed to patch h5 file {filepath}: {e}")
+
 class LateFusionService:
     # Panjang sequence yang dibutuhkan LSTM Autoencoder
     SEQUENCE_LENGTH = 10
@@ -90,6 +124,7 @@ class LateFusionService:
                 f.write(supabase.storage.from_(bucket).download(f"{device_id}/threshold.pkl"))
             
             # Load the device-specific models
+            patch_keras_h5_quantization(paths["model"])
             model = tf.keras.models.load_model(paths["model"], compile=False)
             scaler = joblib.load(paths["scaler"])
             threshold = joblib.load(paths["threshold"])
@@ -97,6 +132,7 @@ class LateFusionService:
         except Exception as e:
             print(f"⚠️ Custom artifacts for {device_id} not found ({e}). Falling back to base models.")
             # Load global base models
+            patch_keras_h5_quantization(self.base_lstm_path)
             model = tf.keras.models.load_model(self.base_lstm_path, compile=False) if os.path.exists(self.base_lstm_path) else None
             scaler = joblib.load(self.base_scaler_path) if os.path.exists(self.base_scaler_path) else None
             threshold = joblib.load(self.base_threshold_path) if os.path.exists(self.base_threshold_path) else 0.5

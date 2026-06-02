@@ -2,12 +2,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
 from core.database import supabase
+from core.security import get_current_user
 import uuid
+from fastapi import Depends
 
 router = APIRouter(prefix="/devices", tags=["Devices"])
 
 class DeviceCreate(BaseModel):
-    user_id: str
     device_name: str
     device_type: str
     rtsp_url: Optional[str] = None
@@ -21,11 +22,11 @@ class DeviceUpdate(BaseModel):
     status: Optional[str] = None
 
 @router.post("/", response_model=dict)
-def create_device(device: DeviceCreate):
+def create_device(device: DeviceCreate, current_user: dict = Depends(get_current_user)):
     device_id = str(uuid.uuid4())
     data = {
         "id": device_id,
-        "user_id": device.user_id,
+        "user_id": current_user["user_id"],
         "device_name": device.device_name,
         "device_type": device.device_type.upper() if device.device_type else device.device_type,
         "rtsp_url": device.rtsp_url,
@@ -39,10 +40,8 @@ def create_device(device: DeviceCreate):
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 @router.get("/", response_model=List[dict])
-def get_devices(user_id: Optional[str] = None):
-    query = supabase.table("devices").select("*")
-    if user_id:
-        query = query.eq("user_id", user_id)
+def get_devices(current_user: dict = Depends(get_current_user)):
+    query = supabase.table("devices").select("*").eq("user_id", current_user["user_id"])
     try:
         res = query.execute()
         return res.data
