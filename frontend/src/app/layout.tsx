@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import OneSignalProvider from "@/components/OneSignalProvider";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -56,7 +57,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </div>
 
         <div className="no-scrollbar h-full overflow-auto">
-          {children}
+          <OneSignalProvider>
+            {children}
+          </OneSignalProvider>
         </div>
       </body>
     </html>
