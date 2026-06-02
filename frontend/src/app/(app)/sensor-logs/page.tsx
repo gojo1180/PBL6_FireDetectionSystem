@@ -151,7 +151,7 @@ export default function SensorLogsPage() {
         const devs = await getDevices();
         setDevices(devs || []);
         if (devs && devs.length > 0) {
-          const sensorDev = devs.find((d) => d.device_type === "IOT") || devs[0];
+          const sensorDev = devs.find((d) => d.device_type === "SENSOR") || devs[0];
           setSelectedDeviceId(sensorDev.id);
         }
       } catch (err) {

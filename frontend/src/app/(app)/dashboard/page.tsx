@@ -160,7 +160,7 @@ const MAX_HISTORY = 15;
  setDevices(data || []);
  if (data && data.length > 0) {
  // Auto-select first IoT/Sensor device, or first device overall
- const sensorDevice = data.find(d => d.device_type === "IOT") || data[0];
+ const sensorDevice = data.find(d => d.device_type === "SENSOR") || data[0];
  setSelectedDeviceId(sensorDevice.id);
  console.log("[Dashboard] Devices loaded, selected:", sensorDevice.device_name);
  }
