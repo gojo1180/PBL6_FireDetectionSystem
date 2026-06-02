@@ -642,24 +642,16 @@ const MAX_HISTORY = 15;
             {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </span>
         </div>
-      </header>border-2 border-canvas animate-pulse" />
- )}
- </div>
- <span className="text-xs text-muted font-mono tabular-nums hidden lg:inline">
- {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
- </span>
- </div>
- </header>
->>>>>>> 96a0fd3c3c17b94e4d8d5df0048cc0d916fbadf4
+      </header>
 
- <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6 overflow-x-hidden">
- <StatusBanner latestAlert={latestAlert} devices={devices} onClearAlert={fetchDashboardData} />
+      <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6 overflow-x-hidden">
+        <StatusBanner latestAlert={latestAlert} devices={devices} onClearAlert={fetchDashboardData} />
 
- {/* ── Sensor Metric Cards (Environment + Gas Groups) ── */}
- {memoizedSensorCards}
+        {/* ── Sensor Metric Cards (Environment + Gas Groups) ── */}
+        {memoizedSensorCards}
 
- {/* ── Gas Trend + Vision Feed (side by side) ── */}
- <div id="tour-charts-cctv" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* ── Gas Trend + Vision Feed (side by side) ── */}
+        <div id="tour-charts-cctv" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
  <GasTrendChart chartData={chartData} />
  <LiveCCTVCard latestVision={latestVision} isDanger={isSystemInDanger} />
  </div>

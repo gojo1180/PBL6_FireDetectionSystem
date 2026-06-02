@@ -208,11 +208,7 @@ export default function CCTVPage() {
  }, 1000);
  };
 
-
   const selectedDevice = devices.find(d => d.id === selectedDeviceId);
-=======
- const selectedDevice = devices.find(d => d.id === selectedDeviceId);
->>>>>>> 96a0fd3c3c17b94e4d8d5df0048cc0d916fbadf4
 
   if (!mounted) return <div className="flex-1 min-h-screen bg-canvas" />;
 
