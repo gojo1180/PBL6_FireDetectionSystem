@@ -13,13 +13,10 @@ export default function OneSignalProvider({ children }: { children: React.ReactN
 
       try {
         await OneSignal.init({
-          appId: process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || "9c45b4c4-6b2e-4a71-a1cd-f5d974824168",
-          safari_web_id: process.env.NEXT_PUBLIC_ONESIGNAL_SAFARI_ID || "web.onesignal.auto.6a2e4cfc-4f7f-4e0a-b787-2d0bd3e78806",
-          allowLocalhostAsSecureOrigin: true, // Berguna untuk testing di local environment
-          serviceWorkerParam: { scope: "/" },
-          serviceWorkerPath: "/OneSignalSDKWorker.js",
+          appId: process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID as string,
+          safari_web_id: process.env.NEXT_PUBLIC_ONESIGNAL_SAFARI_ID as string,
+          allowLocalhostAsSecureOrigin: true,
         });
-        
         // Meminta izin push notification dari user
         OneSignal.Slidedown.promptPush();
       } catch (error) {
