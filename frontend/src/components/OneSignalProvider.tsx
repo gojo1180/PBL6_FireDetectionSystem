@@ -17,7 +17,7 @@ export default function OneSignalProvider({ children }: { children: React.ReactN
           safari_web_id: process.env.NEXT_PUBLIC_ONESIGNAL_SAFARI_ID as string,
           allowLocalhostAsSecureOrigin: true, // Berguna untuk testing di local environment
           serviceWorkerParam: { scope: "/" },
-          serviceWorkerPath: "sw.js"
+          serviceWorkerPath: "/sw.js"
         });
         
         // Meminta izin push notification dari user
