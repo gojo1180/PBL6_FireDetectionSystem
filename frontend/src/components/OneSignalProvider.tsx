@@ -28,9 +28,6 @@ export default function OneSignalProvider({ children }: { children: React.ReactN
           allowLocalhostAsSecureOrigin: true,
           serviceWorkerParam: { scope: "/" },
           serviceWorkerPath: "/OneSignalSDKWorker.js",
-          notifyButton: {
-            enable: false,
-          },
         });
 
         console.log("[OneSignal] SDK initialized successfully!");
