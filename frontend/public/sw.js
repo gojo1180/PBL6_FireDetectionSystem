@@ -1,4 +1,6 @@
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+// NOTE: OneSignal now uses its own dedicated service worker: /OneSignalSDKWorker.js
+// Do NOT import OneSignal SDK here to avoid scope conflicts.
+
 
 // ============================================================
 // PWA Offline Caching — v1.0

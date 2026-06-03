@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import OneSignal from "react-onesignal";
 
 export default function OneSignalProvider({ children }: { children: React.ReactNode }) {
   const initialized = useRef(false);
@@ -9,25 +8,43 @@ export default function OneSignalProvider({ children }: { children: React.ReactN
   useEffect(() => {
     const initOneSignal = async () => {
       if (initialized.current) return;
+      if (typeof window === "undefined") return;
+
       initialized.current = true;
 
+      const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID;
+      if (!appId) {
+        console.error("[OneSignal] NEXT_PUBLIC_ONESIGNAL_APP_ID is not set!");
+        return;
+      }
+
       try {
+        // Dynamically import OneSignal to avoid SSR issues
+        const OneSignalModule = await import("react-onesignal");
+        const OneSignal = OneSignalModule.default;
+
         await OneSignal.init({
-          appId: process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID as string,
-          safari_web_id: process.env.NEXT_PUBLIC_ONESIGNAL_SAFARI_ID as string,
-          allowLocalhostAsSecureOrigin: true, // Berguna untuk testing di local environment
+          appId: appId,
+          allowLocalhostAsSecureOrigin: true,
           serviceWorkerParam: { scope: "/" },
-          serviceWorkerPath: "/sw.js"
+          serviceWorkerPath: "/OneSignalSDKWorker.js",
+          notifyButton: {
+            enable: false,
+          },
         });
-        
-        // Meminta izin push notification dari user
+
+        console.log("[OneSignal] SDK initialized successfully!");
+
+        // Prompt push notification permission
         OneSignal.Slidedown.promptPush();
       } catch (error) {
-        console.error("OneSignal Initialization Error:", error);
+        console.error("[OneSignal] Initialization Error:", error);
       }
     };
 
-    initOneSignal();
+    // Delay initialization slightly to ensure DOM and SW are ready
+    const timer = setTimeout(initOneSignal, 1500);
+    return () => clearTimeout(timer);
   }, []);
 
   return <>{children}</>;
