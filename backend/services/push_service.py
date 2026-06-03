@@ -6,8 +6,10 @@ def send_push_to_all(title: str, body: str, url: str = "/dashboard"):
     Mengirim push notification ke semua Subscribed Users via OneSignal REST API.
     Dipanggil dari mqtt_client.py saat anomali terdeteksi.
     """
-    app_id = os.getenv("ONESIGNAL_APP_ID")
-    api_key = os.getenv("ONESIGNAL_REST_API_KEY")
+    from core.config import settings
+
+    app_id = settings.ONESIGNAL_APP_ID
+    api_key = settings.ONESIGNAL_REST_API_KEY
 
     if not app_id or not api_key:
         print("[Push] OneSignal credentials not configured, skipping push.")
@@ -24,7 +26,7 @@ def send_push_to_all(title: str, body: str, url: str = "/dashboard"):
 
     payload = {
         "app_id": app_id,
-        "included_segments": ["Subscribed Users"],
+        "included_segments": ["Total Subscriptions"],
         "headings": {"en": title},
         "contents": {"en": body},
         "url": full_url
