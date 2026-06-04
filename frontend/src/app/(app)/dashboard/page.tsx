@@ -21,434 +21,434 @@ import OneSignal from "react-onesignal";
 import type { RealtimeChannel, RealtimePostgresInsertPayload } from "@supabase/supabase-js";
 
 const GasTrendChart = dynamic(
- () => import("@/components/dashboard/GasTrendChart").then((mod) => mod.GasTrendChart),
- { ssr: false }
+  () => import("@/components/dashboard/GasTrendChart").then((mod) => mod.GasTrendChart),
+  { ssr: false }
 );
 
 // Maximum number of data points in the sliding window for the chart
 const MAX_HISTORY = 15;
 
- export default function DashboardPage() {
+export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
   const [devices, setDevices] = useState<Device[]>([]);
   const [isDevicesLoading, setIsDevicesLoading] = useState(true);
- const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
- const [isDropdownOpen, setIsDropdownOpen] = useState(false);
- const [isSettingsOpen, setIsSettingsOpen] = useState(false);
- const [latestSensor, setLatestSensor] = useState<SensorLog | null>(null);
- const [latestVision, setLatestVision] = useState<VisionLog | null>(null);
- const [latestAlert, setLatestAlert] = useState<FusionAlert | null>(null);
- const [sensorHistory, setSensorHistory] = useState<SensorLog[]>([]);
- const [alertsList, setAlertsList] = useState<FusionAlert[]>([]);
- const [calibration, setCalibration] = useState<CalibrationStatus | null>(null);
- const [isUpdatingToleransi, setIsUpdatingToleransi] = useState(false);
- const [isTourActive, setIsTourActive] = useState(false);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [latestSensor, setLatestSensor] = useState<SensorLog | null>(null);
+  const [latestVision, setLatestVision] = useState<VisionLog | null>(null);
+  const [latestAlert, setLatestAlert] = useState<FusionAlert | null>(null);
+  const [sensorHistory, setSensorHistory] = useState<SensorLog[]>([]);
+  const [alertsList, setAlertsList] = useState<FusionAlert[]>([]);
+  const [calibration, setCalibration] = useState<CalibrationStatus | null>(null);
+  const [isUpdatingToleransi, setIsUpdatingToleransi] = useState(false);
+  const [isTourActive, setIsTourActive] = useState(false);
 
- // Track buffering state efficiently without global intervals
- const [isBuffering, setIsBuffering] = useState(true);
+  // Track buffering state efficiently without global intervals
+  const [isBuffering, setIsBuffering] = useState(true);
 
- const handleTourComplete = () => {
- setIsTourActive(false);
- localStorage.setItem("bomba_tutorial_active", "true");
- localStorage.setItem("bomba_tutorial_page", "cctv");
- window.location.href = "/cctv";
- };
+  const handleTourComplete = () => {
+    setIsTourActive(false);
+    localStorage.setItem("bomba_tutorial_active", "true");
+    localStorage.setItem("bomba_tutorial_page", "cctv");
+    window.location.href = "/cctv";
+  };
 
- const handleTourClose = () => {
- setIsTourActive(false);
- localStorage.removeItem("bomba_tutorial_active");
- localStorage.removeItem("bomba_tutorial_page");
- };
+  const handleTourClose = () => {
+    setIsTourActive(false);
+    localStorage.removeItem("bomba_tutorial_active");
+    localStorage.removeItem("bomba_tutorial_page");
+  };
 
- const tourSteps: TourStep[] = [
- {
- targetId: "device-selector-dashboard",
- title: "Pilih Node Perangkat",
- description: "Pilih node sensor ESP32 IoT aktif yang ingin dipantau. Setiap node mewakili area ruangan yang berbeda.",
- type: "button",
- },
- {
- targetId: "tour-sensor-metrics",
- title: "Metrik Sensor Real-time",
- description: "Panel ini menampilkan data lingkungan (suhu, kelembapan) serta kadar gas (Smoke, CO, LPG, Flame, CNG) lengkap dengan status toleransi AI.",
- type: "section",
- },
- {
- targetId: "settings-popover-btn",
- title: "Sensitivitas AI (LSTM Autoencoder)",
- description: "Sesuaikan sensitivitas pendeteksian anomali secara dinamis. Anda dapat mengatur tingkat High, Balanced, atau Low sesuai kebutuhan lingkungan.",
- type: "button",
- },
- {
- targetId: "tour-charts-cctv",
- title: "Grafik Tren dan Video CCTV",
- description: "Di sini Anda bisa memantau grafik kenaikan gas secara berkala, bersanding dengan siaran langsung CCTV yang mendeteksi api/asap menggunakan YOLOv8.",
- type: "section",
- },
- {
- targetId: "tour-incident-log",
- title: "Log Insiden Kebakaran",
- description: "Semua riwayat peringatan bahaya yang terpicu secara otomatis oleh gabungan sensor & visi akan tersimpan di tabel log ini.",
- type: "section",
- },
- {
- targetId: "sidebar-link-cctv",
- title: "Halaman CCTV Live",
- description: "Mari kita pindah ke halaman CCTV Live untuk memantau visualisasi feed kamera AI secara penuh.",
- type: "button",
- }
- ];
+  const tourSteps: TourStep[] = [
+    {
+      targetId: "device-selector-dashboard",
+      title: "Pilih Node Perangkat",
+      description: "Pilih node sensor ESP32 IoT aktif yang ingin dipantau. Setiap node mewakili area ruangan yang berbeda.",
+      type: "button",
+    },
+    {
+      targetId: "tour-sensor-metrics",
+      title: "Metrik Sensor Real-time",
+      description: "Panel ini menampilkan data lingkungan (suhu, kelembapan) serta kadar gas (Smoke, CO, LPG, Flame, CNG) lengkap dengan status toleransi AI.",
+      type: "section",
+    },
+    {
+      targetId: "settings-popover-btn",
+      title: "Sensitivitas AI (LSTM Autoencoder)",
+      description: "Sesuaikan sensitivitas pendeteksian anomali secara dinamis. Anda dapat mengatur tingkat High, Balanced, atau Low sesuai kebutuhan lingkungan.",
+      type: "button",
+    },
+    {
+      targetId: "tour-charts-cctv",
+      title: "Grafik Tren dan Video CCTV",
+      description: "Di sini Anda bisa memantau grafik kenaikan gas secara berkala, bersanding dengan siaran langsung CCTV yang mendeteksi api/asap menggunakan YOLOv8.",
+      type: "section",
+    },
+    {
+      targetId: "tour-incident-log",
+      title: "Log Insiden Kebakaran",
+      description: "Semua riwayat peringatan bahaya yang terpicu secara otomatis oleh gabungan sensor & visi akan tersimpan di tabel log ini.",
+      type: "section",
+    },
+    {
+      targetId: "sidebar-link-cctv",
+      title: "Halaman CCTV Live",
+      description: "Mari kita pindah ke halaman CCTV Live untuk memantau visualisasi feed kamera AI secara penuh.",
+      type: "button",
+    }
+  ];
 
- useEffect(() => {
- if (!latestSensor) {
- setIsBuffering(true);
- return;
- }
+  useEffect(() => {
+    if (!latestSensor) {
+      setIsBuffering(true);
+      return;
+    }
 
- // We just received a new sensor reading! Remove buffering state.
- setIsBuffering(false);
+    // We just received a new sensor reading! Remove buffering state.
+    setIsBuffering(false);
 
- // If we don't get another reading in 10 seconds, show buffering again.
- // This avoids clock-sync issues between frontend and backend.
- const timeout = setTimeout(() => setIsBuffering(true), 10000);
- return () => clearTimeout(timeout);
- }, [latestSensor]);
+    // If we don't get another reading in 10 seconds, show buffering again.
+    // This avoids clock-sync issues between frontend and backend.
+    const timeout = setTimeout(() => setIsBuffering(true), 10000);
+    return () => clearTimeout(timeout);
+  }, [latestSensor]);
 
- const handleToleransiChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
- const val = parseFloat(e.target.value);
- setIsUpdatingToleransi(true);
- try {
- await setCalibrationConfig(val);
- // fetch immediately to reflect UI change
- const calib = await getCalibrationStatus();
- if (calib) setCalibration(calib);
- } catch (err) {
- console.error("Failed to update toleransi", err);
- } finally {
- setIsUpdatingToleransi(false);
- }
- };
+  const handleToleransiChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = parseFloat(e.target.value);
+    setIsUpdatingToleransi(true);
+    try {
+      await setCalibrationConfig(val);
+      // fetch immediately to reflect UI change
+      const calib = await getCalibrationStatus();
+      if (calib) setCalibration(calib);
+    } catch (err) {
+      console.error("Failed to update toleransi", err);
+    } finally {
+      setIsUpdatingToleransi(false);
+    }
+  };
 
- const dropdownRef = useRef<HTMLDivElement>(null);
- const settingsRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
 
- // Keep refs to channels for cleanup
- const sensorChannelRef = useRef<RealtimeChannel | null>(null);
- const alertChannelRef = useRef<RealtimeChannel | null>(null);
+  // Keep refs to channels for cleanup
+  const sensorChannelRef = useRef<RealtimeChannel | null>(null);
+  const alertChannelRef = useRef<RealtimeChannel | null>(null);
 
- // Close dropdown when clicking outside
- useEffect(() => {
- function handleClickOutside(event: MouseEvent) {
- if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
- setIsDropdownOpen(false);
- }
- if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
- setIsSettingsOpen(false);
- }
- }
- document.addEventListener("mousedown", handleClickOutside);
- return () => document.removeEventListener("mousedown", handleClickOutside);
- }, []);
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+        setIsSettingsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
- // ─── Fetch devices on mount ─────────────────────────────────────────
- useEffect(() => {
- setMounted(true);
+  // ─── Fetch devices on mount ─────────────────────────────────────────
+  useEffect(() => {
+    setMounted(true);
 
- const fetchDevices = async () => {
- try {
- const data = await getDevices();
- setDevices(data || []);
- if (data && data.length > 0) {
- // Auto-select first IoT/Sensor device, or first device overall
- const sensorDevice = data.find(d => d.device_type === "SENSOR") || data[0];
- setSelectedDeviceId(sensorDevice.id);
- console.log("[Dashboard] Devices loaded, selected:", sensorDevice.device_name);
- }
- } catch (err) {
- console.log("[Dashboard] Error fetching devices:", err);
- } finally {
- setIsDevicesLoading(false);
- }
- };
- fetchDevices();
- }, []);
+    const fetchDevices = async () => {
+      try {
+        const data = await getDevices();
+        setDevices(data || []);
+        if (data && data.length > 0) {
+          // Auto-select first IoT/Sensor device, or first device overall
+          const sensorDevice = data.find(d => d.device_type === "SENSOR") || data[0];
+          setSelectedDeviceId(sensorDevice.id);
+          console.log("[Dashboard] Devices loaded, selected:", sensorDevice.device_name);
+        }
+      } catch (err) {
+        console.log("[Dashboard] Error fetching devices:", err);
+      } finally {
+        setIsDevicesLoading(false);
+      }
+    };
+    fetchDevices();
+  }, []);
 
- // ─── Fetch all dashboard data from Backend API (ONE-TIME) ──────────
- const fetchDashboardData = useCallback(async () => {
- if (!selectedDeviceId) return;
- try {
- // Fetch last 15 sensor readings for the SELECTED device
- const sensors = await getDashboardSensors(selectedDeviceId, MAX_HISTORY);
- if (sensors && sensors.length > 0) {
- // API returns desc order, reverse for chronological chart
- const chronological = [...sensors].reverse();
- setLatestSensor(sensors[0]);
- setSensorHistory(chronological);
- } else {
- setLatestSensor(null);
- setSensorHistory([]);
- }
+  // ─── Fetch all dashboard data from Backend API (ONE-TIME) ──────────
+  const fetchDashboardData = useCallback(async () => {
+    if (!selectedDeviceId) return;
+    try {
+      // Fetch last 15 sensor readings for the SELECTED device
+      const sensors = await getDashboardSensors(selectedDeviceId, MAX_HISTORY);
+      if (sensors && sensors.length > 0) {
+        // API returns desc order, reverse for chronological chart
+        const chronological = [...sensors].reverse();
+        setLatestSensor(sensors[0]);
+        setSensorHistory(chronological);
+      } else {
+        setLatestSensor(null);
+        setSensorHistory([]);
+      }
 
- // Fetch latest vision log
- const vision = await getLatestVision();
- if (vision) setLatestVision(vision);
+      // Fetch latest vision log
+      const vision = await getLatestVision();
+      if (vision) setLatestVision(vision);
 
- // Fetch recent alerts GLOBALLY (last 10) — DO NOT filter by device
- const alerts = await getAlerts(10);
- if (alerts && alerts.length > 0) {
- setLatestAlert(alerts[0]);
- setAlertsList(alerts);
- }
+      // Fetch recent alerts GLOBALLY (last 10) — DO NOT filter by device
+      const alerts = await getAlerts(10);
+      if (alerts && alerts.length > 0) {
+        setLatestAlert(alerts[0]);
+        setAlertsList(alerts);
+      }
 
- // Fetch calibration
- const calib = await getCalibrationStatus();
- if (calib) setCalibration(calib);
- } catch (err) {
- console.log("[Dashboard] Error fetching initial data:", err);
- }
- }, [selectedDeviceId]);
+      // Fetch calibration
+      const calib = await getCalibrationStatus();
+      if (calib) setCalibration(calib);
+    } catch (err) {
+      console.log("[Dashboard] Error fetching initial data:", err);
+    }
+  }, [selectedDeviceId]);
 
- // ─── Initial fetch + Supabase Realtime Subscriptions ───────────────
- useEffect(() => {
- if (!selectedDeviceId) return;
+  // ─── Initial fetch + Supabase Realtime Subscriptions ───────────────
+  useEffect(() => {
+    if (!selectedDeviceId) return;
 
- // 1) One-time initial data load via REST API
- fetchDashboardData();
+    // 1) One-time initial data load via REST API
+    fetchDashboardData();
 
- // 2) Subscribe to Supabase Realtime: sensor_logs (INSERT)
- // Only react to inserts for the currently selected device
- const sensorChannel = supabase
- .channel(`realtime-sensor-${selectedDeviceId}`)
- .on(
- "postgres_changes",
- {
- event: "INSERT",
- schema: "public",
- table: "sensor_logs",
- filter: `device_id=eq.${selectedDeviceId}`,
- },
- (payload: RealtimePostgresInsertPayload<Record<string, unknown>>) => {
- const newRow = payload.new as unknown as SensorLog;
- console.log("[Realtime] New sensor_log:", newRow.recorded_at);
+    // 2) Subscribe to Supabase Realtime: sensor_logs (INSERT)
+    // Only react to inserts for the currently selected device
+    const sensorChannel = supabase
+      .channel(`realtime-sensor-${selectedDeviceId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "sensor_logs",
+          filter: `device_id=eq.${selectedDeviceId}`,
+        },
+        (payload: RealtimePostgresInsertPayload<Record<string, unknown>>) => {
+          const newRow = payload.new as unknown as SensorLog;
+          console.log("[Realtime] New sensor_log:", newRow.recorded_at);
 
- // Update latest sensor reading
- setLatestSensor(newRow);
+          // Update latest sensor reading
+          setLatestSensor(newRow);
 
- // Sliding window: append new data, keep max MAX_HISTORY points
- setSensorHistory((prev) => [...prev, newRow].slice(-MAX_HISTORY));
- }
- )
- .subscribe((status) => {
- console.log("[Realtime] sensor_logs channel status:", status);
- });
+          // Sliding window: append new data, keep max MAX_HISTORY points
+          setSensorHistory((prev) => [...prev, newRow].slice(-MAX_HISTORY));
+        }
+      )
+      .subscribe((status) => {
+        console.log("[Realtime] sensor_logs channel status:", status);
+      });
 
- sensorChannelRef.current = sensorChannel;
+    sensorChannelRef.current = sensorChannel;
 
- // 3) Subscribe to Supabase Realtime: fusion_alerts (INSERT + UPDATE)
- // Listen globally — alerts can come from any device
- const alertChannel = supabase
- .channel("realtime-alerts")
- .on(
- "postgres_changes",
- {
- event: "INSERT",
- schema: "public",
- table: "fusion_alerts",
- },
- (payload: RealtimePostgresInsertPayload<Record<string, unknown>>) => {
- const newAlert = payload.new as unknown as FusionAlert;
- console.log("[Realtime] New alert:", newAlert.risk_level, newAlert.alert_message);
+    // 3) Subscribe to Supabase Realtime: fusion_alerts (INSERT + UPDATE)
+    // Listen globally — alerts can come from any device
+    const alertChannel = supabase
+      .channel("realtime-alerts")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "fusion_alerts",
+        },
+        (payload: RealtimePostgresInsertPayload<Record<string, unknown>>) => {
+          const newAlert = payload.new as unknown as FusionAlert;
+          console.log("[Realtime] New alert:", newAlert.risk_level, newAlert.alert_message);
 
- // New alert becomes the latest
- setLatestAlert(newAlert);
+          // New alert becomes the latest
+          setLatestAlert(newAlert);
 
- // Prepend to the alerts list, keep max 10
- setAlertsList((prev) => [newAlert, ...prev].slice(0, 10));
- }
- )
- .on(
- "postgres_changes",
- {
- event: "UPDATE",
- schema: "public",
- table: "fusion_alerts",
- },
- (payload) => {
- const updated = payload.new as unknown as FusionAlert;
- console.log("[Realtime] Alert updated:", updated.id, "resolved:", updated.is_resolved);
+          // Prepend to the alerts list, keep max 10
+          setAlertsList((prev) => [newAlert, ...prev].slice(0, 10));
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "fusion_alerts",
+        },
+        (payload) => {
+          const updated = payload.new as unknown as FusionAlert;
+          console.log("[Realtime] Alert updated:", updated.id, "resolved:", updated.is_resolved);
 
- // Update in-place within the alerts list
- setAlertsList((prev) =>
- prev.map((a) => (a.id === updated.id ? updated : a))
- );
+          // Update in-place within the alerts list
+          setAlertsList((prev) =>
+            prev.map((a) => (a.id === updated.id ? updated : a))
+          );
 
- // If the latest alert was resolved, recalculate latestAlert
- setLatestAlert((prev) => {
- if (prev && prev.id === updated.id) return updated;
- return prev;
- });
- }
- )
- .subscribe((status) => {
- console.log("[Realtime] fusion_alerts channel status:", status);
- });
+          // If the latest alert was resolved, recalculate latestAlert
+          setLatestAlert((prev) => {
+            if (prev && prev.id === updated.id) return updated;
+            return prev;
+          });
+        }
+      )
+      .subscribe((status) => {
+        console.log("[Realtime] fusion_alerts channel status:", status);
+      });
 
- alertChannelRef.current = alertChannel;
+    alertChannelRef.current = alertChannel;
 
- // 4) Cleanup: unsubscribe channels on unmount or device change
- return () => {
- console.log("[Realtime] Cleaning up channels for device:", selectedDeviceId);
- if (sensorChannelRef.current) {
- supabase.removeChannel(sensorChannelRef.current);
- sensorChannelRef.current = null;
- }
- if (alertChannelRef.current) {
- supabase.removeChannel(alertChannelRef.current);
- alertChannelRef.current = null;
- }
- };
- }, [selectedDeviceId, fetchDashboardData]);
+    // 4) Cleanup: unsubscribe channels on unmount or device change
+    return () => {
+      console.log("[Realtime] Cleaning up channels for device:", selectedDeviceId);
+      if (sensorChannelRef.current) {
+        supabase.removeChannel(sensorChannelRef.current);
+        sensorChannelRef.current = null;
+      }
+      if (alertChannelRef.current) {
+        supabase.removeChannel(alertChannelRef.current);
+        alertChannelRef.current = null;
+      }
+    };
+  }, [selectedDeviceId, fetchDashboardData]);
 
- const chartData = useMemo(() => sensorHistory.map((s) => ({
- time: mounted ? fmtTime(s.recorded_at) : "",
- CO: Number(s.co_level.toFixed(2)),
- LPG: Number(s.lpg_level.toFixed(2)),
- Smoke: Number(s.smoke_detected.toFixed(2)),
- CNG: Number(s.cng_level.toFixed(2)),
- })), [sensorHistory, mounted]);
+  const chartData = useMemo(() => sensorHistory.map((s) => ({
+    time: mounted ? fmtTime(s.recorded_at) : "",
+    CO: Number(s.co_level.toFixed(2)),
+    LPG: Number(s.lpg_level.toFixed(2)),
+    Smoke: Number(s.smoke_detected.toFixed(2)),
+    CNG: Number(s.cng_level.toFixed(2)),
+  })), [sensorHistory, mounted]);
 
 
 
- const selectedDevice = useMemo(() => devices.find(d => d.id === selectedDeviceId), [devices, selectedDeviceId]);
+  const selectedDevice = useMemo(() => devices.find(d => d.id === selectedDeviceId), [devices, selectedDeviceId]);
 
- const isSystemInDanger = latestAlert ? !latestAlert.is_resolved : false;
+  const isSystemInDanger = latestAlert ? !latestAlert.is_resolved : false;
 
- const checkFeatureWarn = useCallback((feature: string) => {
- // If there's an active unresolved alert, ALL cards turn red
- if (isSystemInDanger) return true;
- if (!calibration?.error_per_fitur || !calibration?.threshold_per_fitur) return false;
- const err = calibration.error_per_fitur[feature];
- const thr = calibration.threshold_per_fitur[feature];
- if (err !== undefined && thr !== undefined) {
- return err > thr;
- }
- return false;
- }, [calibration, isSystemInDanger]);
+  const checkFeatureWarn = useCallback((feature: string) => {
+    // If there's an active unresolved alert, ALL cards turn red
+    if (isSystemInDanger) return true;
+    if (!calibration?.error_per_fitur || !calibration?.threshold_per_fitur) return false;
+    const err = calibration.error_per_fitur[feature];
+    const thr = calibration.threshold_per_fitur[feature];
+    if (err !== undefined && thr !== undefined) {
+      return err > thr;
+    }
+    return false;
+  }, [calibration, isSystemInDanger]);
 
- const getFeatureProgress = useCallback((feature: string) => {
- if (!calibration?.error_per_fitur || !calibration?.threshold_per_fitur) return 0;
- const err = calibration.error_per_fitur[feature] || 0;
- const thr = calibration.threshold_per_fitur[feature] || 1; // avoid div by zero
- return Math.min((err / thr) * 100, 100);
- }, [calibration]);
+  const getFeatureProgress = useCallback((feature: string) => {
+    if (!calibration?.error_per_fitur || !calibration?.threshold_per_fitur) return 0;
+    const err = calibration.error_per_fitur[feature] || 0;
+    const thr = calibration.threshold_per_fitur[feature] || 1; // avoid div by zero
+    return Math.min((err / thr) * 100, 100);
+  }, [calibration]);
 
- // (isBuffering is now managed via state)
+  // (isBuffering is now managed via state)
 
- const memoizedSensorCards = useMemo(() => (
- <div id="tour-sensor-metrics" className="relative">
- {isBuffering && !isTourActive && (
- <div className="absolute inset-0 z-10 bg-surface-card-elevated backdrop-blur-sm rounded-xl flex items-center justify-center border border-amber-200/30 shadow-sm animate-in fade-in duration-300">
- <div className="flex flex-col items-center gap-3 bg-surface-card backdrop-blur-md px-6 py-5 rounded-2xl border border-hairline shadow-lg">
- <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
- <div className="text-center">
- <p className="text-sm font-bold text-primary tracking-widest uppercase mb-1">Connection Interrupted</p>
- <p className="text-[11px] text-muted max-w-[200px]">Waiting for new sensor data to rebuild temporal sequence buffer...</p>
- </div>
- </div>
- </div>
- )}
+  const memoizedSensorCards = useMemo(() => (
+    <div id="tour-sensor-metrics" className="relative">
+      {isBuffering && !isTourActive && (
+        <div className="absolute inset-0 z-10 bg-surface-card-elevated backdrop-blur-sm rounded-xl flex items-center justify-center border border-amber-200/30 shadow-sm animate-in fade-in duration-300">
+          <div className="flex flex-col items-center gap-3 bg-surface-card backdrop-blur-md px-6 py-5 rounded-2xl border border-hairline shadow-lg">
+            <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="text-center">
+              <p className="text-sm font-bold text-primary tracking-widest uppercase mb-1">Connection Interrupted</p>
+              <p className="text-[11px] text-muted max-w-[200px]">Waiting for new sensor data to rebuild temporal sequence buffer...</p>
+            </div>
+          </div>
+        </div>
+      )}
 
- <div className={`space-y-6 ${(isBuffering && !isTourActive) ? 'opacity-40 grayscale-[0.5] pointer-events-none' : 'transition-all duration-500'}`}>
- {/* ── Group 1: Environment — Temperature & Humidity (2 columns) ── */}
- <div>
- <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3 flex items-center gap-2">
- <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
- Environment
- </h3>
- <div className="grid grid-cols-2 gap-3 md:gap-5">
- <MetricCard
- label="Temperature"
- value={latestSensor?.temperature}
- unit="°C"
- icon={<Thermometer size={20} className="text-sky-500" />}
- accent="ctp-sky"
- warn={false}
- variant="environment"
- />
- <MetricCard
- label="Humidity"
- value={latestSensor?.humidity}
- unit="%"
- icon={<Droplets size={20} className="text-blue-500" />}
- accent="ctp-blue"
- warn={false}
- variant="environment"
- />
- </div>
- </div>
+      <div className={`space-y-6 ${(isBuffering && !isTourActive) ? 'opacity-40 grayscale-[0.5] pointer-events-none' : 'transition-all duration-500'}`}>
+        {/* ── Group 1: Environment — Temperature & Humidity (2 columns) ── */}
+        <div>
+          <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+            Environment
+          </h3>
+          <div className="grid grid-cols-2 gap-3 md:gap-5">
+            <MetricCard
+              label="Temperature"
+              value={latestSensor?.temperature}
+              unit="°C"
+              icon={<Thermometer size={20} className="text-sky-500" />}
+              accent="ctp-sky"
+              warn={false}
+              variant="environment"
+            />
+            <MetricCard
+              label="Humidity"
+              value={latestSensor?.humidity}
+              unit="%"
+              icon={<Droplets size={20} className="text-blue-500" />}
+              accent="ctp-blue"
+              warn={false}
+              variant="environment"
+            />
+          </div>
+        </div>
 
- {/* ── Group 2: Gas & Fire Sensors — Smoke, CO, LPG, Flame, CNG (5 columns on desktop) ── */}
- <div>
- <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3 flex items-center gap-2">
- <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
- Gas & Fire Sensors
- </h3>
- <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-5">
- <MetricCard
- label="Smoke"
- value={latestSensor?.smoke_detected}
- unit="ppm"
- icon={<Wind size={20} className="text-violet-500" />}
- accent="ctp-lavender"
- warn={checkFeatureWarn("smoke")}
- progress={getFeatureProgress("smoke")}
- variant="gas"
- />
- <MetricCard
- label="CO"
- value={latestSensor?.co_level}
- unit="ppm"
- icon={<Wind size={20} className="text-amber-500" />}
- accent="ctp-peach"
- warn={checkFeatureWarn("co")}
- progress={getFeatureProgress("co")}
- variant="gas"
- />
- <MetricCard
- label="LPG"
- value={latestSensor?.lpg_level}
- unit="ppm"
- icon={<Droplets size={20} className="text-teal-500" />}
- accent="ctp-teal"
- warn={checkFeatureWarn("lpg")}
- progress={getFeatureProgress("lpg")}
- variant="gas"
- />
- <MetricCard
- label="Flame"
- value={latestSensor?.flame_detected}
- unit=""
- icon={<Flame size={20} className="text-rose-500" />}
- accent="ctp-red"
- warn={checkFeatureWarn("flame")}
- progress={getFeatureProgress("flame")}
- variant="gas"
- />
- <MetricCard
- label="CNG (Metana)"
- value={latestSensor?.cng_level}
- unit="ppm"
- icon={<Gauge size={20} className="text-primary" />}
- accent="ctp-yellow"
- warn={checkFeatureWarn("cng")}
- progress={getFeatureProgress("cng")}
- variant="gas"
- />
- </div>
- </div>
- </div>
- </div>
- ), [latestSensor, isBuffering, isTourActive, checkFeatureWarn, getFeatureProgress]);
+        {/* ── Group 2: Gas & Fire Sensors — Smoke, CO, LPG, Flame, CNG (5 columns on desktop) ── */}
+        <div>
+          <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+            Gas & Fire Sensors
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-5">
+            <MetricCard
+              label="Smoke"
+              value={latestSensor?.smoke_detected}
+              unit="ppm"
+              icon={<Wind size={20} className="text-violet-500" />}
+              accent="ctp-lavender"
+              warn={checkFeatureWarn("smoke")}
+              progress={getFeatureProgress("smoke")}
+              variant="gas"
+            />
+            <MetricCard
+              label="CO"
+              value={latestSensor?.co_level}
+              unit="ppm"
+              icon={<Wind size={20} className="text-amber-500" />}
+              accent="ctp-peach"
+              warn={checkFeatureWarn("co")}
+              progress={getFeatureProgress("co")}
+              variant="gas"
+            />
+            <MetricCard
+              label="LPG"
+              value={latestSensor?.lpg_level}
+              unit="ppm"
+              icon={<Droplets size={20} className="text-teal-500" />}
+              accent="ctp-teal"
+              warn={checkFeatureWarn("lpg")}
+              progress={getFeatureProgress("lpg")}
+              variant="gas"
+            />
+            <MetricCard
+              label="Flame"
+              value={latestSensor?.flame_detected}
+              unit=""
+              icon={<Flame size={20} className="text-rose-500" />}
+              accent="ctp-red"
+              warn={checkFeatureWarn("flame")}
+              progress={getFeatureProgress("flame")}
+              variant="gas"
+            />
+            <MetricCard
+              label="CNG (Metana)"
+              value={latestSensor?.cng_level}
+              unit="ppm"
+              icon={<Gauge size={20} className="text-primary" />}
+              accent="ctp-yellow"
+              warn={checkFeatureWarn("cng")}
+              progress={getFeatureProgress("cng")}
+              variant="gas"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  ), [latestSensor, isBuffering, isTourActive, checkFeatureWarn, getFeatureProgress]);
 
   if (!mounted) return <div className="flex-1 min-h-screen bg-canvas" />;
 
@@ -524,7 +524,7 @@ const MAX_HISTORY = 15;
                         setIsDropdownOpen(false);
                       }}
                       className={`w-full text-left px-3 py-2.5 flex items-center gap-3 transition-all duration-150 hover:bg-surface-card-elevated group/item ${device.id === selectedDeviceId ? "bg-surface-strong border-l-2 border-primary" : "border-l-2 border-transparent"
-                      }`}
+                        }`}
                     >
                       <div className={`w-2 h-2 rounded-full shrink-0 ${device.status === "active" ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" : "bg-muted-soft"}`} />
                       <div className="flex-1 min-w-0">
@@ -603,7 +603,7 @@ const MAX_HISTORY = 15;
                           <option value={1.15}>Balanced (Recommended)</option>
                           <option value={1.2}>Low (Relaxed)</option>
                           <option value={1.3}>Very Low</option>
-                          <option value={1.4}>Minimum Alerts</option>
+                          <option value={2.0}>Minimum Alerts</option>
                         </select>
                       </div>
                       <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-2 rounded-lg text-xs font-medium">
@@ -652,22 +652,22 @@ const MAX_HISTORY = 15;
 
         {/* ── Gas Trend + Vision Feed (side by side) ── */}
         <div id="tour-charts-cctv" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
- <GasTrendChart chartData={chartData} />
- <LiveCCTVCard latestVision={latestVision} isDanger={isSystemInDanger} />
- </div>
+          <GasTrendChart chartData={chartData} />
+          <LiveCCTVCard latestVision={latestVision} isDanger={isSystemInDanger} />
+        </div>
 
- {/* ── Incident Log (full width) ── */}
- <div id="tour-incident-log">
- <IncidentLog alertsList={alertsList} onClearAlert={fetchDashboardData} />
- </div>
- </main>
+        {/* ── Incident Log (full width) ── */}
+        <div id="tour-incident-log">
+          <IncidentLog alertsList={alertsList} onClearAlert={fetchDashboardData} />
+        </div>
+      </main>
 
- <TutorialTour
- active={isTourActive}
- steps={tourSteps}
- onClose={handleTourClose}
- onComplete={handleTourComplete}
- />
- </div>
- );
+      <TutorialTour
+        active={isTourActive}
+        steps={tourSteps}
+        onClose={handleTourClose}
+        onComplete={handleTourComplete}
+      />
+    </div>
+  );
 }

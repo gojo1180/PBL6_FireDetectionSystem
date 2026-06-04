@@ -30,10 +30,11 @@ def config_polling_loop():
     global current_rtsp_url, current_device_id, cap_reconnect_flag
     while not cctv_stop_event.is_set():
         try:
-            res = supabase.table("devices").select("id, rtsp_url").eq("device_type", "CCTV").execute()
+            res = supabase.table("devices").select("id, rtsp_url").eq("device_type", "CCTV").eq("status", "active").execute()
             if res.data and len(res.data) > 0:
-                db_url = res.data[0].get("rtsp_url")
-                db_id = res.data[0].get("id")
+                # Ambil device yang ada di urutan terakhir (terbaru)
+                db_url = res.data[-1].get("rtsp_url")
+                db_id = res.data[-1].get("id")
                 
                 with frame_lock:
                     if db_url != current_rtsp_url:
@@ -51,7 +52,7 @@ def config_polling_loop():
 
 retry_counter = 0
 def frame_reading_loop():
-    global latest_frame, cap_reconnect_flag, retry_counter
+    global latest_frame, latest_annotated_frame, cap_reconnect_flag, retry_counter
     
     cap = None
 
@@ -65,6 +66,11 @@ def frame_reading_loop():
             if cap: 
                 cap.release()
                 cap = None
+
+            # Clear old frames so we don't stream stuck images
+            with frame_lock:
+                latest_frame = None
+                latest_annotated_frame = None
             
             if not url_to_use:
                 time.sleep(1)
@@ -117,6 +123,8 @@ def frame_reading_loop():
             with frame_lock:
                 cap_reconnect_flag = True
                 retry_counter = 0
+                latest_frame = None
+                latest_annotated_frame = None
             time.sleep(3)
             continue
 
@@ -356,7 +364,21 @@ def stop_cctv_service():
 
 def force_reconnect():
     """Manually trigger RTSP reconnection."""
-    global cap_reconnect_flag, retry_counter
+    global cap_reconnect_flag, retry_counter, current_rtsp_url, current_device_id
+    
+    try:
+        res = supabase.table("devices").select("id, rtsp_url").eq("device_type", "CCTV").eq("status", "active").execute()
+        if res.data and len(res.data) > 0:
+            db_url = res.data[-1].get("rtsp_url")
+            db_id = res.data[-1].get("id")
+            with frame_lock:
+                if db_url != current_rtsp_url:
+                    print(f"🔄 [Manual Retry] RTSP URL changed to {db_url}")
+                current_rtsp_url = db_url
+                current_device_id = db_id
+    except Exception as e:
+        print(f"❌ Error polling CCTV config during manual retry: {e}")
+
     with frame_lock:
         cap_reconnect_flag = True
         retry_counter = 0
