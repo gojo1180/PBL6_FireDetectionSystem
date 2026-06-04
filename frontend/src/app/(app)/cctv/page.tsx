@@ -166,20 +166,32 @@ export default function CCTVPage() {
  };
  }, [selectedDeviceId, mounted, connectStream]);
 
- // ─── Auto-reconnect when offline ──────────────────────────────────
- useEffect(() => {
- if (isOffline && !isReconnecting) {
- setIsReconnecting(true);
- reconnectTimerRef.current = setTimeout(() => {
- setReconnectCount(prev => prev + 1);
- console.log("[CCTV] Auto-reconnecting...");
- connectStream();
- }, RECONNECT_INTERVAL);
- }
- return () => {
- if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
- };
- }, [isOffline, isReconnecting, connectStream]);
+  // ─── Auto-reconnect when offline ──────────────────────────────────
+  useEffect(() => {
+    if (!isOffline) {
+      setIsReconnecting(false);
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      return;
+    }
+
+    console.log(`[CCTV] Stream offline, scheduling reconnect in ${RECONNECT_INTERVAL}ms...`);
+    setIsReconnecting(true);
+    reconnectTimerRef.current = setTimeout(() => {
+      setReconnectCount(prev => prev + 1);
+      console.log("[CCTV] Auto-reconnecting now...");
+      connectStream();
+    }, RECONNECT_INTERVAL);
+
+    return () => {
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+    };
+  }, [isOffline, connectStream]);
 
  const handleStreamLoad = () => {
  // Stream loaded successfully — cancel timeout
