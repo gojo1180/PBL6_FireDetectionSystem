@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { apiFetch, getDevices, getDashboardSensors, getLatestVision, getAlerts, getCalibrationStatus, CalibrationStatus, setCalibrationConfig } from "@/lib/api";
-import { Activity, Bell, Flame, Gauge, Wind, Droplets, ChevronDown, MapPin, Server, BrainCircuit, Settings2, Thermometer, Zap, Sparkles } from "lucide-react";
+import { Activity, Bell, Flame, Gauge, Wind, Droplets, ChevronDown, MapPin, Server, BrainCircuit, Settings2, Thermometer, Zap, PlayCircle } from "lucide-react";
 import { TutorialTour, TourStep } from "@/components/ui/TutorialTour";
 
 import { SensorLog, VisionLog, FusionAlert, Device } from "@/types";
@@ -67,27 +67,27 @@ export default function DashboardPage() {
       type: "button",
     },
     {
-      targetId: "tour-sensor-metrics",
-      title: "Metrik Sensor Real-time",
-      description: "Panel ini menampilkan data lingkungan (suhu, kelembapan) serta kadar gas (Smoke, CO, LPG, Flame, CNG) lengkap dengan status toleransi AI.",
+      targetId: "tour-charts-cctv",
+      title: "Live Monitor & Informasi",
+      description: "Pantau area secara visual melalui stream CCTV. Di bagian kanan, Anda dapat melihat status detail perangkat beserta metrik Suhu dan Kelembapan secara real-time.",
       type: "section",
     },
     {
-      targetId: "settings-popover-btn",
-      title: "Sensitivitas AI (LSTM Autoencoder)",
-      description: "Sesuaikan sensitivitas pendeteksian anomali secara dinamis. Anda dapat mengatur tingkat High, Balanced, atau Low sesuai kebutuhan lingkungan.",
-      type: "button",
+      targetId: "tour-gas-sensors",
+      title: "Monitoring Gas Berbahaya",
+      description: "Area ini menampilkan tingkat konsentrasi gas secara live. Angka akan otomatis memperingatkan Anda jika mendekati atau melampaui ambang batas bahaya.",
+      type: "section",
     },
     {
-      targetId: "tour-charts-cctv",
-      title: "Grafik Tren dan Video CCTV",
-      description: "Di sini Anda bisa memantau grafik kenaikan gas secara berkala, bersanding dengan siaran langsung CCTV yang mendeteksi api/asap menggunakan YOLOv8.",
+      targetId: "tour-gas-trend",
+      title: "Grafik Tren Emisi Gas",
+      description: "Di sini Anda dapat melihat pergerakan visualisasi data emisi gas secara historis. Sangat berguna untuk menganalisis tren kenaikan atau penurunan sebelum bahaya terjadi.",
       type: "section",
     },
     {
       targetId: "tour-incident-log",
-      title: "Log Insiden Kebakaran",
-      description: "Semua riwayat peringatan bahaya yang terpicu secara otomatis oleh gabungan sensor & visi akan tersimpan di tabel log ini.",
+      title: "Log Insiden Keamanan",
+      description: "Jika sistem AI mendeteksi kebakaran atau kebocoran gas kritis, riwayat insiden akan otomatis tercatat di sini untuk bahan evaluasi.",
       type: "section",
     },
     {
@@ -432,7 +432,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Group 2: Gas & Fire Sensors — CO, CNG, LPG, Smoke, Flame (5 columns) ── */}
-        <div>
+        <div id="tour-gas-sensors">
           <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
             Gas & Fire Sensors
@@ -596,7 +596,7 @@ export default function DashboardPage() {
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-indigo-500 hover:from-primary/90 hover:to-indigo-500/90 text-white text-sm font-bold transition-all duration-300 shadow-lg shadow-primary/30 hover:scale-105 active:scale-95 group"
             title="Mulai Tutorial"
           >
-            <Sparkles size={16} className="text-yellow-300 group-hover:animate-spin" />
+            <PlayCircle size={16} className="group-hover:scale-110 transition-transform" />
             <span className="hidden sm:inline tracking-wide">Mulai Tutorial</span>
           </button>
 
@@ -692,7 +692,9 @@ export default function DashboardPage() {
         {memoizedSensorCards}
 
         {/* ── Gas Trend Chart (full width) ── */}
-        <GasTrendChart chartData={chartData} />
+        <div id="tour-gas-trend">
+          <GasTrendChart chartData={chartData} />
+        </div>
 
         {/* ── Incident Log (full width) ── */}
         <div id="tour-incident-log">
