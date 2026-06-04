@@ -26,19 +26,41 @@ frame_lock = threading.Lock()
 
 _last_gc_time = 0
 
+def set_active_cctv(device_id: str):
+    global current_rtsp_url, current_device_id, cap_reconnect_flag, retry_counter
+    try:
+        res = supabase.table("devices").select("id, rtsp_url").eq("id", device_id).execute()
+        if res.data and len(res.data) > 0:
+            db_url = res.data[0].get("rtsp_url")
+            db_id = res.data[0].get("id")
+            with frame_lock:
+                if current_device_id != db_id or current_rtsp_url != db_url:
+                    print(f"🔄 [Switch User CCTV] Switching to device {db_id} with URL {db_url}")
+                    current_rtsp_url = db_url
+                    current_device_id = db_id
+                    cap_reconnect_flag = True
+                    retry_counter = 0
+    except Exception as e:
+        print(f"❌ Error switching active CCTV: {e}")
+
 def config_polling_loop():
     global current_rtsp_url, current_device_id, cap_reconnect_flag
     while not cctv_stop_event.is_set():
         try:
-            res = supabase.table("devices").select("id, rtsp_url").eq("device_type", "CCTV").eq("status", "active").execute()
+            # If a specific device is targeted, only poll that one. Otherwise, poll any active.
+            if current_device_id:
+                res = supabase.table("devices").select("id, rtsp_url").eq("id", current_device_id).eq("status", "active").execute()
+            else:
+                res = supabase.table("devices").select("id, rtsp_url").eq("device_type", "CCTV").eq("status", "active").execute()
+
             if res.data and len(res.data) > 0:
-                # Ambil device yang ada di urutan terakhir (terbaru)
+                # Ambil device yang ada di urutan terakhir (terbaru) jika belum ada target spesifik
                 db_url = res.data[-1].get("rtsp_url")
                 db_id = res.data[-1].get("id")
                 
                 with frame_lock:
-                    if db_url != current_rtsp_url:
-                        print(f"🔄 RTSP URL changed to {db_url}. Reconnecting stream...")
+                    if db_url != current_rtsp_url or db_id != current_device_id:
+                        print(f"🔄 RTSP URL changed to {db_url} for device {db_id}. Reconnecting stream...")
                         current_rtsp_url = db_url
                         current_device_id = db_id
                         cap_reconnect_flag = True

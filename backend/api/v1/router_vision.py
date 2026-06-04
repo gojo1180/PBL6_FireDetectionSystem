@@ -132,6 +132,7 @@ async def upload_frame(
 class WebRTCOffer(BaseModel):
     sdp: str
     type: str
+    device_id: Optional[str] = None
 
 class OpenCVStreamTrack(VideoStreamTrack):
     """
@@ -173,6 +174,11 @@ async def webrtc_offer(offer: WebRTCOffer):
     Endpoint untuk WebRTC signaling.
     Menerima SDP offer dari frontend, memasang OpenCVStreamTrack, dan membalas dengan SDP answer.
     """
+    # Switch the background vision service to monitor this specific user's device
+    if offer.device_id:
+        from services.vision_service import set_active_cctv
+        set_active_cctv(offer.device_id)
+
     pc = RTCPeerConnection()
     pcs.add(pc)
 
@@ -199,11 +205,19 @@ async def webrtc_offer(offer: WebRTCOffer):
         "type": pc.localDescription.type
     }
 
+class RetryRequest(BaseModel):
+    device_id: Optional[str] = None
+
 @router.post("/vision/rtsp/retry")
-def retry_rtsp_connection():
+def retry_rtsp_connection(req: RetryRequest):
     """
     Endpoint untuk me-restart koneksi RTSP secara manual dari frontend.
     """
-    from services.vision_service import force_reconnect
-    force_reconnect()
+    if req.device_id:
+        from services.vision_service import set_active_cctv
+        set_active_cctv(req.device_id)
+    else:
+        from services.vision_service import force_reconnect
+        force_reconnect()
+        
     return {"message": "Manual RTSP reconnect triggered."}

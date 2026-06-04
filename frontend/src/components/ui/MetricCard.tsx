@@ -6,13 +6,13 @@ import { Info, X } from 'lucide-react';
 
 // ─── Sensor Information Mapping (K3/OSHA) ──────────────────────────────────
 const infoMap: Record<string, { desc: string }> = {
- "Smoke": { desc: "Konsentrasi partikel asap di udara akibat adanya pembakaran." },
- "CO": { desc: "Karbon Monoksida (CO), gas beracun hasil pembakaran yang tidak sempurna." },
- "LPG": { desc: "Liquid Petroleum Gas (Propana/Butana), campuran gas mudah terbakar." },
- "CNG (Metana)": { desc: "Compressed Natural Gas (Metana murni), gas alam yang mudah meledak." },
- "Flame": { desc: "Sensor pendeteksi radiasi inframerah dari keberadaan nyala api." },
- "Temperature": { desc: "Suhu ruangan lingkungan terpantau di sekitar area pemantauan." },
- "Humidity": { desc: "Tingkat kelembapan relatif udara di sekitar sensor." }
+  "Smoke": { desc: "Konsentrasi partikel asap di udara akibat adanya pembakaran." },
+  "CO": { desc: "Karbon Monoksida (CO), gas beracun hasil pembakaran yang tidak sempurna." },
+  "LPG": { desc: "Liquid Petroleum Gas (Propana/Butana), campuran gas mudah terbakar." },
+  "CNG (Metana)": { desc: "Compressed Natural Gas (Metana murni), gas alam yang mudah meledak." },
+  "Flame": { desc: "Sensor pendeteksi radiasi inframerah dari keberadaan nyala api." },
+  "Temperature": { desc: "Suhu ruangan lingkungan terpantau di sekitar area pemantauan." },
+  "Humidity": { desc: "Tingkat kelembapan relatif udara di sekitar sensor." }
 };
 
 // ─── Semantic Status Colors ─────────────────────────────────────────────────
@@ -21,12 +21,12 @@ const infoMap: Record<string, { desc: string }> = {
 type StatusLevel = 'safe' | 'warning' | 'danger' | 'neutral';
 
 const getStatusLevel = (warn: boolean, progress?: number): StatusLevel => {
- if (warn) return 'danger';
- if (progress !== undefined) {
- if (progress >= 75) return 'warning';
- if (progress >= 90) return 'danger';
- }
- return 'safe';
+  if (warn) return 'danger';
+  if (progress !== undefined) {
+    if (progress >= 75) return 'warning';
+    if (progress >= 90) return 'danger';
+  }
+  return 'safe';
 };
 
 const statusColorMap: Record<StatusLevel, {
@@ -68,13 +68,13 @@ const statusColorMap: Record<StatusLevel, {
 
 // Map accent key to spotlight fallback for env cards (temp/humidity)
 const getEnvSpotlightColor = (accent: string) => {
- switch (accent) {
- case 'ctp-blue': return 'rgba(99, 102, 241, 0.06)';
- case 'ctp-sky': return 'rgba(14, 165, 233, 0.06)';
- case 'ctp-sapphire': return 'rgba(32, 159, 181, 0.06)';
- case 'ctp-teal': return 'rgba(20, 184, 166, 0.06)';
- default: return 'rgba(99, 102, 241, 0.05)';
- }
+  switch (accent) {
+    case 'ctp-blue': return 'rgba(99, 102, 241, 0.06)';
+    case 'ctp-sky': return 'rgba(14, 165, 233, 0.06)';
+    case 'ctp-sapphire': return 'rgba(32, 159, 181, 0.06)';
+    case 'ctp-teal': return 'rgba(20, 184, 166, 0.06)';
+    default: return 'rgba(99, 102, 241, 0.05)';
+  }
 };
 
 // Full class-name lookup so Tailwind JIT can detect them at build time.
@@ -93,143 +93,142 @@ const accentClassMap: Record<string, { text: string; bar: string; iconBg: string
 export type MetricCardVariant = 'gas' | 'environment';
 
 interface MetricCardProps {
- label: string;
- value?: number;
- unit: string;
- icon: React.ReactNode;
- accent: string;
- warn: boolean;
- className?: string;
- progress?: number;
- /** 'gas' enables dynamic semantic colors; 'environment' keeps accent-based styling */
- variant?: MetricCardVariant;
+  label: string;
+  value?: number;
+  unit: string;
+  icon: React.ReactNode;
+  accent: string;
+  warn: boolean;
+  className?: string;
+  progress?: number;
+  /** 'gas' enables dynamic semantic colors; 'environment' keeps accent-based styling */
+  variant?: MetricCardVariant;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
 export function MetricCard({
- label,
- value,
- unit,
- icon,
- accent,
- warn,
- className = "",
- progress,
- variant = 'gas',
+  label,
+  value,
+  unit,
+  icon,
+  accent,
+  warn,
+  className = "",
+  progress,
+  variant = 'gas',
 }: MetricCardProps) {
- const [isInfoHovered, setIsInfoHovered] = React.useState(false);
+  const [isInfoHovered, setIsInfoHovered] = React.useState(false);
 
- // Determine status-based color scheme for gas cards; env cards use accent
- const isGas = variant === 'gas';
- const status = isGas ? getStatusLevel(warn, progress) : 'neutral';
- const colors = statusColorMap[status];
- const accentColors = accentClassMap[accent] || accentClassMap['ctp-blue'];
+  // Determine status-based color scheme for gas cards; env cards use accent
+  const isGas = variant === 'gas';
+  const status = isGas ? getStatusLevel(warn, progress) : 'neutral';
+  const colors = statusColorMap[status];
+  const accentColors = accentClassMap[accent] || accentClassMap['ctp-blue'];
 
- // Spotlight color
- const spotlightColor = isGas
- ? (warn ? 'rgba(244, 63, 94, 0.1)' : colors.spotlight)
- : getEnvSpotlightColor(accent);
+  // Spotlight color
+  const spotlightColor = isGas
+    ? (warn ? 'rgba(244, 63, 94, 0.1)' : colors.spotlight)
+    : getEnvSpotlightColor(accent);
 
- // Value color class
- const valueColorClass = isGas ? colors.text : accentColors.text;
+  // Value color class
+  const valueColorClass = isGas ? colors.text : accentColors.text;
 
- // Progress bar color class
- const barColorClass = isGas ? `${colors.bar} ${colors.glow}` : accentColors.bar;
+  // Progress bar color class
+  const barColorClass = isGas ? `${colors.bar} ${colors.glow}` : accentColors.bar;
 
- // Icon background color
- const iconBgClass = isGas ? colors.iconBg : accentColors.iconBg;
+  // Icon background color
+  const iconBgClass = isGas ? colors.iconBg : accentColors.iconBg;
 
- return (
- <SpotlightCard
- warn={warn}
- spotlightColor={spotlightColor}
- className={`
+  return (
+    <SpotlightCard
+      warn={warn}
+      spotlightColor={spotlightColor}
+      className={`
  flex flex-col min-h-[148px]
  rounded-xl
  hover:-translate-y-1 hover:shadow-lg
  transition-all duration-300 ease-out
  ${className}
  `}
- >
- {/* Main card content wrapped in padding container */}
- <div className="p-5 flex flex-col justify-between flex-1 w-full h-full">
- {/* Header: Icon + Label */}
- <div className="flex items-center justify-between mb-3">
- <div className={`p-2.5 rounded-xl ${iconBgClass} transition-colors duration-300`}>
- {icon}
- </div>
- <div className="flex items-center gap-1.5 group relative">
- <span className="text-xs md:text-[13px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
- {label}
- </span>
- {infoMap[label] && (
- <button 
- onClick={(e) => {
- e.stopPropagation();
- setIsInfoHovered(true);
- }}
- className="relative flex items-center justify-center p-0.5 -m-0.5 cursor-pointer outline-none animate-pulse hover:animate-none"
- aria-label="Info Keterangan"
- >
- <Info 
- size={15} 
- className="text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-indigo-400 transition-colors" 
- />
- </button>
- )}
- </div>
- </div>
+    >
+      {/* Main card content wrapped in padding container */}
+      <div className="p-5 flex flex-col justify-between flex-1 w-full h-full">
+        {/* Header: Icon + Label */}
+        <div className="flex items-center justify-between mb-3">
+          <div className={`p-2.5 rounded-xl ${iconBgClass} transition-colors duration-300`}>
+            {icon}
+          </div>
+          <div className="flex items-center gap-1.5 group relative">
+            <span className="text-xs md:text-[13px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+              {label}
+            </span>
+            {infoMap[label] && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsInfoHovered(true);
+                }}
+                className="relative flex items-center justify-center p-0.5 -m-0.5 cursor-pointer outline-none transition-transform hover:scale-110"
+                aria-label="Info Keterangan"
+              >
+                <Info
+                  size={15}
+                  className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
+                />
+              </button>
+            )}
+          </div>
+        </div>
 
- {/* Value */}
- <div className="flex items-baseline gap-1.5">
- <span className={`text-3xl font-extrabold tabular-nums ${valueColorClass} transition-colors duration-300`}>
- {value !== undefined ? value.toFixed(1) : "—"}
- </span>
- <span className="text-xs font-medium text-muted">{unit}</span>
- </div>
+        {/* Value */}
+        <div className="flex items-baseline gap-1.5">
+          <span className={`text-3xl font-extrabold tabular-nums ${valueColorClass} transition-colors duration-300`}>
+            {value !== undefined ? value.toFixed(1) : "—"}
+          </span>
+          <span className="text-xs font-medium text-muted">{unit}</span>
+        </div>
 
- {/* Progress bar */}
- <div className="mt-3 w-full h-1.5 rounded-full bg-surface-strong overflow-hidden flex items-center">
- <div
- className={`h-full rounded-full transition-all duration-700 ease-out ${barColorClass}`}
- style={{ width: `${progress !== undefined ? progress : Math.min((value ?? 0) * 5, 100)}%` }}
- />
- </div>
- </div>
+        {/* Progress bar */}
+        <div className="mt-3 w-full h-1.5 rounded-full bg-surface-strong overflow-hidden flex items-center">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ease-out ${barColorClass}`}
+            style={{ width: `${progress !== undefined ? progress : Math.min((value ?? 0) * 5, 100)}%` }}
+          />
+        </div>
+      </div>
 
- {/* Dynamic Info Overlay (Light Glassmorphism, absolute overlay matching outer borders) */}
- {infoMap[label] && (
- <div 
- onClick={() => setIsInfoHovered(false)}
- className={`absolute inset-0 z-20 bg-surface-card/90 backdrop-blur-md p-6 rounded-xl flex flex-col justify-center items-center transition-all duration-300 border border-hairline shadow-[0_8px_32px_0_rgba(99,102,241,0.05)] text-center cursor-pointer ${
- isInfoHovered ? "opacity-100 scale-100 pointer-events-auto" : "opacity-0 scale-95 pointer-events-none"
- }`}
- >
- {/* Close Button */}
- <button 
- onClick={(e) => {
- e.stopPropagation();
- setIsInfoHovered(false);
- }}
- className="absolute top-3 right-3 p-1 rounded-full text-muted hover:text-primary hover:bg-primary/10 transition-all duration-200"
- aria-label="Tutup"
- >
- <X size={14} />
- </button>
+      {/* Dynamic Info Overlay (Light Glassmorphism, absolute overlay matching outer borders) */}
+      {infoMap[label] && (
+        <div
+          onClick={() => setIsInfoHovered(false)}
+          className={`absolute inset-0 z-20 bg-surface-card/90 backdrop-blur-md p-6 rounded-xl flex flex-col justify-center items-center transition-all duration-300 border border-hairline shadow-[0_8px_32px_0_rgba(99,102,241,0.05)] text-center cursor-pointer ${isInfoHovered ? "opacity-100 scale-100 pointer-events-auto" : "opacity-0 scale-95 pointer-events-none"
+            }`}
+        >
+          {/* Close Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsInfoHovered(false);
+            }}
+            className="absolute top-3 right-3 p-1 rounded-full text-muted hover:text-primary hover:bg-primary/10 transition-all duration-200"
+            aria-label="Tutup"
+          >
+            <X size={14} />
+          </button>
 
- <div className="flex flex-col items-center justify-center gap-3 w-full">
- <div className="p-2 rounded-xl bg-primary/10 border border-primary/20 text-primary shadow-sm flex items-center justify-center">
- <Info size={16} className="animate-pulse" />
- </div>
- <p className="text-[11px] font-black text-primary/90 uppercase tracking-[0.25em]">
- {label}
- </p>
- <p className="text-xs text-body leading-relaxed font-bold px-1 max-w-[90%]">
- {infoMap[label].desc}
- </p>
- </div>
- </div>
- )}
- </SpotlightCard>
- );
+          <div className="flex flex-col items-center justify-center gap-3 w-full">
+            <div className="p-2 rounded-xl bg-primary/10 border border-primary/20 text-primary shadow-sm flex items-center justify-center">
+              <Info size={16} className="animate-pulse" />
+            </div>
+            <p className="text-[11px] font-black text-primary/90 uppercase tracking-[0.25em]">
+              {label}
+            </p>
+            <p className="text-xs text-body leading-relaxed font-bold px-1 max-w-[90%]">
+              {infoMap[label].desc}
+            </p>
+          </div>
+        </div>
+      )}
+    </SpotlightCard>
+  );
 }

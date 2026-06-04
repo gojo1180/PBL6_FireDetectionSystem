@@ -14,7 +14,6 @@ import { StatusBanner } from "@/components/dashboard/StatusBanner";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { LiveCCTVCard } from "@/components/dashboard/LiveCCTVCard";
 import { IncidentLog } from "@/components/dashboard/IncidentLog";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import dynamic from "next/dynamic";
 import OneSignal from "react-onesignal";
 
@@ -359,51 +358,86 @@ export default function DashboardPage() {
       )}
 
       <div className={`space-y-6 ${(isBuffering && !isTourActive) ? 'opacity-40 grayscale-[0.5] pointer-events-none' : 'transition-all duration-500'}`}>
-        {/* ── Group 1: Environment — Temperature & Humidity (2 columns) ── */}
-        <div>
-          <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
-            Environment
-          </h3>
-          <div className="grid grid-cols-2 gap-3 md:gap-5">
-            <MetricCard
-              label="Temperature"
-              value={latestSensor?.temperature}
-              unit="°C"
-              icon={<Thermometer size={20} className="text-sky-500" />}
-              accent="ctp-sky"
-              warn={false}
-              variant="environment"
+        {/* ── Group 1: CCTV (left) + Environment cards (right) ── */}
+        <div id="tour-charts-cctv" className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-5">
+          {/* CCTV — spans 1 column on desktop (50% width) */}
+          <div className="lg:col-span-1">
+            <LiveCCTVCard 
+              latestVision={latestVision} 
+              isDanger={isSystemInDanger} 
+              deviceId={devices.find(d => d.device_type === "CCTV")?.id} 
             />
-            <MetricCard
-              label="Humidity"
-              value={latestSensor?.humidity}
-              unit="%"
-              icon={<Droplets size={20} className="text-blue-500" />}
-              accent="ctp-blue"
-              warn={false}
-              variant="environment"
-            />
+          </div>
+          {/* Right column: Informasi CCTV + Environment Cards */}
+          <div className="lg:col-span-1 flex flex-col gap-3 md:gap-5 h-full">
+            {/* Informasi CCTV Card */}
+            <div className="bg-surface-card backdrop-blur-md border border-hairline rounded-2xl shadow-sm p-4 md:p-5 flex-1 flex flex-col justify-center">
+              <h3 className="font-bold text-ink mb-3 border-b border-hairline pb-2 flex items-center justify-between">
+                <span>Informasi CCTV</span>
+                {devices.find(d => d.device_type === "CCTV")?.status === "active" ? (
+                  <span className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 text-[10px] font-bold rounded-lg border border-emerald-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Aktif
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-500/10 text-rose-600 text-[10px] font-bold rounded-lg border border-rose-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                    Offline
+                  </span>
+                )}
+              </h3>
+              
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted">Nama Perangkat:</span>
+                  <span className="font-semibold text-ink">{devices.find(d => d.device_type === "CCTV")?.device_name || "Camera-01"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted">Lokasi:</span>
+                  <span className="font-semibold text-ink">{devices.find(d => d.device_type === "CCTV")?.location || "Area Produksi"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted">IP Address / RTSP:</span>
+                  <span className="font-mono text-[10px] text-ink truncate max-w-[120px]" title={devices.find(d => d.device_type === "CCTV")?.rtsp_url || "-"}>
+                    {devices.find(d => d.device_type === "CCTV")?.rtsp_url ? "Terhubung" : "Tidak ada"}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Environment Cards (Side-by-side) */}
+            <div className="grid grid-cols-2 gap-3 md:gap-5 flex-1">
+              <MetricCard
+                label="Temperature"
+                value={latestSensor?.temperature}
+                unit="°C"
+                icon={<Thermometer size={20} className="text-sky-500" />}
+                accent="ctp-sky"
+                warn={false}
+                variant="environment"
+                className="h-full"
+              />
+              <MetricCard
+                label="Humidity"
+                value={latestSensor?.humidity}
+                unit="%"
+                icon={<Droplets size={20} className="text-blue-500" />}
+                accent="ctp-blue"
+                warn={false}
+                variant="environment"
+                className="h-full"
+              />
+            </div>
           </div>
         </div>
 
-        {/* ── Group 2: Gas & Fire Sensors — Smoke, CO, LPG, Flame, CNG (5 columns on desktop) ── */}
+        {/* ── Group 2: Gas & Fire Sensors — CO, CNG, LPG, Smoke, Flame (5 columns) ── */}
         <div>
           <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
             Gas & Fire Sensors
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-5">
-            <MetricCard
-              label="Smoke"
-              value={latestSensor?.smoke_detected}
-              unit="ppm"
-              icon={<Wind size={20} className="text-violet-500" />}
-              accent="ctp-lavender"
-              warn={checkFeatureWarn("smoke")}
-              progress={getFeatureProgress("smoke")}
-              variant="gas"
-            />
             <MetricCard
               label="CO"
               value={latestSensor?.co_level}
@@ -412,6 +446,16 @@ export default function DashboardPage() {
               accent="ctp-peach"
               warn={checkFeatureWarn("co")}
               progress={getFeatureProgress("co")}
+              variant="gas"
+            />
+            <MetricCard
+              label="CNG (Metana)"
+              value={latestSensor?.cng_level}
+              unit="ppm"
+              icon={<Gauge size={20} className="text-primary" />}
+              accent="ctp-yellow"
+              warn={checkFeatureWarn("cng")}
+              progress={getFeatureProgress("cng")}
               variant="gas"
             />
             <MetricCard
@@ -425,6 +469,16 @@ export default function DashboardPage() {
               variant="gas"
             />
             <MetricCard
+              label="Smoke"
+              value={latestSensor?.smoke_detected}
+              unit="ppm"
+              icon={<Wind size={20} className="text-violet-500" />}
+              accent="ctp-lavender"
+              warn={checkFeatureWarn("smoke")}
+              progress={getFeatureProgress("smoke")}
+              variant="gas"
+            />
+            <MetricCard
               label="Flame"
               value={latestSensor?.flame_detected}
               unit=""
@@ -434,21 +488,11 @@ export default function DashboardPage() {
               progress={getFeatureProgress("flame")}
               variant="gas"
             />
-            <MetricCard
-              label="CNG (Metana)"
-              value={latestSensor?.cng_level}
-              unit="ppm"
-              icon={<Gauge size={20} className="text-primary" />}
-              accent="ctp-yellow"
-              warn={checkFeatureWarn("cng")}
-              progress={getFeatureProgress("cng")}
-              variant="gas"
-            />
           </div>
         </div>
       </div>
     </div>
-  ), [latestSensor, isBuffering, isTourActive, checkFeatureWarn, getFeatureProgress]);
+  ), [latestSensor, latestVision, isSystemInDanger, isBuffering, isTourActive, checkFeatureWarn, getFeatureProgress]);
 
   if (!mounted) return <div className="flex-1 min-h-screen bg-canvas" />;
 
@@ -462,7 +506,6 @@ export default function DashboardPage() {
             </div>
             <span className="font-bold text-base text-ink">Control Center</span>
           </div>
-          <ThemeToggle />
         </header>
         <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
           <div className="w-20 h-20 bg-surface-card border border-hairline rounded-2xl shadow-xl flex items-center justify-center mb-6">
@@ -547,8 +590,6 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <ThemeToggle />
-
           {/* Start Tutorial Button */}
           <button
             onClick={() => setIsTourActive(true)}
@@ -650,11 +691,8 @@ export default function DashboardPage() {
         {/* ── Sensor Metric Cards (Environment + Gas Groups) ── */}
         {memoizedSensorCards}
 
-        {/* ── Gas Trend + Vision Feed (side by side) ── */}
-        <div id="tour-charts-cctv" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <GasTrendChart chartData={chartData} />
-          <LiveCCTVCard latestVision={latestVision} isDanger={isSystemInDanger} />
-        </div>
+        {/* ── Gas Trend Chart (full width) ── */}
+        <GasTrendChart chartData={chartData} />
 
         {/* ── Incident Log (full width) ── */}
         <div id="tour-incident-log">

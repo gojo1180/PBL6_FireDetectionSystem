@@ -36,8 +36,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="h-full bg-transparent text-[var(--color-body)] transition-colors duration-500 selection:bg-[var(--color-primary)]/30">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="light"
+          forcedTheme="light"
           disableTransitionOnChange={false}
         >
           {/* Global Dynamic Background */}

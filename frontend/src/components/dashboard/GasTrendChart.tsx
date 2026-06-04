@@ -17,7 +17,7 @@ export interface ChartPoint {
 
 export const GasTrendChart = memo(function GasTrendChart({ chartData }: { chartData: ChartPoint[] }) {
  return (
- <div className="lg:col-span-2 bg-surface-card backdrop-blur-md border border-hairline rounded-2xl shadow-sm p-6">
+ <div className="bg-surface-card backdrop-blur-md border border-hairline rounded-2xl shadow-sm p-6">
  <div className="flex items-center justify-between mb-6">
  <div>
  <h3 className="text-sm font-bold text-ink">Gas Concentration Trend</h3>

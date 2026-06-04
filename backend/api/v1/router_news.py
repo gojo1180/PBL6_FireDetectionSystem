@@ -57,6 +57,40 @@ class ExtractResponse(BaseModel):
     full_text: str
 
 
+def clean_article_text(text: str) -> str:
+    """Filter out common ad phrases, recommendations, and short unrelated text from Indonesian news."""
+    if not text:
+        return ""
+    lines = text.split("\n")
+    cleaned_lines = []
+    
+    # Common ad and recommendation keywords to exclude entire paragraphs
+    blacklist_keywords = [
+        "baca juga", "simak video", "scroll untuk lanjut", "scroll ke bawah",
+        "advertisement", "scrol untuk melanjutkan", "gambas:video", "klik link",
+        "selengkapnya:", "saksikan video", "pilihan redaksi", "baca selengkapnya"
+    ]
+    
+    for line in lines:
+        line_clean = line.strip()
+        if not line_clean:
+            continue
+        
+        lower_line = line_clean.lower()
+        
+        # Check if line contains any blacklist keyword
+        if any(keyword in lower_line for keyword in blacklist_keywords):
+            continue
+            
+        # Filter out very short lines that look like ad tags (e.g. "ADVERTISEMENT", "Iklan")
+        if len(line_clean) < 20 and (lower_line == "advertisement" or lower_line == "iklan"):
+            continue
+            
+        cleaned_lines.append(line_clean)
+        
+    return "\n\n".join(cleaned_lines)
+
+
 # ─── GET /news ───────────────────────────────────────────────────────
 @router.get("/news")
 def get_fire_news(
@@ -173,6 +207,8 @@ def extract_article(
                 detail="Konten artikel kosong atau dilindungi oleh sistem keamanan web.",
             )
 
+        full_text = clean_article_text(full_text)
+
         logger.info(f"[News] Extracted {len(full_text)} chars from: {payload.url[:80]}")
         return ExtractResponse(url=payload.url, full_text=full_text)
 
@@ -229,6 +265,8 @@ def summarize_article(
                     status_code=422,
                     detail="Konten artikel kosong atau dilindungi oleh sistem keamanan web.",
                 )
+
+            full_text = clean_article_text(full_text)
 
             logger.info(
                 f"[News] Extracted {len(full_text)} chars from: {payload.url[:80]}"
