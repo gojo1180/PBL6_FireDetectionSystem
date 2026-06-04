@@ -159,7 +159,7 @@ export function MetricCard({
  {icon}
  </div>
  <div className="flex items-center gap-1.5 group relative">
- <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
+ <span className="text-xs md:text-[13px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
  {label}
  </span>
  {infoMap[label] && (
@@ -172,8 +172,8 @@ export function MetricCard({
  aria-label="Info Keterangan"
  >
  <Info 
- size={12} 
- className="text-muted hover:text-primary transition-colors" 
+ size={15} 
+ className="text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-indigo-400 transition-colors" 
  />
  </button>
  )}

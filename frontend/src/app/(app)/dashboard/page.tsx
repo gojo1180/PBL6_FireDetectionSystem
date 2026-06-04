@@ -600,9 +600,9 @@ export default function DashboardPage() {
                           className="w-full bg-surface-card-elevated border border-hairline text-body text-sm font-semibold rounded-xl px-4 py-2.5 focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20 cursor-pointer disabled:opacity-50 transition-all"
                         >
                           <option value={1.1}>High (Strict)</option>
-                          <option value={1.15}>Balanced (Recommended)</option>
-                          <option value={1.2}>Low (Relaxed)</option>
-                          <option value={1.3}>Very Low</option>
+                          <option value={1.3}>Balanced (Recommended)</option>
+                          <option value={1.5}>Low (Relaxed)</option>
+                          <option value={1.7}>Very Low</option>
                           <option value={2.0}>Minimum Alerts</option>
                         </select>
                       </div>
