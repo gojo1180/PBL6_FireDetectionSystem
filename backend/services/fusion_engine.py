@@ -83,7 +83,7 @@ class LateFusionService:
         self.threshold_per_fitur = {}
         self.FASE_AKTIF = "MONITORING"
         self.SAMPLING_SECONDS = 0
-        self.TOLERANSI_THRESHOLD = 1.0
+        self.TOLERANSI_THRESHOLD = 1.3
         self.counter_pesan = 0
         self.history_error_ruangan = []
         self.THRESHOLD_DINAMIS = 0.5 

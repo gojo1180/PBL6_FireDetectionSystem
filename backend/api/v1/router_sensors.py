@@ -108,7 +108,7 @@ def get_calibration_status(current_user: dict = Depends(get_current_user)):
         "threshold_per_fitur": getattr(fusion_service, "threshold_per_fitur", {}),
         "counter_pesan": getattr(fusion_service, "counter_pesan", 0),
         "sampling_seconds": getattr(fusion_service, "SAMPLING_SECONDS", 120),
-        "toleransi_threshold": getattr(fusion_service, "TOLERANSI_THRESHOLD", 1.15)
+        "toleransi_threshold": getattr(fusion_service, "TOLERANSI_THRESHOLD", 1.3)
     }
 
 from pydantic import BaseModel
