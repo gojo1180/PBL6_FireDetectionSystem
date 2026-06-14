@@ -267,7 +267,7 @@ class LateFusionService:
         print(f"⚙️ Toleransi global diubah ke {new_toleransi}x.")
 
     def process_vision_data(self, image_input) -> dict:
-        result_scores = {"fire_confidence": 0.0, "smoke_confidence": 0.0, "annotated_frame": None}
+        result_scores = {"fire_confidence": 0.0, "smoke_confidence": 0.0, "annotated_frame": None, "fire_area_pct": 0.0, "smoke_area_pct": 0.0}
         
         if not self.yolo_model:
             return result_scores
@@ -308,8 +308,20 @@ class LateFusionService:
                     
                     if "fire" in class_name and conf > result_scores["fire_confidence"]:
                         result_scores["fire_confidence"] = conf
+                        try:
+                            width = float(box.xywhn[0][2])
+                            height = float(box.xywhn[0][3])
+                            result_scores["fire_area_pct"] = (width * height) * 100.0
+                        except Exception:
+                            pass
                     elif "smoke" in class_name and conf > result_scores["smoke_confidence"]:
                         result_scores["smoke_confidence"] = conf
+                        try:
+                            width = float(box.xywhn[0][2])
+                            height = float(box.xywhn[0][3])
+                            result_scores["smoke_area_pct"] = (width * height) * 100.0
+                        except Exception:
+                            pass
                         
             if detected_items:
                 print(f"YOLOv8 Tracked: {detected_items}")

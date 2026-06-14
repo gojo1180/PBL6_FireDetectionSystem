@@ -14,12 +14,16 @@ class DeviceCreate(BaseModel):
     rtsp_url: Optional[str] = None
     status: str = "active"
     location: Optional[str] = None
+    medium_fire_threshold: Optional[float] = 5.0
+    large_fire_threshold: Optional[float] = 20.0
 
 class DeviceUpdate(BaseModel):
     device_name: Optional[str] = None
     rtsp_url: Optional[str] = None
     location: Optional[str] = None
     status: Optional[str] = None
+    medium_fire_threshold: Optional[float] = None
+    large_fire_threshold: Optional[float] = None
 
 @router.post("/", response_model=dict)
 def create_device(device: DeviceCreate, current_user: dict = Depends(get_current_user)):
@@ -31,7 +35,9 @@ def create_device(device: DeviceCreate, current_user: dict = Depends(get_current
         "device_type": device.device_type.upper() if device.device_type else device.device_type,
         "rtsp_url": device.rtsp_url,
         "status": device.status,
-        "location": device.location
+        "location": device.location,
+        "medium_fire_threshold": device.medium_fire_threshold,
+        "large_fire_threshold": device.large_fire_threshold
     }
     try:
         supabase.table("devices").insert(data).execute()

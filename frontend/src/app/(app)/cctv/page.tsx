@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Activity, Camera, ShieldAlert, Cpu, Network, Frame, WifiOff, ChevronDown, MapPin, Server, RefreshCw, ShieldCheck, Radio } from "lucide-react";
-import { getDevices } from "@/lib/api";
+import { Activity, Camera, ShieldAlert, Cpu, Network, Frame, WifiOff, ChevronDown, MapPin, Server, RefreshCw, ShieldCheck, Radio, Settings2 } from "lucide-react";
+import { getDevices, updateDevice } from "@/lib/api";
 import { Device } from "@/types";
 import { TutorialTour, TourStep } from "@/components/ui/TutorialTour";
 
@@ -25,6 +25,11 @@ export default function CCTVPage() {
  const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
  const dropdownRef = useRef<HTMLDivElement>(null);
+
+ // Calibration state
+ const [mediumThreshold, setMediumThreshold] = useState<number>(5.0);
+ const [largeThreshold, setLargeThreshold] = useState<number>(20.0);
+ const [isSavingCalibration, setIsSavingCalibration] = useState(false);
 
  const [isTourActive, setIsTourActive] = useState(false);
 
@@ -107,6 +112,8 @@ export default function CCTVPage() {
   // Auto-select the first CCTV device, or first device overall
   const cctvDevice = data.find(d => d.device_type === "CCTV") || data[0];
   setSelectedDeviceId(cctvDevice.id);
+  setMediumThreshold(cctvDevice.medium_fire_threshold ?? 5.0);
+  setLargeThreshold(cctvDevice.large_fire_threshold ?? 20.0);
   console.log("[CCTV] Devices loaded, selected:", cctvDevice.device_name);
   }
   } catch (err) {
@@ -208,17 +215,37 @@ export default function CCTVPage() {
  setIsOffline(true);
  };
 
- const handleRetry = async () => {
- setReconnectCount(0);
- try {
- await fetch(`${API_BASE}/api/v1/vision/rtsp/retry`, { method: 'POST' });
- } catch (e) {
- console.error("Failed to trigger RTSP retry", e);
- }
- setTimeout(() => {
- connectStream();
- }, 1000);
- };
+  const handleRetry = async () => {
+  setReconnectCount(0);
+  try {
+  await fetch(`${API_BASE}/api/v1/vision/rtsp/retry`, { method: 'POST' });
+  } catch (e) {
+  console.error("Failed to trigger RTSP retry", e);
+  }
+  setTimeout(() => {
+  connectStream();
+  }, 1000);
+  };
+
+  const saveCalibration = async () => {
+    if (!selectedDeviceId) return;
+    setIsSavingCalibration(true);
+    try {
+      await updateDevice(selectedDeviceId, {
+        medium_fire_threshold: mediumThreshold,
+        large_fire_threshold: largeThreshold
+      });
+      setDevices(prev => prev.map(d => d.id === selectedDeviceId ? {
+        ...d,
+        medium_fire_threshold: mediumThreshold,
+        large_fire_threshold: largeThreshold
+      } : d));
+    } catch (e) {
+      console.error("Failed to save calibration", e);
+    } finally {
+      setIsSavingCalibration(false);
+    }
+  };
 
   const selectedDevice = devices.find(d => d.id === selectedDeviceId);
 
@@ -293,6 +320,8 @@ export default function CCTVPage() {
  key={device.id}
  onClick={() => {
  setSelectedDeviceId(device.id);
+ setMediumThreshold(device.medium_fire_threshold ?? 5.0);
+ setLargeThreshold(device.large_fire_threshold ?? 20.0);
  setIsDropdownOpen(false);
  console.log("[CCTV] Switched to device:", device.device_name);
  }}
@@ -528,8 +557,54 @@ export default function CCTVPage() {
  )}
  </div>
  </div>
- </div>
- </div>
+
+  {/* Calibration Card */}
+  <div className="bg-surface-card backdrop-blur-md p-5 border border-hairline rounded-2xl shadow-sm">
+    <div className="flex items-center justify-between mb-4">
+      <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-2">
+        <span className="w-1.5 h-1.5 rounded-full bg-orange-400"></span>
+        Visual Calibration
+      </h3>
+      {isSavingCalibration ? <RefreshCw size={12} className="animate-spin text-primary" /> : <Settings2 size={12} className="text-muted" />}
+    </div>
+    
+    <div className="space-y-5">
+      <div>
+        <div className="flex justify-between items-center mb-2">
+          <label className="text-xs font-semibold text-body">Medium Fire</label>
+          <span className="text-xs font-mono bg-orange-50 text-orange-600 px-2 py-0.5 rounded-md border border-orange-100">{mediumThreshold}% area</span>
+        </div>
+        <input 
+          type="range" min="1" max="50" step="0.5" 
+          value={mediumThreshold} 
+          onChange={(e) => setMediumThreshold(parseFloat(e.target.value))}
+          onMouseUp={saveCalibration}
+          onTouchEnd={saveCalibration}
+          className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
+        />
+        <p className="text-[10px] text-muted mt-1.5 leading-tight">If fire area &gt; {mediumThreshold}%, it will trigger medium severity.</p>
+      </div>
+      
+      <div className="pt-2 border-t border-hairline">
+        <div className="flex justify-between items-center mb-2">
+          <label className="text-xs font-semibold text-body">Large Fire</label>
+          <span className="text-xs font-mono bg-red-50 text-red-600 px-2 py-0.5 rounded-md border border-red-100">{largeThreshold}% area</span>
+        </div>
+        <input 
+          type="range" min="1" max="100" step="0.5" 
+          value={largeThreshold} 
+          onChange={(e) => setLargeThreshold(parseFloat(e.target.value))}
+          onMouseUp={saveCalibration}
+          onTouchEnd={saveCalibration}
+          className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-red-500"
+        />
+        <p className="text-[10px] text-muted mt-1.5 leading-tight">If fire area &gt; {largeThreshold}%, it will trigger large/danger severity.</p>
+      </div>
+    </div>
+  </div>
+
+  </div>
+  </div>
  </main>
  <TutorialTour
  active={isTourActive}

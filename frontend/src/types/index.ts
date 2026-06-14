@@ -6,6 +6,8 @@ export interface Device {
   location?: string | null;
   status: string;
   rtsp_url?: string | null;
+  medium_fire_threshold?: number;
+  large_fire_threshold?: number;
 }
 
 export interface SensorLog {

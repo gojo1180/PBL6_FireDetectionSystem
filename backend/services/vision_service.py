@@ -18,6 +18,8 @@ config_poll_thread = None
 # Dynamic config from DB
 current_rtsp_url = None
 current_device_id = None
+current_medium_threshold = 5.0
+current_large_threshold = 20.0
 cap_reconnect_flag = False
 
 latest_frame = None
@@ -27,13 +29,17 @@ frame_lock = threading.Lock()
 _last_gc_time = 0
 
 def set_active_cctv(device_id: str):
-    global current_rtsp_url, current_device_id, cap_reconnect_flag, retry_counter
+    global current_rtsp_url, current_device_id, current_medium_threshold, current_large_threshold, cap_reconnect_flag, retry_counter
     try:
-        res = supabase.table("devices").select("id, rtsp_url").eq("id", device_id).execute()
+        res = supabase.table("devices").select("id, rtsp_url, medium_fire_threshold, large_fire_threshold").eq("id", device_id).execute()
         if res.data and len(res.data) > 0:
             db_url = res.data[0].get("rtsp_url")
             db_id = res.data[0].get("id")
+            db_med = res.data[0].get("medium_fire_threshold") or 5.0
+            db_large = res.data[0].get("large_fire_threshold") or 20.0
             with frame_lock:
+                current_medium_threshold = db_med
+                current_large_threshold = db_large
                 if current_device_id != db_id or current_rtsp_url != db_url:
                     print(f"🔄 [Switch User CCTV] Switching to device {db_id} with URL {db_url}")
                     current_rtsp_url = db_url
@@ -44,21 +50,25 @@ def set_active_cctv(device_id: str):
         print(f"❌ Error switching active CCTV: {e}")
 
 def config_polling_loop():
-    global current_rtsp_url, current_device_id, cap_reconnect_flag
+    global current_rtsp_url, current_device_id, current_medium_threshold, current_large_threshold, cap_reconnect_flag
     while not cctv_stop_event.is_set():
         try:
             # If a specific device is targeted, only poll that one. Otherwise, poll any active.
             if current_device_id:
-                res = supabase.table("devices").select("id, rtsp_url").eq("id", current_device_id).eq("status", "active").execute()
+                res = supabase.table("devices").select("id, rtsp_url, medium_fire_threshold, large_fire_threshold").eq("id", current_device_id).eq("status", "active").execute()
             else:
-                res = supabase.table("devices").select("id, rtsp_url").eq("device_type", "CCTV").eq("status", "active").execute()
+                res = supabase.table("devices").select("id, rtsp_url, medium_fire_threshold, large_fire_threshold").eq("device_type", "CCTV").eq("status", "active").execute()
 
             if res.data and len(res.data) > 0:
                 # Ambil device yang ada di urutan terakhir (terbaru) jika belum ada target spesifik
                 db_url = res.data[-1].get("rtsp_url")
                 db_id = res.data[-1].get("id")
+                db_med = res.data[-1].get("medium_fire_threshold") or 5.0
+                db_large = res.data[-1].get("large_fire_threshold") or 20.0
                 
                 with frame_lock:
+                    current_medium_threshold = db_med
+                    current_large_threshold = db_large
                     if db_url != current_rtsp_url or db_id != current_device_id:
                         print(f"🔄 RTSP URL changed to {db_url} for device {db_id}. Reconnecting stream...")
                         current_rtsp_url = db_url
@@ -178,11 +188,22 @@ def cctv_inference_loop():
                 
             fire_conf = vision_results.get("fire_confidence", 0.0)
             smoke_conf = vision_results.get("smoke_confidence", 0.0)
+            fire_area_pct = vision_results.get("fire_area_pct", 0.0)
+            
+            fire_severity = "Small"
+            if fire_area_pct >= current_large_threshold:
+                fire_severity = "Large"
+            elif fire_area_pct >= current_medium_threshold:
+                fire_severity = "Medium"
             
             # Get annotated frame from results[0].plot(), fallback to raw frame
             annotated_img = vision_results.get("annotated_frame")
             if annotated_img is None:
                 annotated_img = frame_to_process
+                
+            if fire_conf > 0.3:
+                cv2.putText(annotated_img, f"Fire Size: {fire_area_pct:.1f}% ({fire_severity})", 
+                            (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
             # ── Tiered Streak Logic ──────────────────────────────────
             # With BoTSORT tracker providing temporal stability, we use
@@ -222,6 +243,7 @@ def cctv_inference_loop():
             if is_vision_threat and (current_time - last_db_alert_time > 5.0):
                 print(f"🔥 Threat CONFIRMED via CCTV! Fire Streak: {fire_streak}, Smoke Streak: {smoke_streak}")
                 print(f"Confidence - Fire: {fire_conf:.2f}, Smoke: {smoke_conf:.2f}")
+                print(f"Fire Detected: {fire_area_pct:.1f}% Area, Severity: {fire_severity}")
                 
                 public_image_url = None
                 
@@ -386,14 +408,18 @@ def stop_cctv_service():
 
 def force_reconnect():
     """Manually trigger RTSP reconnection."""
-    global cap_reconnect_flag, retry_counter, current_rtsp_url, current_device_id
+    global cap_reconnect_flag, retry_counter, current_rtsp_url, current_device_id, current_medium_threshold, current_large_threshold
     
     try:
-        res = supabase.table("devices").select("id, rtsp_url").eq("device_type", "CCTV").eq("status", "active").execute()
+        res = supabase.table("devices").select("id, rtsp_url, medium_fire_threshold, large_fire_threshold").eq("device_type", "CCTV").eq("status", "active").execute()
         if res.data and len(res.data) > 0:
             db_url = res.data[-1].get("rtsp_url")
             db_id = res.data[-1].get("id")
+            db_med = res.data[-1].get("medium_fire_threshold") or 5.0
+            db_large = res.data[-1].get("large_fire_threshold") or 20.0
             with frame_lock:
+                current_medium_threshold = db_med
+                current_large_threshold = db_large
                 if db_url != current_rtsp_url:
                     print(f"🔄 [Manual Retry] RTSP URL changed to {db_url}")
                 current_rtsp_url = db_url

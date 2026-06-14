@@ -29,6 +29,8 @@ class DeviceBase(BaseModel):
     name: str
     location: Optional[str] = None
     status: str = Field(default="active")
+    medium_fire_threshold: Optional[float] = Field(default=5.0)
+    large_fire_threshold: Optional[float] = Field(default=20.0)
 
 class DeviceCreate(DeviceBase):
     pass
