@@ -13,7 +13,6 @@ import { supabase } from "@/lib/supabaseClient";
 import { StatusBanner } from "@/components/dashboard/StatusBanner";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { LiveCCTVCard } from "@/components/dashboard/LiveCCTVCard";
-import { IncidentLog } from "@/components/dashboard/IncidentLog";
 import dynamic from "next/dynamic";
 import OneSignal from "react-onesignal";
 
@@ -82,12 +81,6 @@ export default function DashboardPage() {
       targetId: "tour-gas-trend",
       title: "Grafik Tren Emisi Gas",
       description: "Di sini Anda dapat melihat pergerakan visualisasi data emisi gas secara historis. Sangat berguna untuk menganalisis tren kenaikan atau penurunan sebelum bahaya terjadi.",
-      type: "section",
-    },
-    {
-      targetId: "tour-incident-log",
-      title: "Log Insiden Keamanan",
-      description: "Jika sistem AI mendeteksi kebakaran atau kebocoran gas kritis, riwayat insiden akan otomatis tercatat di sini untuk bahan evaluasi.",
       type: "section",
     },
     {
@@ -694,11 +687,6 @@ export default function DashboardPage() {
         {/* ── Gas Trend Chart (full width) ── */}
         <div id="tour-gas-trend">
           <GasTrendChart chartData={chartData} />
-        </div>
-
-        {/* ── Incident Log (full width) ── */}
-        <div id="tour-incident-log">
-          <IncidentLog alertsList={alertsList} onClearAlert={fetchDashboardData} />
         </div>
       </main>
 

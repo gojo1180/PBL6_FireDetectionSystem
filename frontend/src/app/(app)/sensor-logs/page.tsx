@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
-import { getDevices, getSensorLogsPaginated } from "@/lib/api";
+import { getDevices, getSensorLogsPaginated, getAlerts, markAlertFeedback, triggerManualRetrain, getMLOpsStatus, MLOpsStatus } from "@/lib/api";
 import { getToken } from "@/lib/auth";
-import { Device, SensorLog } from "@/types";
+import { Device, SensorLog, FusionAlert } from "@/types";
 import { TutorialTour, TourStep } from "@/components/ui/TutorialTour";
 import {
   Download,
@@ -14,6 +14,10 @@ import {
   Server,
   ChevronDown,
   TrendingUp,
+  Check,
+  X,
+  BellOff,
+  RefreshCw,
 } from "lucide-react";
 
 // ─── Lazy-load Recharts (SSR-off) ───────────────────────────────────
@@ -74,6 +78,12 @@ export default function SensorLogsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalRecords, setTotalRecords] = useState(0);
+
+  // MLOps & Alerts State
+  const [alerts, setAlerts] = useState<FusionAlert[]>([]);
+  const [mlopsStatus, setMlopsStatus] = useState<MLOpsStatus | null>(null);
+  const [isRetraining, setIsRetraining] = useState(false);
+  const [alertsLoading, setAlertsLoading] = useState(false);
 
   const [isTourActive, setIsTourActive] = useState(false);
 
@@ -190,6 +200,56 @@ export default function SensorLogsPage() {
   useEffect(() => {
     fetchChartData();
   }, [fetchChartData]);
+
+  // ─── Fetch Alerts and MLOps Status ─────────────────────────────────
+  const fetchAlertsAndMLOps = useCallback(async () => {
+    if (!selectedDeviceId) return;
+    setAlertsLoading(true);
+    try {
+      const fetchedAlerts = await getAlerts(15, selectedDeviceId);
+      setAlerts(fetchedAlerts || []);
+      const status = await getMLOpsStatus(selectedDeviceId);
+      setMlopsStatus(status);
+    } catch (err) {
+      console.error("[SensorLogs] Error fetching alerts/mlops:", err);
+    } finally {
+      setAlertsLoading(false);
+    }
+  }, [selectedDeviceId]);
+
+  useEffect(() => {
+    fetchAlertsAndMLOps();
+  }, [fetchAlertsAndMLOps]);
+
+  // ─── Handlers ──────────────────────────────────────────────────────
+  const handleMarkFalsePositive = async (alertId: string, currentStatus: boolean) => {
+    try {
+      await markAlertFeedback(alertId, !currentStatus);
+      // Optimistic update
+      setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, is_false_positive: !currentStatus } : a));
+      // Refresh MLOps status
+      if (selectedDeviceId) {
+        const status = await getMLOpsStatus(selectedDeviceId);
+        setMlopsStatus(status);
+      }
+    } catch (e) {
+      console.error("Failed to mark feedback", e);
+    }
+  };
+
+  const handleForceRetrain = async () => {
+    if (!selectedDeviceId) return;
+    setIsRetraining(true);
+    try {
+      await triggerManualRetrain(selectedDeviceId);
+      alert("Retraining pipeline triggered on GitHub Actions!");
+    } catch (e) {
+      console.error("Failed to trigger retrain", e);
+      alert("Failed to trigger retraining.");
+    } finally {
+      setIsRetraining(false);
+    }
+  };
 
   // ─── CSV Download ──────────────────────────────────────────────────
   const downloadCSV = async () => {
@@ -477,6 +537,86 @@ export default function SensorLogsPage() {
             </div>
           </div>
         </div>
+        
+        {/* ── MLOps & Alerts History ───────────────────────────── */}
+        <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mt-4 md:mt-6">
+          <div className="lg:col-span-2 feature-card flex flex-col overflow-hidden !p-0">
+            <div className="px-4 md:px-5 pt-4 md:pt-5 pb-3 border-b border-hairline flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-ink flex items-center gap-2">
+                <BellOff size={16} className="text-orange-500" />
+                Recent Anomaly Alerts
+              </h3>
+            </div>
+            <div className="flex-1 overflow-auto max-h-[300px] p-2">
+              {alertsLoading ? (
+                <div className="flex items-center justify-center h-32"><Loader2 className="animate-spin text-muted" /></div>
+              ) : alerts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-32 text-muted">
+                  <p className="text-xs">No recent alerts found.</p>
+                </div>
+              ) : (
+                <div className="space-y-2 p-2">
+                  {alerts.map((alert) => (
+                    <div key={alert.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-xl bg-surface-card-elevated border border-hairline gap-3">
+                      <div>
+                        <p className="text-xs font-mono text-muted mb-1">
+                          {new Date(alert.triggered_at).toLocaleString("id-ID")}
+                        </p>
+                        <p className="text-sm font-medium text-ink">Anomaly Detected</p>
+                      </div>
+                      <div className="flex items-center gap-3 self-end sm:self-auto">
+                        <span className={`text-[10px] uppercase font-bold tracking-widest px-2 py-1 rounded-md ${alert.is_false_positive ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600'}`}>
+                          {alert.is_false_positive ? 'False Positive' : 'Valid Alert'}
+                        </span>
+                        <button
+                          onClick={() => handleMarkFalsePositive(alert.id, !!alert.is_false_positive)}
+                          className={`p-2 rounded-lg transition-colors ${alert.is_false_positive ? 'bg-orange-100 hover:bg-orange-200 text-orange-600' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}
+                          title="Toggle False Positive"
+                        >
+                          {alert.is_false_positive ? <X size={14} /> : <Check size={14} />}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="lg:col-span-1 feature-card">
+            <h3 className="text-sm font-semibold text-ink flex items-center gap-2 mb-4">
+              <Database size={16} className="text-primary" />
+              MLOps Status
+            </h3>
+            
+            <div className="bg-surface-card-elevated p-4 rounded-xl border border-hairline mb-4">
+              <p className="text-xs font-semibold text-body mb-2 uppercase tracking-wider">Auto-Retrain Progress</p>
+              <div className="flex items-end justify-between mb-2">
+                <span className="text-2xl font-bold text-ink">{mlopsStatus?.progress || 0}</span>
+                <span className="text-sm text-muted mb-1">/ {mlopsStatus?.target || 3} False Positives</span>
+              </div>
+              <div className="w-full bg-slate-200 rounded-full h-2">
+                <div 
+                  className="bg-primary h-2 rounded-full transition-all duration-500" 
+                  style={{ width: `${((mlopsStatus?.progress || 0) / (mlopsStatus?.target || 3)) * 100}%` }}
+                ></div>
+              </div>
+              <p className="text-[10px] text-muted mt-3">
+                Setiap {mlopsStatus?.target || 3} peringatan palsu, sistem akan melatih ulang model secara otomatis.
+              </p>
+            </div>
+
+            <button 
+              onClick={handleForceRetrain}
+              disabled={isRetraining}
+              className="w-full py-3 bg-slate-900 text-white rounded-xl text-sm font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-slate-800 disabled:opacity-50 transition-all cursor-pointer"
+            >
+              {isRetraining ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+              FORCE RETRAIN MODEL
+            </button>
+          </div>
+        </div>
+
       </main>
       <TutorialTour
         active={isTourActive}

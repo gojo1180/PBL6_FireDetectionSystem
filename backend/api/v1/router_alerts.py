@@ -17,10 +17,17 @@ from schemas.models import FusionAlertCreate
 router = APIRouter(tags=["Alerts"])
 
 @router.get("/alerts", response_model=List[dict])
-def get_fusion_alerts(limit: int = 50, current_user: dict = Depends(get_current_user)):
+def get_fusion_alerts(limit: int = 50, device_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     """Fetch all history of alerts belonging to the current user's devices."""
-    devices_res = supabase.table("devices").select("id").eq("user_id", current_user["user_id"]).execute()
-    device_ids = [d["id"] for d in devices_res.data]
+    if device_id:
+        device_check = supabase.table("devices").select("id").eq("id", device_id).eq("user_id", current_user["user_id"]).execute()
+        if not device_check.data:
+            raise HTTPException(status_code=403, detail="Device not found or not owned by user")
+        device_ids = [device_id]
+    else:
+        devices_res = supabase.table("devices").select("id").eq("user_id", current_user["user_id"]).execute()
+        device_ids = [d["id"] for d in devices_res.data]
+        
     if not device_ids:
         return []
     response = (
@@ -141,6 +148,57 @@ async def provide_feedback(alert_id: str, feedback: FeedbackUpdate):
                     print("⚠️ GITHUB_PAT belum di-set di environment variables, MLOps tidak di-trigger.")
 
     return {"message": "Feedback recorded", "data": response.data}
+
+
+@router.post("/alerts/retrain/{device_id}")
+async def force_retrain(device_id: str, current_user: dict = Depends(get_current_user)):
+    """Manually trigger the GitHub Actions retrain workflow."""
+    device_check = supabase.table("devices").select("id").eq("id", device_id).eq("user_id", current_user["user_id"]).execute()
+    if not device_check.data:
+        raise HTTPException(status_code=403, detail="Device not found or not owned by user")
+        
+    github_token = settings.GITHUB_PAT
+    owner = settings.GITHUB_OWNER
+    repo = settings.GITHUB_REPO
+    
+    if not github_token:
+        raise HTTPException(status_code=500, detail="GITHUB_PAT not configured. Cannot trigger MLOps.")
+        
+    url = f"https://api.github.com/repos/{owner}/{repo}/actions/workflows/retrain.yml/dispatches"
+    headers = {
+        "Accept": "application/vnd.github.v3+json",
+        "Authorization": f"token {github_token}"
+    }
+    payload = {
+        "ref": "eksperimental",
+        "inputs": {"device_id": str(device_id)}
+    }
+    
+    try:
+        gh_response = requests.post(url, headers=headers, json=payload)
+        if gh_response.status_code == 204:
+            return {"message": "Retraining triggered successfully"}
+        else:
+            raise HTTPException(status_code=500, detail=f"GitHub API Error: {gh_response.text}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error calling GitHub API: {e}")
+
+
+@router.get("/alerts/mlops/status/{device_id}")
+async def get_mlops_status(device_id: str, current_user: dict = Depends(get_current_user)):
+    """Get the current count of False Positives to track retrain progress."""
+    device_check = supabase.table("devices").select("id").eq("id", device_id).eq("user_id", current_user["user_id"]).execute()
+    if not device_check.data:
+        raise HTTPException(status_code=403, detail="Device not found or not owned by user")
+        
+    count_res = supabase.table("fusion_alerts").select("id").eq("device_id", device_id).eq("is_false_positive", True).execute()
+    fp_count = len(count_res.data)
+    
+    return {
+        "false_positive_count": fp_count,
+        "progress": fp_count % 3,
+        "target": 3
+    }
 
 
 # ─── Web Push Notification Models & Endpoint ─────────────────────────

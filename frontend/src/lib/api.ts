@@ -160,8 +160,10 @@ export async function setCalibrationConfig(toleransi_threshold: number): Promise
   });
 }
 
-export async function getAlerts(limit: number = 10): Promise<FusionAlert[]> {
-  return apiFetch<FusionAlert[]>(`/api/v1/alerts?limit=${limit}`);
+export async function getAlerts(limit: number = 10, deviceId?: string): Promise<FusionAlert[]> {
+  let path = `/api/v1/alerts?limit=${limit}`;
+  if (deviceId) path += `&device_id=${deviceId}`;
+  return apiFetch<FusionAlert[]>(path);
 }
 
 export async function resolveAlert(alertId: string): Promise<void> {
@@ -173,6 +175,22 @@ export async function markAlertFeedback(alertId: string, isFalsePositive: boolea
     method: "PATCH",
     body: { is_false_positive: isFalsePositive }
   });
+}
+
+export async function triggerManualRetrain(deviceId: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/api/v1/alerts/retrain/${deviceId}`, {
+    method: "POST"
+  });
+}
+
+export interface MLOpsStatus {
+  false_positive_count: number;
+  progress: number;
+  target: number;
+}
+
+export async function getMLOpsStatus(deviceId: string): Promise<MLOpsStatus> {
+  return apiFetch<MLOpsStatus>(`/api/v1/alerts/mlops/status/${deviceId}`);
 }
 
 // ─── News Interfaces ────────────────────────────────────────────────
