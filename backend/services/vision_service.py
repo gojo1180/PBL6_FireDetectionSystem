@@ -276,8 +276,14 @@ def cctv_inference_loop():
                     supabase.table("vision_logs").insert(log_data).execute()
                     
                     if alert_level in ['CCTV_ALERT', 'FIRE_DANGER']:
-                        active_alerts = supabase.table("fusion_alerts").select("id").eq("is_resolved", False).eq("device_id", current_dev).execute()
                         
+                        # =======================================================
+                        # [BARU] Kirim perintah BAHAYA ke ESP32 via MQTT
+                        from core.mqtt_client import client as mqtt_client
+                        mqtt_client.publish("iot/sensor/command", "BAHAYA")
+                        # =======================================================
+                        
+                        active_alerts = supabase.table("fusion_alerts").select("id").eq("is_resolved", False).eq("device_id", current_dev).execute()
                         alert_data = {
                             "risk_level": "DANGER" if alert_level == "FIRE_DANGER" else "WARNING",
                             "fusion_score": max(float(fire_conf), float(smoke_conf)),
@@ -316,10 +322,18 @@ def cctv_inference_loop():
                 pass
                 
             # AUTO-RESET CHECK
+            # AUTO-RESET CHECK
             if fusion_service.check_auto_reset():
                 print("🔄 Auto-Reset Triggered: 5 minutes without anomalies. Resolving all active alerts.")
                 try:
                     supabase.table("fusion_alerts").update({"is_resolved": True}).eq("is_resolved", False).execute()
+                    
+                    # =======================================================
+                    # [BARU] Kirim perintah AMAN ke ESP32 via MQTT
+                    from core.mqtt_client import client as mqtt_client
+                    mqtt_client.publish("iot/sensor/command", "AMAN")
+                    # =======================================================
+                    
                 except Exception as e:
                     print(f"❌ Error auto-resolving alerts: {e}")
                     

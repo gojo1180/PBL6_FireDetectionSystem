@@ -82,6 +82,12 @@ def on_message(client, userdata, msg):
         
         # Insert or update alert if risk is elevated
         if alert_level in ['SENSOR_ALERT', 'FIRE_DANGER']:
+            
+            # ========================================================
+            # [BARU] Kirim perintah ke ESP32 untuk menyalakan buzzer
+            client.publish("iot/sensor/command", "BAHAYA")
+            # ========================================================
+
             # Cek apakah sudah ada alert aktif untuk device ini
             active_alerts = supabase.table("fusion_alerts").select("id").eq("is_resolved", False).eq("device_id", device_id).execute()
             
@@ -113,7 +119,13 @@ def on_message(client, userdata, msg):
                     body="Sensor IoT mendeteksi anomali berbahaya!",
                     url="/dashboard"
                 )
+                
         elif alert_level == 'SAFE':
+            # ========================================================
+            # [BARU] Kirim perintah ke ESP32 untuk mematikan buzzer
+            client.publish("iot/sensor/command", "AMAN")
+            # ========================================================
+            
             # Jika SAFE dan tidak ada deteksi api dari vision, tidak perlu buat alert baru
             pass
             

@@ -61,23 +61,23 @@ export default function LandingPage() {
               BombaAI
             </span>
           </Link>
-          
+
           {/* Navigation Links */}
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors relative py-1.5 group">
-              Fitur
+              Features
               <span className="absolute bottom-0 left-1/2 w-0 h-0.5 bg-indigo-500 transition-all duration-300 group-hover:w-full group-hover:left-0"></span>
             </a>
             <a href="#architecture" className="text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors relative py-1.5 group">
-              Arsitektur
+              Architecture
               <span className="absolute bottom-0 left-1/2 w-0 h-0.5 bg-indigo-500 transition-all duration-300 group-hover:w-full group-hover:left-0"></span>
             </a>
             <a href="#team" className="text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors relative py-1.5 group">
-              Tim
+              Team
               <span className="absolute bottom-0 left-1/2 w-0 h-0.5 bg-indigo-500 transition-all duration-300 group-hover:w-full group-hover:left-0"></span>
             </a>
           </div>
-          
+
           <div className="flex items-center gap-3">
             {authed ? (
               <Link
@@ -92,13 +92,13 @@ export default function LandingPage() {
                   href="/login"
                   className="px-4 py-2 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-xl transition-all"
                 >
-                  Masuk
+                  Login
                 </Link>
                 <Link
                   href="/register"
                   className="px-5 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-[0_4px_14px_rgba(99,102,241,0.2)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.3)] transition-all hover:scale-105 active:scale-95 rounded-xl"
                 >
-                  Daftar
+                  Sign Up
                 </Link>
               </>
             )}
@@ -133,7 +133,7 @@ export default function LandingPage() {
               </motion.h1>
 
               <motion.p variants={fadeUp} className="body-md text-[var(--color-muted)] max-w-2xl mx-auto transition-colors duration-500">
-                Menggabungkan keandalan Computer Vision, telemetri multi-sensor IoT, dan kecerdasan buatan Late-Fusion untuk akurasi deteksi tanpa preseden.
+                Combining the reliability of Computer Vision, IoT multi-sensor telemetry, and Late-Fusion AI for unprecedented detection accuracy.
               </motion.p>
 
               <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -150,7 +150,7 @@ export default function LandingPage() {
                   className="button-secondary-dark flex items-center gap-2 shadow-sm"
                 >
                   <Terminal size={16} className="text-[var(--color-muted)]" />
-                  Lihat Arsitektur
+                  View Architecture
                 </a>
               </motion.div>
             </div>
@@ -167,8 +167,8 @@ export default function LandingPage() {
               variants={fadeUp}
               className="mb-16 text-center md:text-left"
             >
-              <h2 id="tour-problems" className="display-lg text-[var(--color-body-strong)] mb-4 transition-colors duration-500">Kendala Produk Kami Dibanding Yang Lainnya</h2>
-              <p className="body-md text-[var(--color-muted)] transition-colors duration-500">Mengapa pendekatan tunggal seringkali gagal, dan bagaimana kami mengatasinya.</p>
+              <h2 id="tour-problems" className="display-lg text-[var(--color-body-strong)] mb-4 transition-colors duration-500">Our Product Advantages Compared to Others</h2>
+              <p className="body-md text-[var(--color-muted)] transition-colors duration-500">Why a single approach often fails, and how we overcome it.</p>
             </motion.div>
 
             <motion.div
@@ -184,9 +184,9 @@ export default function LandingPage() {
                   <div className="w-10 h-10 rounded-[8px] bg-[var(--color-surface-strong)] text-[var(--color-body-strong)] flex items-center justify-center mb-6 transition-colors duration-500 shadow-sm dark:shadow-none border border-[var(--color-hairline-soft)]">
                     <AlertTriangle size={20} />
                   </div>
-                  <h3 className="title-md text-[var(--color-body-strong)] mb-2 transition-colors duration-500">Kendala Sensor Konvensional</h3>
+                  <h3 className="title-md text-[var(--color-body-strong)] mb-2 transition-colors duration-500">Conventional Sensor Limitations</h3>
                   <p className="body-md text-[var(--color-body)] transition-colors duration-500">
-                    Sistem lama hanya mengandalkan sensor asap yang pasif. Mereka harus menunggu partikel asap fisik masuk ke dalam alat, sehingga sangat terlambat menyadari kebakaran dan sering memicu alarm palsu akibat asap rokok atau aktivitas memasak biasa.
+                    Legacy systems rely only on passive smoke sensors. They have to wait for physical smoke particles to enter the device, making them very late to realize a fire and often triggering false alarms due to cigarette smoke or normal cooking activities.
                   </p>
                 </motion.div>
 
@@ -194,9 +194,9 @@ export default function LandingPage() {
                   <div className="w-10 h-10 rounded-[8px] bg-[var(--color-surface-strong)] text-[var(--color-body-strong)] flex items-center justify-center mb-6 transition-colors duration-500 shadow-sm dark:shadow-none border border-[var(--color-hairline-soft)]">
                     <Eye size={20} />
                   </div>
-                  <h3 className="title-md text-[var(--color-body-strong)] mb-2 transition-colors duration-500">Kendala Kamera Pintar Saja</h3>
+                  <h3 className="title-md text-[var(--color-body-strong)] mb-2 transition-colors duration-500">Smart Camera Only Limitations</h3>
                   <p className="body-md text-[var(--color-body)] transition-colors duration-500">
-                    Kamera AI canggih memang cepat melihat api, namun sangat mudah terkecoh oleh pantulan cahaya matahari, lampu berkedip, atau warna cerah. Selain itu, kamera tidak bisa mendeteksi kebakaran jika terhalang oleh dinding atau objek besar.
+                    Advanced AI cameras are quick to see fire, but are very easily fooled by sunlight reflections, flashing lights, or bright colors. Additionally, cameras cannot detect fires if obstructed by walls or large objects.
                   </p>
                 </motion.div>
               </div>
@@ -209,9 +209,9 @@ export default function LandingPage() {
                   <Shield size={32} />
                 </div>
                 <div className="flex-1 relative z-10 text-center md:text-left">
-                  <h3 className="display-sm text-[var(--color-body-strong)] mb-2 transition-colors duration-500">Solusi Kami: Penggabungan Cerdas (Late-Fusion)</h3>
+                  <h3 className="display-sm text-[var(--color-body-strong)] mb-2 transition-colors duration-500">Our Solution: Smart Fusion (Late-Fusion)</h3>
                   <p className="body-md text-[var(--color-body)] transition-colors duration-500">
-                    Kami tidak memilih salah satu, kami menggunakan <span className="text-[var(--color-body-strong)] font-medium">keduanya</span>. Sistem kami memvalidasi penglihatan kamera pintar dengan data akurat dari sensor gas fisik secara bersamaan. Jika kamera melihat api tetapi sensor gas tidak merasakan anomali, sistem tidak akan panik. Hasilnya? Tingkat alarm palsu menurun drastis dan deteksi jauh lebih pasti.
+                    We don't choose just one, we use <span className="text-[var(--color-body-strong)] font-medium">both</span>. Our system validates the smart camera's vision with accurate data from physical gas sensors simultaneously. If the camera sees fire but the gas sensor senses no anomaly, the system will not panic. The result? False alarm rates drop drastically and detection is much more certain.
                   </p>
                 </div>
               </motion.div>
@@ -229,8 +229,8 @@ export default function LandingPage() {
               variants={fadeUp}
               className="mb-16 text-center md:text-left"
             >
-              <h2 className="display-lg text-[var(--color-body-strong)] mb-4 transition-colors duration-500">Arsitektur Yang Digunakan</h2>
-              <p className="body-md text-[var(--color-muted)] transition-colors duration-500">Proses di balik layar bagaimana sistem kami melindungi Anda setiap detiknya.</p>
+              <h2 className="display-lg text-[var(--color-body-strong)] mb-4 transition-colors duration-500">Architecture Used</h2>
+              <p className="body-md text-[var(--color-muted)] transition-colors duration-500">The behind-the-scenes process of how our system protects you every second.</p>
             </motion.div>
 
             {/* ─── VISUAL PIPELINE ARCHITECTURE ─── */}
@@ -248,16 +248,16 @@ export default function LandingPage() {
                   <div className="w-12 h-12 rounded-full bg-[var(--color-primary-glow)]/10 dark:bg-[var(--color-primary-glow)]/20 text-[var(--color-primary)] flex items-center justify-center mb-4 border border-[var(--color-primary-glow)]/30">
                     <Eye size={24} />
                   </div>
-                  <h3 className="title-md text-[var(--color-body-strong)] mb-2">Mata Digital (Kamera)</h3>
-                  <p className="body-sm text-[var(--color-muted)]">Mengawasi ruangan non-stop 30 kali per detik untuk mencari bentuk fisik api atau asap.</p>
+                  <h3 className="title-md text-[var(--color-body-strong)] mb-2">Digital Eyes (Camera)</h3>
+                  <p className="body-sm text-[var(--color-muted)]">Monitoring the room non-stop 30 times per second to look for physical forms of fire or smoke.</p>
                 </motion.div>
 
                 <motion.div variants={fadeUp} className="feature-card flex flex-col items-center text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:-translate-y-1 transition-transform duration-300">
                   <div className="w-12 h-12 rounded-full bg-[var(--color-accent-violet)]/10 dark:bg-[var(--color-accent-violet)]/20 text-[var(--color-accent-violet)] flex items-center justify-center mb-4 border border-[var(--color-accent-violet)]/30">
                     <Flame size={24} />
                   </div>
-                  <h3 className="title-md text-[var(--color-body-strong)] mb-2">Hidung Digital (Sensor)</h3>
-                  <p className="body-sm text-[var(--color-muted)]">Mendeteksi anomali suhu dan gas berbahaya secara langsung di udara sekitar.</p>
+                  <h3 className="title-md text-[var(--color-body-strong)] mb-2">Digital Nose (Sensor)</h3>
+                  <p className="body-sm text-[var(--color-muted)]">Detecting temperature anomalies and harmful gases directly in the surrounding air.</p>
                 </motion.div>
               </div>
 
@@ -284,13 +284,13 @@ export default function LandingPage() {
                 <div className="w-16 h-16 rounded-full bg-[var(--color-surface-strong)] text-[var(--color-body-strong)] flex items-center justify-center mb-4 shadow-md border border-[var(--color-hairline-strong)]">
                   <Cpu size={32} />
                 </div>
-                <h3 className="display-sm text-[var(--color-body-strong)] mb-2">Otak Utama (Late-Fusion Engine)</h3>
+                <h3 className="display-sm text-[var(--color-body-strong)] mb-2">Main Brain (Late-Fusion Engine)</h3>
                 <p className="body-md text-[var(--color-muted)] mb-6">
-                  Sistem AI pusat ini menyatukan dan menganalisis laporan dari <strong>Kamera</strong> dan <strong>Sensor</strong> secara bersamaan. Ia secara cerdas menyaring alarm palsu dan hanya akan membunyikan tanda bahaya jika kedua perangkat memvalidasi ancaman.
+                  This central AI system unifies and analyzes reports from <strong>Cameras</strong> and <strong>Sensors</strong> simultaneously. It intelligently filters out false alarms and will only sound the alarm if both devices validate the threat.
                 </p>
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--color-surface-card-elevated)] border border-[var(--color-hairline-strong)]">
                   <div className="w-2 h-2 rounded-full bg-[var(--color-semantic-success)] animate-pulse shadow-[0_0_8px_var(--color-semantic-success)]"></div>
-                  <span className="caption text-[var(--color-body-strong)] font-code">Validasi silang aktif</span>
+                  <span className="caption text-[var(--color-body-strong)] font-code">Cross-validation active</span>
                 </div>
               </motion.div>
 
@@ -307,8 +307,8 @@ export default function LandingPage() {
                 <div className="w-12 h-12 rounded-full bg-[var(--color-semantic-success)] text-[var(--color-canvas)] flex items-center justify-center mb-4 shadow-[0_0_15px_var(--color-semantic-success)]">
                   <Shield size={24} />
                 </div>
-                <h3 className="title-md text-[var(--color-body-strong)] mb-1">Ruangan Anda Terlindungi</h3>
-                <p className="body-sm text-[var(--color-muted)]">Bebas dari kepanikan akibat alarm palsu.</p>
+                <h3 className="title-md text-[var(--color-body-strong)] mb-1">Your Room is Protected</h3>
+                <p className="body-sm text-[var(--color-muted)]">Free from panic caused by false alarms.</p>
               </motion.div>
 
             </motion.div>
@@ -326,7 +326,7 @@ export default function LandingPage() {
               className="mb-16 text-center md:text-left"
             >
               <h2 id="tour-team" className="display-lg text-[var(--color-body-strong)] mb-4 transition-colors duration-500">Meet Our Developers</h2>
-              <p className="body-md text-[var(--color-muted)] transition-colors duration-500">Tim pengembang berdedikasi di balik arsitektur BombaAI.</p>
+              <p className="body-md text-[var(--color-muted)] transition-colors duration-500">The dedicated development team behind the BombaAI architecture.</p>
             </motion.div>
 
             {/* Grid 3 Top, 2 Bottom Layout */}
