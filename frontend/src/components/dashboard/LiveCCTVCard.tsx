@@ -38,6 +38,14 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
     setErrorMessage("");
 
     try {
+      const statusRes = await fetch(`${API_BASE}/api/v1/vision/rtsp/status`);
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        if (!statusData.online) {
+          throw new Error("RTSP Stream is currently offline");
+        }
+      }
+
       // 1. Buat instance RTCPeerConnection
       const pc = new RTCPeerConnection({
         iceServers: [
@@ -94,7 +102,11 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
 
       // 7. Terima Answer dari backend dan set Remote Description
       const answer = await response.json();
-      await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      if (pc.signalingState !== "closed") {
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      } else {
+        console.warn("WebRTC connection closed before setting remote description");
+      }
 
     } catch (err: any) {
       console.error("❌ WebRTC Setup Error:", err);
@@ -114,6 +126,25 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
       }
     };
   }, [connectWebRTC]);
+
+  // Poll status to detect drops
+  useEffect(() => {
+    if (connectionState !== "live") return;
+    const interval = setInterval(async () => {
+      try {
+        const statusRes = await fetch(`${API_BASE}/api/v1/vision/rtsp/status`);
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          if (!statusData.online) {
+            console.log("📡 Stream dropped during playback");
+            setConnectionState("error");
+            setErrorMessage("Kamera terputus (RTSP Offline)");
+          }
+        }
+      } catch (e) {}
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [API_BASE, connectionState]);
 
   const handleRetry = async () => {
     // 1. Beri tahu backend untuk melakukan reconnect RTSP (jika mati)
@@ -204,7 +235,7 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
 
         {/* Skeleton Loading - Connecting */}
         <div
-          className={`absolute inset-0 flex items-center justify-center bg-slate-50/10 backdrop-blur-sm transition-opacity duration-500 ${connectionState === "connecting" ? "opacity-100" : "opacity-0 pointer-events-none"
+          className={`absolute inset-0 flex items-center justify-center bg-slate-800/40 backdrop-blur-md transition-opacity duration-500 z-20 ${connectionState === "connecting" ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
         >
           <div className="flex flex-col items-center gap-3">
@@ -215,7 +246,7 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
 
         {/* Error / Offline fallback */}
         <div
-          className={`absolute inset-0 flex flex-col items-center justify-center bg-slate-50/10 backdrop-blur-sm transition-opacity duration-500 ${connectionState === "error" ? "opacity-100" : "opacity-0 pointer-events-none"
+          className={`absolute inset-0 flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-md transition-opacity duration-500 z-20 ${connectionState === "error" ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
         >
           <div className="flex flex-col items-center gap-2 p-4">

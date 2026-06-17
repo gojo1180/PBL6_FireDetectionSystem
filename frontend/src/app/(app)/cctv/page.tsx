@@ -14,7 +14,10 @@ const RECONNECT_INTERVAL = 8000;
 export default function CCTVPage() {
  const [mounted, setMounted] = useState(false);
  const [currentTime, setCurrentTime] = useState("");
- const [streamUrl, setStreamUrl] = useState("");
+ const [connectionState, setConnectionState] = useState<"connecting" | "live" | "error">("connecting");
+ const [errorMessage, setErrorMessage] = useState("");
+ const videoRef = useRef<HTMLVideoElement>(null);
+ const pcRef = useRef<RTCPeerConnection | null>(null);
  const [isOffline, setIsOffline] = useState(false);
  const [isReconnecting, setIsReconnecting] = useState(false);
  const [reconnectCount, setReconnectCount] = useState(0);
@@ -143,35 +146,133 @@ export default function CCTVPage() {
  return () => clearInterval(timer);
  }, []);
 
- // ─── Connect to stream when device changes ─────────────────────────
- const connectStream = useCallback(() => {
- // Clear any pending reconnect
- if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
- if (streamTimeoutRef.current) clearTimeout(streamTimeoutRef.current);
+  // ─── Connect to stream using WebRTC ─────────────────────────
+  const connectWebRTC = useCallback(async () => {
+    if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
 
- setIsOffline(false);
- setIsReconnecting(false);
- const url = `${API_BASE}/api/v1/vision/stream?t=${Date.now()}`;
- setStreamUrl(url);
- console.log("[CCTV] Connecting to stream...");
+    setIsOffline(false);
+    setIsReconnecting(true);
+    setConnectionState("connecting");
+    setErrorMessage("");
 
- // Start a timeout — if we don't get onLoad within STREAM_TIMEOUT, mark dead
- streamTimeoutRef.current = setTimeout(() => {
- console.log("[CCTV] Stream timeout — marking offline");
- setIsOffline(true);
- }, STREAM_TIMEOUT);
- }, [API_BASE]);
+    // Cleanup previous connection
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
 
- useEffect(() => {
- if (selectedDeviceId && mounted) {
- setReconnectCount(0);
- connectStream();
- }
- return () => {
- if (streamTimeoutRef.current) clearTimeout(streamTimeoutRef.current);
- if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
- };
- }, [selectedDeviceId, mounted, connectStream]);
+    try {
+      const statusRes = await fetch(`${API_BASE}/api/v1/vision/rtsp/status`);
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        if (!statusData.online) {
+          throw new Error("RTSP Stream is currently offline");
+        }
+      }
+
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+      });
+      pcRef.current = pc;
+
+      pc.addTransceiver("video", { direction: "recvonly" });
+
+      pc.ontrack = (event) => {
+        if (event.track.kind === "video" && videoRef.current) {
+          videoRef.current.srcObject = event.streams[0];
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        console.log("📡 WebRTC State (CCTV Page):", pc.connectionState);
+        if (pc.connectionState === "connected") {
+          setConnectionState("live");
+          setIsOffline(false);
+          setIsReconnecting(false);
+          setReconnectCount(0);
+        } else if (
+          pc.connectionState === "failed" ||
+          pc.connectionState === "disconnected" ||
+          pc.connectionState === "closed"
+        ) {
+          setConnectionState("error");
+          setIsOffline(true);
+          setIsReconnecting(false);
+          setErrorMessage("Koneksi WebRTC terputus.");
+        }
+      };
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      const response = await fetch(`${API_BASE}/api/v1/vision/webrtc/offer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sdp: pc.localDescription?.sdp,
+          type: pc.localDescription?.type,
+          device_id: selectedDeviceId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to connect: ${response.statusText}`);
+      }
+
+      const answer = await response.json();
+      if (pc.signalingState !== "closed") {
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      } else {
+        console.warn("WebRTC connection closed before setting remote description");
+      }
+
+    } catch (err: any) {
+      console.error("❌ WebRTC Setup Error:", err);
+      setConnectionState("error");
+      setIsOffline(true);
+      setIsReconnecting(false);
+      setErrorMessage(err.message || "Gagal membangun koneksi WebRTC");
+    }
+  }, [API_BASE, selectedDeviceId]);
+
+  useEffect(() => {
+    if (selectedDeviceId && mounted) {
+      setReconnectCount(0);
+      connectWebRTC();
+    }
+    return () => {
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      if (pcRef.current) {
+        pcRef.current.close();
+        pcRef.current = null;
+      }
+    };
+  }, [selectedDeviceId, mounted, connectWebRTC]);
+
+  // ─── Poll status to detect if stream drops during live playback ───
+  useEffect(() => {
+    if (connectionState !== "live") return;
+    const interval = setInterval(async () => {
+      try {
+        const statusRes = await fetch(`${API_BASE}/api/v1/vision/rtsp/status`);
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          if (!statusData.online) {
+            console.log("📡 Stream dropped during playback");
+            setConnectionState("error");
+            setIsOffline(true);
+            setErrorMessage("Kamera terputus (RTSP Offline)");
+          }
+        }
+      } catch (e) {
+        // ignore fetch errors
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [API_BASE, connectionState]);
 
   // ─── Auto-reconnect when offline ──────────────────────────────────
   useEffect(() => {
@@ -189,7 +290,7 @@ export default function CCTVPage() {
     reconnectTimerRef.current = setTimeout(() => {
       setReconnectCount(prev => prev + 1);
       console.log("[CCTV] Auto-reconnecting now...");
-      connectStream();
+      connectWebRTC();
     }, RECONNECT_INTERVAL);
 
     return () => {
@@ -198,33 +299,22 @@ export default function CCTVPage() {
         reconnectTimerRef.current = null;
       }
     };
-  }, [isOffline, connectStream]);
-
- const handleStreamLoad = () => {
- // Stream loaded successfully — cancel timeout
- if (streamTimeoutRef.current) clearTimeout(streamTimeoutRef.current);
- setIsOffline(false);
- setIsReconnecting(false);
- setReconnectCount(0);
- console.log("[CCTV] Stream connected successfully");
- };
-
- const handleStreamError = () => {
- if (streamTimeoutRef.current) clearTimeout(streamTimeoutRef.current);
- console.log("[CCTV] Stream error — marking offline");
- setIsOffline(true);
- };
+  }, [isOffline, connectWebRTC]);
 
   const handleRetry = async () => {
-  setReconnectCount(0);
-  try {
-  await fetch(`${API_BASE}/api/v1/vision/rtsp/retry`, { method: 'POST' });
-  } catch (e) {
-  console.error("Failed to trigger RTSP retry", e);
-  }
-  setTimeout(() => {
-  connectStream();
-  }, 1000);
+    setReconnectCount(0);
+    try {
+      await fetch(`${API_BASE}/api/v1/vision/rtsp/retry`, { 
+        method: 'POST',
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ device_id: selectedDeviceId }),
+      });
+    } catch (e) {
+      console.error("Failed to trigger RTSP retry", e);
+    }
+    setTimeout(() => {
+      connectWebRTC();
+    }, 1000);
   };
 
   const saveCalibration = async () => {
@@ -356,7 +446,7 @@ export default function CCTVPage() {
  {/* Main Content grid */}
  <main className="flex-1 p-6 lg:p-8 space-y-6">
 
- <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+ <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
 
  {/* Main Video Stream Container (takes up 3 cols on large screens) */}
  <div className="lg:col-span-3 flex flex-col overflow-hidden relative bg-surface-card backdrop-blur-md border border-hairline rounded-2xl shadow-sm">
@@ -378,100 +468,88 @@ export default function CCTVPage() {
  </div>
 
  {/* The Video Container */}
- <div className="relative p-4 flex-1 flex flex-col justify-center items-center bg-slate-50/20">
- <div id="tour-cctv-feed" className="relative w-full max-w-5xl group">
- {/* The actual stream */}
- <div className={`transition-opacity duration-500 ${isOffline ? 'opacity-0 absolute inset-0 pointer-events-none' : 'opacity-100'}`}>
- {streamUrl && (
- <img
- src={streamUrl}
- alt="Live CCTV Stream"
- className="w-full max-h-[70vh] object-contain bg-slate-900 rounded-xl border border-hairline shadow-lg"
- onLoad={handleStreamLoad}
- onError={handleStreamError}
+ <div id="tour-cctv-feed" className="relative w-full aspect-video max-h-[60vh] bg-black overflow-hidden group border-t border-hairline">
+ {/* Video Element for WebRTC */}
+ <video
+ ref={videoRef}
+ autoPlay
+ playsInline
+ muted
+ className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-500 ${connectionState === "live" ? "opacity-100" : "opacity-0"
+ }`}
  />
- )}
- </div>
 
- {/* ─── Lost Connection / Offline State ──────────────── */}
- <div className={`transition-all duration-500 ${isOffline ? 'opacity-100' : 'opacity-0 absolute inset-0 pointer-events-none'}`}>
- <div className="w-full min-h-[50vh] md:min-h-[70vh] flex flex-col items-center justify-center rounded-xl relative overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-hairline shadow-lg">
- {/* CRT scanline effect */}
- <div className="absolute inset-0 opacity-[0.03] bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,#fff_2px,#fff_4px)] mix-blend-overlay" />
-
- {/* Subtle pulsing glow behind icon */}
- <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-red-500/10 rounded-full blur-[80px] animate-pulse" />
-
- <div className="relative z-10 flex flex-col items-center p-8">
- {/* Icon cluster */}
- <div className="relative mb-6">
- <div className="absolute inset-0 w-20 h-20 bg-red-500/10 rounded-full blur-xl animate-pulse" />
- <div className="relative w-20 h-20 rounded-2xl bg-surface-card/[0.05] backdrop-blur-xl border border-white/10 flex items-center justify-center shadow-2xl">
- <WifiOff size={36} className="text-red-400 drop-shadow-[0_0_12px_rgba(248,113,113,0.5)]" />
+ {/* Skeleton Loading - Connecting */}
+ <div
+ className={`absolute inset-0 flex items-center justify-center bg-slate-800/40 backdrop-blur-md transition-opacity duration-500 z-20 ${connectionState === "connecting" ? "opacity-100" : "opacity-0 pointer-events-none"
+ }`}
+ >
+ <div className="flex flex-col items-center gap-3">
+ <RefreshCw size={32} className="text-indigo-400 animate-spin" />
+ <p className="text-base font-medium text-body animate-pulse">Menyiapkan stream latensi rendah...</p>
  </div>
  </div>
 
- {/* Signal Lost Title */}
- <div className="flex items-center gap-3 mb-2">
- <span className="w-2.5 h-2.5 bg-red-400 rounded-full animate-ping" />
- <h2 className="text-2xl font-bold text-white tracking-widest uppercase">
- SIGNAL LOST
- </h2>
- <span className="w-2.5 h-2.5 bg-red-400 rounded-full animate-ping" />
+ {/* Error / Offline fallback */}
+ <div
+ className={`absolute inset-0 flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-md transition-opacity duration-500 z-20 ${connectionState === "error" ? "opacity-100" : "opacity-0 pointer-events-none"
+ }`}
+ >
+ <div className="flex flex-col items-center gap-4 p-6">
+ <div className="relative">
+ <div className="absolute inset-0 w-16 h-16 bg-rose-100 rounded-full blur-2xl animate-pulse" />
+ <div className="relative w-16 h-16 rounded-2xl bg-surface-strong border border-hairline flex items-center justify-center shadow-sm">
+ <WifiOff size={28} className="text-muted" />
+ </div>
  </div>
 
- <p className="text-sm text-white/50 font-mono mb-1">CONNECTION TO CAMERA FAILED</p>
+ <p className="text-base font-semibold text-body">
+ Kamera Offline
+ </p>
+ <p className="text-sm text-muted text-center max-w-[250px]">
+ {errorMessage || "Tidak dapat terhubung ke stream WebRTC."}
+ </p>
 
- {/* Reconnecting status */}
- <div className="flex items-center gap-2 mt-4 mb-6 px-4 py-2 rounded-full bg-surface-card/[0.05] border border-white/10 backdrop-blur-sm">
- <RefreshCw size={14} className={`text-amber-400 ${isReconnecting ? 'animate-spin' : ''}`} />
- <span className="text-xs text-white/60 font-mono">
- {isReconnecting ? `Reconnecting... (attempt ${reconnectCount + 1})` : 'Waiting...'}
- </span>
- </div>
-
- {/* Retry button */}
  <button
  onClick={handleRetry}
- className="px-5 py-2.5 bg-red-500/10 border border-red-400/40 text-red-300 font-mono text-xs uppercase tracking-widest rounded-lg hover:bg-red-500/20 hover:border-red-400/60 transition-all duration-300 active:scale-95"
+ className="mt-2 px-5 py-2.5 text-xs font-bold text-primary bg-primary/10 border border-primary/40 rounded-lg hover:bg-primary/20 hover:border-primary/40 transition-all duration-200 active:scale-95"
  >
- Manual Retry
+ Coba Hubungkan Kembali
  </button>
  </div>
  </div>
- </div>
 
- {/* Overlays on the video */}
- <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/10 shadow-lg">
- <div className={`w-2.5 h-2.5 rounded-full ${isOffline ? 'bg-red-400' : 'bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]'}`} />
- <span className={`text-[10px] font-bold tracking-widest uppercase ${isOffline ? 'text-red-400' : 'text-white'}`}>
- {isOffline ? 'OFFLINE' : 'LIVE'}
+ {/* Overlay badges */}
+ <span className="absolute top-4 left-4 bg-black/60 text-white text-xs font-mono px-2.5 py-1 rounded-md z-10 backdrop-blur-sm border border-white/10 shadow-lg">
+ {selectedDevice?.device_name || "CAM-01"}
  </span>
- </div>
 
- <div className="absolute bottom-4 left-4 z-10 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/10 shadow-lg">
- <span className={`text-xs font-mono shadow-sm ${isOffline ? 'text-red-300/80' : 'text-white/90'}`}>{currentTime}</span>
- </div>
-
- <div className="absolute top-4 right-4 z-10 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/10 shadow-lg">
- <div className="flex items-center gap-1.5">
- {isOffline ? (
- <ShieldAlert size={12} className="text-muted" />
- ) : (
- <ShieldCheck size={12} className="text-emerald-400" />
+ {connectionState === "live" && (
+ <span className="absolute top-4 right-4 flex items-center gap-1.5 bg-emerald-500/80 text-white text-xs font-bold px-2.5 py-1 rounded-md z-10 backdrop-blur-sm shadow-lg">
+ <ShieldCheck size={14} />
+ AMAN
+ </span>
  )}
- <span className={`text-[10px] font-bold tracking-widest uppercase ${isOffline ? 'text-muted' : 'text-white'}`}>
- {isOffline ? 'AI DISABLED' : 'AI ACTIVE'}
+
+ {connectionState === "error" && (
+ <span className="absolute top-4 right-4 flex items-center gap-1.5 bg-rose-500/90 text-white text-xs font-bold px-2.5 py-1 rounded-md z-10 backdrop-blur-sm shadow-lg">
+ <ShieldAlert size={14} />
+ OFFLINE
  </span>
- </div>
+ )}
+
+ {/* Bottom Left Timestamp */}
+ <div className="absolute bottom-4 left-4 z-10 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-md border border-white/10 shadow-lg">
+ <span className={`text-xs font-mono shadow-sm ${connectionState === "error" ? "text-red-300/80" : "text-white/90"}`}>
+ {currentTime}
+ </span>
  </div>
 
  {/* Crosshair / Center decoration just for SOC aesthetic */}
  <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-30 transition-opacity duration-700">
- <div className={`absolute top-1/2 left-0 w-full h-[1px] ${isOffline ? 'bg-red-500/50' : 'bg-primary/50'}`} />
- <div className={`absolute left-1/2 top-0 w-[1px] h-full ${isOffline ? 'bg-red-500/50' : 'bg-primary/50'}`} />
- <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 border rounded-full ${isOffline ? 'border-red-500' : 'border-indigo-500'}`} />
- </div>
+ <div className={`absolute top-1/2 left-0 w-full h-[1px] ${connectionState === "error" ? 'bg-red-500/50' : 'bg-primary/50'}`} />
+ <div className={`absolute left-1/2 top-0 w-[1px] h-full ${connectionState === "error" ? 'bg-red-500/50' : 'bg-primary/50'}`} />
+ <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 border rounded-full ${connectionState === "error" ? 'border-red-500' : 'border-indigo-500'}`} />
  </div>
  </div>
  </div>
@@ -503,7 +581,7 @@ export default function CCTVPage() {
  <Radio size={14} className="text-teal-500" />
  <span className="text-[11px] font-semibold text-body">Protocol</span>
  </div>
- <p className="text-sm font-mono font-semibold text-ink">MJPEG / TCP</p>
+ <p className="text-sm font-mono font-semibold text-ink">WebRTC / UDP</p>
  </div>
 
  <div className="p-3 rounded-xl bg-surface-card-elevated border border-hairline">

@@ -168,6 +168,12 @@ class OpenCVStreamTrack(VideoStreamTrack):
 # Global set untuk melacak peer connections yang sedang aktif
 pcs = set()
 
+@router.get("/vision/rtsp/status")
+def get_rtsp_status():
+    from services.vision_service import latest_frame, latest_annotated_frame
+    is_online = latest_frame is not None or latest_annotated_frame is not None
+    return {"online": is_online}
+
 @router.post("/vision/webrtc/offer")
 async def webrtc_offer(offer: WebRTCOffer):
     """
