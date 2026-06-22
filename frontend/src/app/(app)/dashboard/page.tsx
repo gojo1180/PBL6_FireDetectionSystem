@@ -552,7 +552,7 @@ export default function DashboardPage() {
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted">Select Device</p>
                 </div>
                 <div className="max-h-64 overflow-y-auto py-1">
-                  {devices.map((device) => (
+                  {devices.filter(d => d.device_type === "SENSOR").map((device) => (
                     <button
                       key={device.id}
                       onClick={() => {

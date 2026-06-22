@@ -165,14 +165,6 @@ export default function CCTVPage() {
     }
 
     try {
-      const statusRes = await fetch(`${API_BASE}/api/v1/vision/rtsp/status`);
-      if (statusRes.ok) {
-        const statusData = await statusRes.json();
-        if (!statusData.online) {
-          throw new Error("RTSP Stream is currently offline");
-        }
-      }
-
       const pc = new RTCPeerConnection({
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
       });
@@ -255,24 +247,36 @@ export default function CCTVPage() {
   // ─── Poll status to detect if stream drops during live playback ───
   useEffect(() => {
     if (connectionState !== "live") return;
+    
+    let lastFramesDecoded = 0;
+    
     const interval = setInterval(async () => {
+      if (!pcRef.current) return;
       try {
-        const statusRes = await fetch(`${API_BASE}/api/v1/vision/rtsp/status`);
-        if (statusRes.ok) {
-          const statusData = await statusRes.json();
-          if (!statusData.online) {
-            console.log("📡 Stream dropped during playback");
-            setConnectionState("error");
-            setIsOffline(true);
-            setErrorMessage("Kamera terputus (RTSP Offline)");
+        const stats = await pcRef.current.getStats();
+        let currentFramesDecoded = 0;
+        
+        stats.forEach((report) => {
+          if (report.type === "inbound-rtp" && report.kind === "video") {
+            currentFramesDecoded = report.framesDecoded || 0;
           }
+        });
+        
+        // If frames decoded hasn't increased, the stream is frozen/dropped
+        if (currentFramesDecoded === lastFramesDecoded && currentFramesDecoded > 0) {
+          console.log("📡 Stream dropped during playback (No new frames decoded)");
+          setConnectionState("error");
+          setIsOffline(true);
+          setErrorMessage("Kamera terputus (Video Freeze)");
         }
+        
+        lastFramesDecoded = currentFramesDecoded;
       } catch (e) {
-        // ignore fetch errors
+        // ignore stats error
       }
     }, 3000);
     return () => clearInterval(interval);
-  }, [API_BASE, connectionState]);
+  }, [connectionState]);
 
   // ─── Auto-reconnect when offline ──────────────────────────────────
   useEffect(() => {
@@ -405,7 +409,7 @@ export default function CCTVPage() {
  <p className="text-[10px] font-bold uppercase tracking-widest text-muted">Select Camera</p>
  </div>
  <div className="max-h-64 overflow-y-auto py-1">
- {devices.map((device) => (
+ {devices.filter(d => d.device_type === "CCTV").map((device) => (
  <button
  key={device.id}
  onClick={() => {

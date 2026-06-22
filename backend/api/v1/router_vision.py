@@ -143,18 +143,24 @@ class OpenCVStreamTrack(VideoStreamTrack):
         super().__init__()  # Penting untuk inisialisasi VideoStreamTrack!
 
     async def recv(self):
-        # next_timestamp akan mengatur sinkronisasi waktu FPS WebRTC
-        pts, time_base = await self.next_timestamp()
-        
-        # Mengambil frame BGR (NumPy array) dari vision_service
         frame_bgr = get_latest_frame_bgr()
         
         if frame_bgr is None:
-            # Jika belum ada frame (kamera offline / baru nyala), delay sedikit & beri blank frame
-            await asyncio.sleep(0.05)
-            import numpy as np
-            frame_bgr = np.zeros((480, 640, 3), dtype=np.uint8)
-            
+            # Kirim tepat 1 frame hitam agar WebRTC stats mencatat framesDecoded > 0,
+            # setelah itu blokir pengiriman frame agar frontend bisa mendeteksi "freeze".
+            if not getattr(self, "sent_black_frame", False):
+                import numpy as np
+                frame_bgr = np.zeros((480, 640, 3), dtype=np.uint8)
+                self.sent_black_frame = True
+            else:
+                while frame_bgr is None:
+                    await asyncio.sleep(0.5)
+                    frame_bgr = get_latest_frame_bgr()
+                self.sent_black_frame = False
+
+        # next_timestamp akan mengatur sinkronisasi waktu FPS WebRTC
+        pts, time_base = await self.next_timestamp()
+        
         # Konversi BGR OpenCV ke format yang dimengerti oleh av
         new_frame = av.VideoFrame.from_ndarray(frame_bgr, format="bgr24")
         new_frame.pts = pts
@@ -182,6 +188,12 @@ async def webrtc_offer(offer: WebRTCOffer):
     """
     # Switch the background vision service to monitor this specific user's device
     if offer.device_id:
+        from core.database import supabase
+        res = supabase.table("devices").select("rtsp_url").eq("id", offer.device_id).execute()
+        if not res.data or not res.data[0].get("rtsp_url"):
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="Perangkat tidak memiliki link RTSP yang dikonfigurasi")
+            
         from services.vision_service import set_active_cctv
         set_active_cctv(offer.device_id)
 

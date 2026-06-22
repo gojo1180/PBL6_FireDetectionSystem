@@ -130,21 +130,33 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
   // Poll status to detect drops
   useEffect(() => {
     if (connectionState !== "live") return;
+    
+    let lastFramesDecoded = 0;
+    
     const interval = setInterval(async () => {
+      if (!pcRef.current) return;
       try {
-        const statusRes = await fetch(`${API_BASE}/api/v1/vision/rtsp/status`);
-        if (statusRes.ok) {
-          const statusData = await statusRes.json();
-          if (!statusData.online) {
-            console.log("📡 Stream dropped during playback");
-            setConnectionState("error");
-            setErrorMessage("Kamera terputus (RTSP Offline)");
+        const stats = await pcRef.current.getStats();
+        let currentFramesDecoded = 0;
+        
+        stats.forEach((report) => {
+          if (report.type === "inbound-rtp" && report.kind === "video") {
+            currentFramesDecoded = report.framesDecoded || 0;
           }
+        });
+        
+        // If frames decoded hasn't increased, the stream is frozen/dropped
+        if (currentFramesDecoded === lastFramesDecoded && currentFramesDecoded > 0) {
+          console.log("📡 Stream dropped during playback (No new frames decoded)");
+          setConnectionState("error");
+          setErrorMessage("Kamera terputus (Video Freeze)");
         }
+        
+        lastFramesDecoded = currentFramesDecoded;
       } catch (e) {}
     }, 3000);
     return () => clearInterval(interval);
-  }, [API_BASE, connectionState]);
+  }, [connectionState]);
 
   const handleRetry = async () => {
     // 1. Beri tahu backend untuk melakukan reconnect RTSP (jika mati)

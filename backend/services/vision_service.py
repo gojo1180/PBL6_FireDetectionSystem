@@ -29,7 +29,7 @@ frame_lock = threading.Lock()
 _last_gc_time = 0
 
 def set_active_cctv(device_id: str):
-    global current_rtsp_url, current_device_id, current_medium_threshold, current_large_threshold, cap_reconnect_flag, retry_counter
+    global current_rtsp_url, current_device_id, current_medium_threshold, current_large_threshold, cap_reconnect_flag, retry_counter, latest_frame
     try:
         res = supabase.table("devices").select("id, rtsp_url, medium_fire_threshold, large_fire_threshold").eq("id", device_id).execute()
         if res.data and len(res.data) > 0:
@@ -40,7 +40,9 @@ def set_active_cctv(device_id: str):
             with frame_lock:
                 current_medium_threshold = db_med
                 current_large_threshold = db_large
-                if current_device_id != db_id or current_rtsp_url != db_url:
+                
+                # Reconnect jika device berubah, atau jika frame saat ini kosong (stream mati)
+                if current_device_id != db_id or current_rtsp_url != db_url or latest_frame is None:
                     print(f"🔄 [Switch User CCTV] Switching to device {db_id} with URL {db_url}")
                     current_rtsp_url = db_url
                     current_device_id = db_id
@@ -227,7 +229,11 @@ def cctv_inference_loop():
             
             # Update the global annotated frame for the MJPEG live feed
             with frame_lock:
-                latest_annotated_frame = annotated_img
+                # Cek apakah stream tidak di-reset saat kita melakukan inferensi
+                if latest_frame is not None and current_device_id == current_dev:
+                    latest_annotated_frame = annotated_img
+                else:
+                    latest_annotated_frame = None
             
             current_time = time.time()
             
@@ -317,31 +323,39 @@ def cctv_inference_loop():
                     last_db_alert_time = current_time 
                 except Exception as e:
                     print(f"❌ Error saving CCTV alert to DB: {e}")
-            else:
                 # SAFE or cooldown not met
                 pass
                 
-            # AUTO-RESET CHECK
-            # AUTO-RESET CHECK
-            if fusion_service.check_auto_reset():
-                print("🔄 Auto-Reset Triggered: 5 minutes without anomalies. Resolving all active alerts.")
-                try:
-                    supabase.table("fusion_alerts").update({"is_resolved": True}).eq("is_resolved", False).execute()
-                    
-                    # =======================================================
-                    # [BARU] Kirim perintah AMAN ke ESP32 via MQTT
-                    from core.mqtt_client import client as mqtt_client
-                    mqtt_client.publish("iot/sensor/command", "AMAN")
-                    # =======================================================
-                    
-                except Exception as e:
-                    print(f"❌ Error auto-resolving alerts: {e}")
-                    
             # Memory Optimization: Explicitly release large OpenCV/numpy objects
             del frame_to_process
             del vision_results
             del annotated_img
             
+            # Clean up alert-path temporaries if they were created this iteration
+            try:
+                del buffer
+            except NameError:
+                pass
+            try:
+                del image_bytes
+            except NameError:
+                pass
+        else:
+            with frame_lock:
+                latest_annotated_frame = None
+
+        # AUTO-RESET CHECK
+        if fusion_service.check_auto_reset():
+            print("🔄 Auto-Reset Triggered: 5 minutes without anomalies. Resolving all active alerts.")
+            try:
+                supabase.table("fusion_alerts").update({"is_resolved": True}).eq("is_resolved", False).execute()
+                
+                # Kirim perintah AMAN ke ESP32 via MQTT
+                from core.mqtt_client import client as mqtt_client
+                mqtt_client.publish("iot/sensor/command", "AMAN")
+            except Exception as e:
+                print(f"❌ Error auto-resolving alerts: {e}")
+                            
             # Clean up alert-path temporaries if they were created this iteration
             try:
                 del buffer
@@ -421,26 +435,13 @@ def stop_cctv_service():
         inference_thread.join(timeout=3.0)
 
 def force_reconnect():
-    """Manually trigger RTSP reconnection."""
-    global cap_reconnect_flag, retry_counter, current_rtsp_url, current_device_id, current_medium_threshold, current_large_threshold
+    """Manually trigger RTSP reconnection for the currently active device."""
+    global cap_reconnect_flag, retry_counter, current_device_id
     
-    try:
-        res = supabase.table("devices").select("id, rtsp_url, medium_fire_threshold, large_fire_threshold").eq("device_type", "CCTV").eq("status", "active").execute()
-        if res.data and len(res.data) > 0:
-            db_url = res.data[-1].get("rtsp_url")
-            db_id = res.data[-1].get("id")
-            db_med = res.data[-1].get("medium_fire_threshold") or 5.0
-            db_large = res.data[-1].get("large_fire_threshold") or 20.0
-            with frame_lock:
-                current_medium_threshold = db_med
-                current_large_threshold = db_large
-                if db_url != current_rtsp_url:
-                    print(f"🔄 [Manual Retry] RTSP URL changed to {db_url}")
-                current_rtsp_url = db_url
-                current_device_id = db_id
-    except Exception as e:
-        print(f"❌ Error polling CCTV config during manual retry: {e}")
-
     with frame_lock:
-        cap_reconnect_flag = True
-        retry_counter = 0
+        if current_device_id is not None:
+            print(f"🔄 [Manual Retry] Forcing reconnect for current device {current_device_id}")
+            cap_reconnect_flag = True
+            retry_counter = 0
+        else:
+            print("⚠️ [Manual Retry] No current device to reconnect.")
