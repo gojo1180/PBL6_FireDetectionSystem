@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { apiFetch, getDevices, getDashboardSensors, getLatestVision, getAlerts, getCalibrationStatus, CalibrationStatus, setCalibrationConfig } from "@/lib/api";
-import { Activity, Bell, Flame, Gauge, Wind, Droplets, ChevronDown, MapPin, Server, BrainCircuit, Settings2, Thermometer, Zap, PlayCircle } from "lucide-react";
+import { apiFetch, getDevices, getDashboardSensors, getLatestVision, getAlerts, getCalibrationStatus, CalibrationStatus, setCalibrationConfig, getBuzzerMode, setBuzzerMode, testBuzzer } from "@/lib/api";
+import { Activity, Bell, Flame, Gauge, Wind, Droplets, ChevronDown, MapPin, Server, BrainCircuit, Settings2, Thermometer, Zap, PlayCircle, Volume2 } from "lucide-react";
 import { TutorialTour, TourStep } from "@/components/ui/TutorialTour";
 
 import { SensorLog, VisionLog, FusionAlert, Device } from "@/types";
@@ -40,6 +40,8 @@ export default function DashboardPage() {
   const [alertsList, setAlertsList] = useState<FusionAlert[]>([]);
   const [calibration, setCalibration] = useState<CalibrationStatus | null>(null);
   const [isUpdatingToleransi, setIsUpdatingToleransi] = useState(false);
+  const [buzzerMode, setBuzzerModeState] = useState<string>("FUSION_ONLY");
+  const [isUpdatingBuzzer, setIsUpdatingBuzzer] = useState(false);
   const [isTourActive, setIsTourActive] = useState(false);
 
   // Track buffering state efficiently without global intervals
@@ -121,6 +123,41 @@ export default function DashboardPage() {
     }
   };
 
+  const updateBuzzerMode = async (newMode: string) => {
+    setIsUpdatingBuzzer(true);
+    try {
+      await setBuzzerMode(newMode);
+      setBuzzerModeState(newMode);
+    } catch (err) {
+      console.error("Failed to update buzzer", err);
+    } finally {
+      setIsUpdatingBuzzer(false);
+    }
+  };
+
+  const toggleCctv = () => {
+    if (buzzerMode === "CCTV_ONLY") updateBuzzerMode("MUTE");
+    else if (buzzerMode === "SENSOR_ONLY") updateBuzzerMode("ANY");
+    else if (buzzerMode === "ANY") updateBuzzerMode("SENSOR_ONLY");
+    else updateBuzzerMode("CCTV_ONLY");
+  };
+
+  const toggleSensor = () => {
+    if (buzzerMode === "SENSOR_ONLY") updateBuzzerMode("MUTE");
+    else if (buzzerMode === "CCTV_ONLY") updateBuzzerMode("ANY");
+    else if (buzzerMode === "ANY") updateBuzzerMode("CCTV_ONLY");
+    else updateBuzzerMode("SENSOR_ONLY");
+  };
+
+  const toggleMute = () => {
+    if (buzzerMode !== "MUTE") updateBuzzerMode("MUTE");
+  };
+
+  const toggleFusion = () => {
+    if (buzzerMode === "FUSION_ONLY") updateBuzzerMode("MUTE");
+    else updateBuzzerMode("FUSION_ONLY");
+  };
+
   const dropdownRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
 
@@ -195,6 +232,14 @@ export default function DashboardPage() {
       // Fetch calibration
       const calib = await getCalibrationStatus();
       if (calib) setCalibration(calib);
+
+      // Fetch buzzer mode
+      try {
+        const buzzerData = await getBuzzerMode();
+        if (buzzerData?.current_mode) setBuzzerModeState(buzzerData.current_mode);
+      } catch (err) {
+        console.error("[Dashboard] Error fetching buzzer mode:", err);
+      }
     } catch (err) {
       console.log("[Dashboard] Error fetching initial data:", err);
     }
@@ -355,10 +400,10 @@ export default function DashboardPage() {
         <div id="tour-charts-cctv" className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-5">
           {/* CCTV — spans 1 column on desktop (50% width) */}
           <div className="lg:col-span-1">
-            <LiveCCTVCard 
-              latestVision={latestVision} 
-              isDanger={isSystemInDanger} 
-              deviceId={devices.find(d => d.device_type === "CCTV")?.id} 
+            <LiveCCTVCard
+              latestVision={latestVision}
+              isDanger={isSystemInDanger}
+              deviceId={devices.find(d => d.device_type === "CCTV")?.id}
             />
           </div>
           {/* Right column: Informasi CCTV + Environment Cards */}
@@ -379,7 +424,7 @@ export default function DashboardPage() {
                   </span>
                 )}
               </h3>
-              
+
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between">
                   <span className="text-muted">Nama Perangkat:</span>
@@ -397,7 +442,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-            
+
             {/* Environment Cards (Side-by-side) */}
             <div className="grid grid-cols-2 gap-3 md:gap-5 flex-1">
               <MetricCard
@@ -547,7 +592,7 @@ export default function DashboardPage() {
 
             {/* Dropdown Menu */}
             {isDropdownOpen && (
-              <div className="absolute top-full left-0 md:left-auto mt-1.5 w-[calc(100vw-2rem)] sm:w-72 bg-surface-card border border-hairline rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="fixed top-[72px] left-4 right-4 sm:absolute sm:top-full sm:left-0 sm:right-auto sm:mt-1.5 sm:w-72 bg-white dark:bg-gray-900 border border-hairline rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in sm:slide-in-from-top-1 duration-150">
                 <div className="px-3 py-2 border-b border-hairline">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted">Select Device</p>
                 </div>
@@ -609,48 +654,98 @@ export default function DashboardPage() {
             </button>
 
             {isSettingsOpen && (
-              <div className="absolute top-full right-0 origin-top-right mt-2 w-[calc(100vw-2rem)] sm:w-80 bg-surface-card border border-hairline rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="px-5 py-4 border-b border-hairline flex items-center gap-3 bg-surface-strong">
+              <div className="fixed top-[72px] left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:right-0 sm:mt-2 sm:w-80 bg-white dark:bg-gray-900 border border-hairline rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in sm:slide-in-from-top-2 duration-200">
+                <div className="px-4 py-3 sm:px-5 sm:py-4 border-b border-hairline flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50">
                   <div className="p-2 rounded-xl bg-primary/10">
-                    <BrainCircuit size={18} className="text-primary" />
+                    <Settings2 size={18} className="text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-ink">AI Anomaly Detection</p>
-                    <p className="text-xs text-muted">Configure sensitivity level</p>
+                    <p className="text-sm font-bold text-ink">System Settings</p>
+                    <p className="text-xs text-muted">Configure AI & Hardware options</p>
                   </div>
                 </div>
-                <div className="p-5 space-y-4">
-                  {calibration ? (
-                    <>
-                      <div>
-                        <label htmlFor="sensitivity-select" className="text-xs text-muted uppercase tracking-wider font-bold block mb-2">
-                          Sensitivity Level
-                        </label>
-                        <select
-                          id="sensitivity-select"
-                          value={calibration.toleransi_threshold}
-                          onChange={handleToleransiChange}
-                          disabled={isUpdatingToleransi}
-                          className="w-full bg-surface-card-elevated border border-hairline text-body text-sm font-semibold rounded-xl px-4 py-2.5 focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20 cursor-pointer disabled:opacity-50 transition-all"
-                        >
-                          <option value={1.1}>High (Strict)</option>
-                          <option value={1.3}>Balanced (Recommended)</option>
-                          <option value={1.5}>Low (Relaxed)</option>
-                          <option value={1.7}>Very Low</option>
-                          <option value={2.0}>Minimum Alerts</option>
-                        </select>
-                      </div>
-                      <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-2 rounded-lg text-xs font-medium">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                        <span>System actively analyzing sensor variances</span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center py-4">
-                      <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                      <p className="text-sm text-muted">Loading calibration...</p>
+
+                <div className="p-4 sm:p-5 space-y-5 sm:space-y-6">
+                  {/* AI Sensitivity */}
+                  <div className="space-y-2.5 sm:space-y-3">
+                    <div className="flex items-center gap-2">
+                      <BrainCircuit size={16} className="text-indigo-500" />
+                      <h4 className="text-sm font-bold text-ink">AI Sensitivity</h4>
                     </div>
-                  )}
+                    {calibration ? (
+                      <select
+                        value={calibration.toleransi_threshold}
+                        onChange={handleToleransiChange}
+                        disabled={isUpdatingToleransi}
+                        className="w-full bg-surface-card-elevated border border-hairline text-body text-sm font-semibold rounded-xl px-3 py-2.5 focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20 cursor-pointer disabled:opacity-50 transition-all appearance-none"
+                      >
+                        <option value={1.1}>High (Strict)</option>
+                        <option value={1.3}>Balanced (Recommended)</option>
+                        <option value={1.5}>Low (Relaxed)</option>
+                        <option value={1.7}>Very Low</option>
+                        <option value={2.0}>Minimum Alerts</option>
+                      </select>
+                    ) : (
+                      <div className="text-center py-2">
+                        <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-1"></div>
+                        <p className="text-[10px] text-muted">Loading...</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Buzzer Mode */}
+                  <div className="space-y-2.5 sm:space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Volume2 size={16} className="text-rose-500" />
+                      <h4 className="text-sm font-bold text-ink">Physical Alarm</h4>
+                    </div>
+                    <p className="text-[11px] text-muted leading-tight mb-2">Select the detection source that triggers the Sensor physical alarm.</p>
+
+                    <div className={`space-y-2 ${isUpdatingBuzzer ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <label className="flex items-center gap-3 p-2.5 rounded-xl border border-hairline bg-surface-card-elevated hover:bg-primary/5 cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={buzzerMode === "CCTV_ONLY" || buzzerMode === "ANY"}
+                          onChange={toggleCctv}
+                          className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                        />
+                        <span className="text-sm font-medium text-ink">CCTV Camera Detection</span>
+                      </label>
+
+                      <label className="flex items-center gap-3 p-2.5 rounded-xl border border-hairline bg-surface-card-elevated hover:bg-primary/5 cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={buzzerMode === "SENSOR_ONLY" || buzzerMode === "ANY"}
+                          onChange={toggleSensor}
+                          className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                        />
+                        <span className="text-sm font-medium text-ink">Gas & Smoke Sensor Detection</span>
+                      </label>
+
+                      {/* Standalone Fusion Checkbox */}
+                      <label className="flex items-center gap-3 p-2.5 rounded-xl border border-indigo-200 bg-indigo-50/50 dark:bg-indigo-900/10 cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={buzzerMode === "FUSION_ONLY"}
+                          onChange={toggleFusion}
+                          className="w-4 h-4 rounded border-indigo-300 text-indigo-500 focus:ring-indigo-500 cursor-pointer"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-indigo-700 dark:text-indigo-400">Both Detections Required (Fusion)</span>
+                        </div>
+                      </label>
+
+                      <label className="flex items-center gap-3 p-2.5 rounded-xl border border-hairline bg-surface-card-elevated hover:bg-rose-50 dark:hover:bg-rose-900/10 cursor-pointer transition-colors mt-2">
+                        <input
+                          type="checkbox"
+                          checked={buzzerMode === "MUTE"}
+                          onChange={toggleMute}
+                          className="w-4 h-4 rounded border-gray-300 text-rose-500 focus:ring-rose-500 cursor-pointer accent-rose-500"
+                        />
+                        <span className={`text-sm font-medium ${buzzerMode === "MUTE" ? "text-rose-600 dark:text-rose-400" : "text-ink"}`}>Mute Alarm</span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

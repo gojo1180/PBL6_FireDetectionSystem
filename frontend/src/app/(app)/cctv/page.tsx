@@ -375,13 +375,13 @@ export default function CCTVPage() {
   return (
  <div className="flex flex-col min-h-screen bg-canvas">
  {/* Top Bar */}
- <header className="h-16 border-b border-hairline bg-surface-card backdrop-blur-md flex items-center justify-between pl-16 lg:pl-6 pr-6 shrink-0 sticky top-0 z-20 shadow-[0_2px_8px_rgba(99,102,241,0.02)]">
+ <header className="h-16 border-b border-hairline bg-surface-card backdrop-blur-md flex items-center justify-between pl-16 lg:pl-6 px-4 lg:px-6 shrink-0 sticky top-0 z-20 shadow-[0_2px_8px_rgba(99,102,241,0.02)] transition-colors duration-500">
  <div className="flex items-center gap-3 text-sm">
- <div className="p-2 rounded-lg bg-violet-50">
+ <div className="p-2 rounded-lg bg-violet-50 transition-colors duration-500">
  <Camera size={18} className="text-violet-500" />
  </div>
- <span className="font-bold text-base text-ink">Security Operations Center</span>
- <span className="text-muted text-lg">/</span>
+ <span className="font-bold text-base text-ink hidden sm:inline transition-colors duration-500">Security Operations Center</span>
+ <span className="text-muted text-lg hidden sm:inline transition-colors duration-500">/</span>
 
  {/* ─── Device Selector Dropdown ─────────────────────────── */}
  <div className="relative" ref={dropdownRef}>
@@ -391,7 +391,7 @@ export default function CCTVPage() {
  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-card-elevated backdrop-blur-sm border border-hairline hover:border-primary/40 transition-all duration-200 cursor-pointer group"
  >
  <Server size={13} className="text-primary" />
- <span className="text-ink font-medium truncate max-w-[180px]">
+ <span className="text-ink font-medium truncate max-w-[150px] sm:max-w-[180px]">
  {selectedDevice?.device_name || "Select Camera"}
  </span>
  {selectedDevice?.location && (
@@ -404,7 +404,7 @@ export default function CCTVPage() {
 
  {/* Dropdown Menu */}
  {isDropdownOpen && (
- <div className="absolute top-full left-0 mt-1.5 w-72 bg-surface-card backdrop-blur-xl border border-hairline rounded-xl shadow-2xl shadow-slate-200/50 overflow-hidden z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+ <div className="fixed top-[72px] left-4 right-4 sm:absolute sm:top-full sm:left-0 sm:right-auto sm:mt-1.5 sm:w-72 bg-white dark:bg-gray-900 border border-hairline rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in sm:slide-in-from-top-1 duration-150">
  <div className="px-3 py-2 border-b border-hairline">
  <p className="text-[10px] font-bold uppercase tracking-widest text-muted">Select Camera</p>
  </div>
@@ -443,7 +443,9 @@ export default function CCTVPage() {
  </div>
 
  <div className="flex items-center gap-3">
- <span className="text-xs font-mono text-body bg-surface-card-elevated px-3 py-1.5 rounded-lg border border-hairline tabular-nums">{currentTime}</span>
+ <span className="text-xs font-mono text-body bg-surface-card-elevated px-3 py-1.5 rounded-lg border border-hairline tabular-nums hidden lg:inline-block">
+ {currentTime}
+ </span>
  </div>
  </header>
 

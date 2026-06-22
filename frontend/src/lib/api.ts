@@ -226,3 +226,22 @@ export async function summarizeNews(url: string, fullText: string | null): Promi
     body: { url, full_text: fullText },
   });
 }
+
+// ─── Settings / Buzzer ─────────────────────────────────────────────
+export async function getBuzzerMode(): Promise<{ current_mode: string }> {
+  return apiFetch<{ current_mode: string }>("/api/v1/settings/buzzer");
+}
+
+export async function setBuzzerMode(mode: string): Promise<{ message: string; current_mode: string }> {
+  return apiFetch<{ message: string; current_mode: string }>("/api/v1/settings/buzzer", {
+    method: "POST",
+    body: { mode }
+  });
+}
+
+export async function testBuzzer(): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>("/api/v1/settings/buzzer/test", {
+    method: "POST"
+  });
+}
+

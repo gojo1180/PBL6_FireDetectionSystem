@@ -284,9 +284,9 @@ def cctv_inference_loop():
                     if alert_level in ['CCTV_ALERT', 'FIRE_DANGER']:
                         
                         # =======================================================
-                        # [BARU] Kirim perintah BAHAYA ke ESP32 via MQTT
-                        from core.mqtt_client import client as mqtt_client
-                        mqtt_client.publish("iot/sensor/command", "BAHAYA")
+                        # [BARU] Evaluasi Buzzer Mode sebelum mengirim perintah
+                        from core.buzzer_mode import trigger_mqtt_buzzer_evaluation
+                        trigger_mqtt_buzzer_evaluation()
                         # =======================================================
                         
                         active_alerts = supabase.table("fusion_alerts").select("id").eq("is_resolved", False).eq("device_id", current_dev).execute()
@@ -350,9 +350,9 @@ def cctv_inference_loop():
             try:
                 supabase.table("fusion_alerts").update({"is_resolved": True}).eq("is_resolved", False).execute()
                 
-                # Kirim perintah AMAN ke ESP32 via MQTT
-                from core.mqtt_client import client as mqtt_client
-                mqtt_client.publish("iot/sensor/command", "AMAN")
+                # Evaluasi Buzzer Mode sebelum mengirim perintah
+                from core.buzzer_mode import trigger_mqtt_buzzer_evaluation
+                trigger_mqtt_buzzer_evaluation()
             except Exception as e:
                 print(f"❌ Error auto-resolving alerts: {e}")
                             

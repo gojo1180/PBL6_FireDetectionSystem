@@ -84,8 +84,9 @@ def on_message(client, userdata, msg):
         if alert_level in ['SENSOR_ALERT', 'FIRE_DANGER']:
             
             # ========================================================
-            # [BARU] Kirim perintah ke ESP32 untuk menyalakan buzzer
-            client.publish("iot/sensor/command", "BAHAYA")
+            # [BARU] Evaluasi Buzzer Mode sebelum mengirim perintah
+            from core.buzzer_mode import trigger_mqtt_buzzer_evaluation
+            trigger_mqtt_buzzer_evaluation()
             # ========================================================
 
             # Cek apakah sudah ada alert aktif untuk device ini
@@ -122,8 +123,9 @@ def on_message(client, userdata, msg):
                 
         elif alert_level == 'SAFE':
             # ========================================================
-            # [BARU] Kirim perintah ke ESP32 untuk mematikan buzzer
-            client.publish("iot/sensor/command", "AMAN")
+            # [BARU] Evaluasi Buzzer Mode sebelum mengirim perintah
+            from core.buzzer_mode import trigger_mqtt_buzzer_evaluation
+            trigger_mqtt_buzzer_evaluation()
             # ========================================================
             
             # Jika SAFE dan tidak ada deteksi api dari vision, tidak perlu buat alert baru
