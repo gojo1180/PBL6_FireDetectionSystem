@@ -31,6 +31,7 @@ export default function DashboardPage() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [isDevicesLoading, setIsDevicesLoading] = useState(true);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
+  const [selectedCctvId, setSelectedCctvId] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [latestSensor, setLatestSensor] = useState<SensorLog | null>(null);
@@ -192,6 +193,12 @@ export default function DashboardPage() {
           const sensorDevice = data.find(d => d.device_type === "SENSOR") || data[0];
           setSelectedDeviceId(sensorDevice.id);
           console.log("[Dashboard] Devices loaded, selected:", sensorDevice.device_name);
+
+          // Auto-select first CCTV device
+          const cctvDevice = data.find(d => d.device_type === "CCTV");
+          if (cctvDevice) {
+            setSelectedCctvId(cctvDevice.id);
+          }
         }
       } catch (err) {
         console.log("[Dashboard] Error fetching devices:", err);
@@ -357,6 +364,7 @@ export default function DashboardPage() {
 
 
   const selectedDevice = useMemo(() => devices.find(d => d.id === selectedDeviceId), [devices, selectedDeviceId]);
+  const selectedCctvDevice = useMemo(() => devices.find(d => d.id === selectedCctvId), [devices, selectedCctvId]);
 
   const isSystemInDanger = latestAlert ? !latestAlert.is_resolved : false;
 
@@ -403,41 +411,55 @@ export default function DashboardPage() {
             <LiveCCTVCard
               latestVision={latestVision}
               isDanger={isSystemInDanger}
-              deviceId={devices.find(d => d.device_type === "CCTV")?.id}
+              deviceId={selectedCctvId}
             />
           </div>
           {/* Right column: Informasi CCTV + Environment Cards */}
           <div className="lg:col-span-1 flex flex-col gap-3 md:gap-5 h-full">
             {/* Informasi CCTV Card */}
             <div className="bg-surface-card backdrop-blur-md border border-hairline rounded-2xl shadow-sm p-4 md:p-5 flex-1 flex flex-col justify-center">
-              <h3 className="font-bold text-ink mb-3 border-b border-hairline pb-2 flex items-center justify-between">
-                <span>Informasi CCTV</span>
-                {devices.find(d => d.device_type === "CCTV")?.status === "active" ? (
-                  <span className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 text-[10px] font-bold rounded-lg border border-emerald-500/20">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Aktif
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-500/10 text-rose-600 text-[10px] font-bold rounded-lg border border-rose-500/20">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                    Offline
-                  </span>
-                )}
-              </h3>
+              <div className="mb-3 border-b border-hairline pb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-ink">Informasi CCTV</span>
+                  {selectedCctvDevice?.status === "active" ? (
+                    <span className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 text-[10px] font-bold rounded-lg border border-emerald-500/20">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Aktif
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-500/10 text-rose-600 text-[10px] font-bold rounded-lg border border-rose-500/20">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                      Offline
+                    </span>
+                  )}
+                </div>
+                <select
+                  value={selectedCctvId}
+                  onChange={(e) => setSelectedCctvId(e.target.value)}
+                  className="w-full bg-surface-card-elevated border border-hairline text-body text-xs font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 cursor-pointer appearance-none"
+                >
+                  {devices.filter(d => d.device_type === "CCTV").map(cctv => (
+                    <option key={cctv.id} value={cctv.id}>{cctv.device_name} - {cctv.location}</option>
+                  ))}
+                  {devices.filter(d => d.device_type === "CCTV").length === 0 && (
+                    <option value="">Tidak ada CCTV</option>
+                  )}
+                </select>
+              </div>
 
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between">
                   <span className="text-muted">Nama Perangkat:</span>
-                  <span className="font-semibold text-ink">{devices.find(d => d.device_type === "CCTV")?.device_name || "Camera-01"}</span>
+                  <span className="font-semibold text-ink">{selectedCctvDevice?.device_name || "-"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted">Lokasi:</span>
-                  <span className="font-semibold text-ink">{devices.find(d => d.device_type === "CCTV")?.location || "Area Produksi"}</span>
+                  <span className="font-semibold text-ink">{selectedCctvDevice?.location || "-"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted">IP Address / RTSP:</span>
-                  <span className="font-mono text-[10px] text-ink truncate max-w-[120px]" title={devices.find(d => d.device_type === "CCTV")?.rtsp_url || "-"}>
-                    {devices.find(d => d.device_type === "CCTV")?.rtsp_url ? "Terhubung" : "Tidak ada"}
+                  <span className="font-mono text-[10px] text-ink truncate max-w-[120px]" title={selectedCctvDevice?.rtsp_url || "-"}>
+                    {selectedCctvDevice?.rtsp_url ? "Terhubung" : "Tidak ada"}
                   </span>
                 </div>
               </div>
@@ -530,7 +552,7 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
-  ), [latestSensor, latestVision, isSystemInDanger, isBuffering, isTourActive, checkFeatureWarn, getFeatureProgress]);
+  ), [latestSensor, latestVision, isSystemInDanger, isBuffering, isTourActive, checkFeatureWarn, getFeatureProgress, selectedCctvId, selectedCctvDevice, devices]);
 
   if (!mounted) return <div className="flex-1 min-h-screen bg-canvas" />;
 
