@@ -38,12 +38,24 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
     setErrorMessage("");
 
     try {
-      const statusRes = await fetch(`${API_BASE}/api/v1/vision/rtsp/status`);
-      if (statusRes.ok) {
-        const statusData = await statusRes.json();
-        if (!statusData.online) {
-          throw new Error("RTSP Stream is currently offline");
-        }
+      // Tunggu hingga stream online (maksimal 8 detik)
+      let isOnline = false;
+      for (let i = 0; i < 8; i++) {
+        try {
+          const statusRes = await fetch(`${API_BASE}/api/v1/vision/rtsp/status`);
+          if (statusRes.ok) {
+            const statusData = await statusRes.json();
+            if (statusData.online) {
+              isOnline = true;
+              break;
+            }
+          }
+        } catch (e) {}
+        await new Promise(r => setTimeout(r, 1000));
+      }
+
+      if (!isOnline) {
+        throw new Error("RTSP Stream is currently offline");
       }
 
       // 1. Buat instance RTCPeerConnection
@@ -117,15 +129,34 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
 
   // Initial connection & Cleanup
   useEffect(() => {
-    connectWebRTC();
+    // Otomatis melakukan retry RTSP saat device berubah untuk memastikan stream bangun
+    const initStream = async () => {
+      if (deviceId) {
+        try {
+          await fetch(`${API_BASE}/api/v1/vision/rtsp/retry`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ device_id: deviceId }),
+          });
+        } catch (err) {
+          console.warn("RTSP retry notification failed on device change", err);
+        }
+      }
+      connectWebRTC();
+    };
+
+    initStream();
 
     return () => {
       if (pcRef.current) {
         pcRef.current.close();
         pcRef.current = null;
       }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
     };
-  }, [connectWebRTC]);
+  }, [connectWebRTC, deviceId, API_BASE]);
 
   // Poll status to detect drops
   useEffect(() => {
