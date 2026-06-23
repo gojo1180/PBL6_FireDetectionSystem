@@ -185,9 +185,38 @@ export const LiveCCTVCard = memo(function LiveCCTVCard({
         
         lastFramesDecoded = currentFramesDecoded;
       } catch (e) {}
-    }, 3000);
+    }, 10000);
     return () => clearInterval(interval);
   }, [connectionState]);
+
+  // ─── Auto-reconnect when offline ──────────────────────────────────
+  useEffect(() => {
+    if (connectionState !== "error") return;
+
+    console.log(`[LiveCCTVCard] Stream offline, scheduling auto-reconnect in 8000ms...`);
+    const timer = setTimeout(() => {
+      console.log("[LiveCCTVCard] Auto-reconnecting now...");
+      // Auto-trigger RTSP retry to backend before connecting WebRTC
+      if (deviceId) {
+        fetch(`${API_BASE}/api/v1/vision/rtsp/retry`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ device_id: deviceId }),
+        }).catch(e => console.warn("Auto-reconnect RTSP notification failed", e));
+      }
+      
+      if (pcRef.current) {
+        pcRef.current.close();
+        pcRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+      connectWebRTC();
+    }, 8000);
+
+    return () => clearTimeout(timer);
+  }, [connectionState, connectWebRTC, deviceId, API_BASE]);
 
   const handleRetry = async () => {
     // 1. Beri tahu backend untuk melakukan reconnect RTSP (jika mati)
